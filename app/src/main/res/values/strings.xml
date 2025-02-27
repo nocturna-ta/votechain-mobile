@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">Wallet Mobile</string>
+    <string name="votally">Votally</string>
+    <string name="account">Account</string>
+    <string name="balance">Balance</string>
+    <string name="fieldBalance">0</string>
+    <string name="nik">NIK</string>
+    <string name="fieldNIK">1234567890</string>
+    <string name="privateKey">Private Key</string>
+    <string name="fieldPrivateKey">012ABCDE</string>
+    <string name="fieldPublicKey">345FGHJK</string>
+    <string name="logout">Logout</string>
+    <string name="publicKey">Public Key</string>
+    <string name="copy">copy</string>
+    <string name="back">back</string>
+    <string name="subHeaderPassword">Please enter password</string>
+    <string name="password">Password</string>
+    <string name="one">1</string>
+    <string name="two">2</string>
+    <string name="three">3</string>
+    <string name="four">4</string>
+    <string name="five">5</string>
+    <string name="six">6</string>
+    <string name="seven">7</string>
+    <string name="eight">8</string>
+    <string name="nine">9</string>
+    <string name="zero">0</string>
+    <string name="done">Done</string>
+    <string name="delete">Delete</string>
+    <string name="subHeaderReset">Please enter password again</string>
+</resources>
