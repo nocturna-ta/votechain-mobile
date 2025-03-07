@@ -13,6 +13,7 @@ class PasswordActivity : AppCompatActivity(), View.OnClickListener {
     private var password: String = ""
     private var count : Int = 0
     private var masterPassword : String = ""
+    private val gson = Gson()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
