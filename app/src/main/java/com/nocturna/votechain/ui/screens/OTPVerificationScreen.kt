@@ -36,6 +36,9 @@ fun OTPVerificationScreen(
     // State for 4-digit OTP input
     var otpDigits by remember { mutableStateOf(List(4) { "" }) }
 
+    // State to track if all OTP fields are filled
+    val isOtpComplete = remember(otpDigits) { otpDigits.all { it.isNotEmpty() } }
+
     // Focus management for OTP fields
     val focusRequesters = List(4) { remember { FocusRequester() } }
     val focusManager = LocalFocusManager.current
@@ -229,12 +232,7 @@ fun OTPVerificationScreen(
 
         // Verify Button
         Button(
-            onClick = {
-                // Check if OTP is fully entered
-                if (otpDigits.all { it.isNotEmpty() }) {
-                    onVerificationComplete()
-                }
-            },
+            onClick = { onVerificationComplete() },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(46.dp)
@@ -245,7 +243,8 @@ fun OTPVerificationScreen(
                 disabledContainerColor = NeutralColors.Neutral30,
                 disabledContentColor = NeutralColors.Neutral50
             ),
-            shape = RoundedCornerShape(22.dp)
+            shape = RoundedCornerShape(22.dp),
+            enabled = isOtpComplete
         )
         {
             Text("Verify", style = AppTypography.heading4SemiBold, color = NeutralColors.Neutral10)

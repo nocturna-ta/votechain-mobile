@@ -34,7 +34,8 @@ fun VotechainNavGraph(
     navController: NavHostController,
     startDestination: String = "splash",
     modifier: Modifier = Modifier,
-    viewModel: VotingViewModel = viewModel()
+    viewModel: VotingViewModel = viewModel(),
+    onNewsClick: (String) -> Unit = {}
 ) {
     NavHost(
         navController = navController,
@@ -155,7 +156,8 @@ fun VotechainNavGraph(
                 onHomeClick = { /* Already on home */ },
                 onVotesClick = { navController.navigate("votes") },
                 onProfileClick = { navController.navigate("profile") },
-                onNotificationClick = { navController.navigate("notification") }
+                onNotificationClick = { navController.navigate("notification") },
+                onNewsClick = onNewsClick
             )
         }
 

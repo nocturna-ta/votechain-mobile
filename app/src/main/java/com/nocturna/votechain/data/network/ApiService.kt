@@ -42,6 +42,7 @@ data class RegisterRequest(
     val password: String,
     val role: String = "voter",
     val address: String = "",  // Ethereum wallet address
+    val voter_address: String = "", // Added voter_address for voter role
     val nik: String = "",
     val full_name: String = "",
     val gender: String = "",

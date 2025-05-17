@@ -1,3 +1,4 @@
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -63,10 +64,9 @@ dependencies {
     implementation(libs.coil.gif)
     implementation(libs.androidx.navigation.compose)
 
-    // retrofit
+    // Retrofit and network dependencies
     implementation(libs.retrofit)
     implementation(libs.converter.gson)
-    // OkHttp dependencies
     implementation (libs.okhttp)
     implementation (libs.logging.interceptor)
 
@@ -84,4 +84,16 @@ dependencies {
     // Coil for image loading
     implementation (libs.coil.compose)
     implementation (libs.coil.gif)
+
+    // Web3j dependencies for Ethereum blockchain interaction
+    implementation (libs.core)
+    implementation (libs.crypto)
+    implementation (libs.utils)
+
+    // Testing
+    androidTestImplementation (libs.androidx.junit.v115)
+    androidTestImplementation (libs.androidx.espresso.core.v351)
+    androidTestImplementation (libs.ui.test.junit4)
+    debugImplementation (libs.ui.tooling)
+    debugImplementation (libs.ui.test.manifest)
 }

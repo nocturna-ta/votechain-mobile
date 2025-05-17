@@ -5,25 +5,56 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.nocturna.votechain.blockchain.BlockchainManager
 import com.nocturna.votechain.data.network.ApiResponse
 import com.nocturna.votechain.data.network.UserRegistrationData
 import com.nocturna.votechain.data.repository.UserRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
 
 /**
- * ViewModel for the Register Screen
- */
+* ViewModel for the Register Screen
+*/
 class RegisterViewModel(
     private val userRepository: UserRepository
 ) : ViewModel() {
     private val TAG = "RegisterViewModel"
     private val _uiState = MutableStateFlow<RegisterUiState>(RegisterUiState.Initial)
     val uiState: StateFlow<RegisterUiState> = _uiState.asStateFlow()
+
+    // BlockchainManager for Ethereum operations
+    private val blockchainManager = BlockchainManager
+
+    // Node connection state
+    private val _nodeConnected = MutableStateFlow(false)
+    val nodeConnected: StateFlow<Boolean> = _nodeConnected.asStateFlow()
+
+    init {
+        // Check blockchain connection on init
+        checkNodeConnection()
+    }
+
+    /**
+     * Check connection to Ethereum node
+     */
+    private fun checkNodeConnection() {
+        viewModelScope.launch {
+            try {
+                val isConnected = blockchainManager.isConnected()
+                _nodeConnected.value = isConnected
+                Log.d(TAG, "Ethereum node connection: ${if (isConnected) "CONNECTED" else "DISCONNECTED"}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking node connection: ${e.message}", e)
+                _nodeConnected.value = false
+            }
+        }
+    }
 
     /**
      * Register a new user with KTP file
@@ -39,7 +70,8 @@ class RegisterViewModel(
         region: String,
         gender: String,
         ktpFileUri: Uri,
-        role: String = "voter"
+        role: String = "voter",
+        voterAddress: String
     ) {
         _uiState.value = RegisterUiState.Loading
         Log.d(TAG, "Starting registration process")
@@ -66,18 +98,35 @@ class RegisterViewModel(
 
         viewModelScope.launch {
             try {
-                Log.d(TAG, "Calling repository registerUser method")
+                // Generate Ethereum address using BlockchainManager
+                val voterAddress = blockchainManager.generateAddress()
+                Log.d(TAG, "Generated voter address: $voterAddress")
+
+                // If connected to node, try to fund the address with a small amount (0.01 ETH)
+                if (_nodeConnected.value) {
+                    try {
+                        withContext(Dispatchers.IO) {
+                            blockchainManager.fundVoterAddress(voterAddress)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to fund voter address: ${e.message}", e)
+                        // Continue with registration even if funding fails
+                    }
+                }
+
+                Log.d(TAG, "Calling repository registerUser method with voter_address")
                 val result = userRepository.registerUser(
-                    nik = nationalId,
-                    fullName = fullName,
                     email = email,
                     password = password,
+                    nik = nationalId,
+                    fullName = fullName,
                     gender = gender,
                     birthPlace = birthPlace,
                     birthDate = formattedBirthDate,
                     residentialAddress = address,
                     region = region,
                     role = role,
+                    voterAddress = voterAddress, // Pass the generated address
                     ktpFileUri = ktpFileUri
                 )
 
@@ -128,5 +177,11 @@ class RegisterViewModel(
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        // No need to shut down BlockchainManager here since it's a singleton
+        // The app should handle shutdown in a more appropriate lifecycle
     }
 }

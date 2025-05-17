@@ -4,9 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,7 +40,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nocturna.votechain.R
 import com.nocturna.votechain.viewmodel.register.RegisterViewModel
 import com.nocturna.votechain.data.repository.UserRepository
@@ -50,9 +47,13 @@ import kotlinx.coroutines.delay
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.draw.drawWithContent
+import org.web3j.crypto.ECKeyPair
+import org.web3j.crypto.Keys
+import org.web3j.utils.Numeric
+import java.security.SecureRandom
+import android.util.Log
 
 // Data class to manage validation state for each field
 data class ValidationState(
@@ -1068,35 +1069,65 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // Generate a voter address before registration
+                fun generateEthereumAddress(): String {
+                    try {
+                        // Generate random private key
+                        val privateKeyBytes = ByteArray(32)
+                        SecureRandom().nextBytes(privateKeyBytes)
+
+                        // Create ECKeyPair from private key
+                        val privateKey = Numeric.toBigInt(privateKeyBytes)
+                        val keyPair = ECKeyPair.create(privateKey)
+
+                        // Get Ethereum address from key pair
+                        return "0x" + Keys.getAddress(keyPair)
+                    } catch (e: Exception) {
+                        Log.e("RegisterScreen", "Error generating Ethereum address: ${e.message}", e)
+                        // Return a placeholder in case of error
+                        return "0x0000000000000000000000000000000000000000"
+                    }
+                }
+
+                // Add this function to your RegisterScreen
+                fun registerWithVoterAddress() {
+                    if (validateAllFields()) {
+                        // Generate an Ethereum address for the voter
+                        val voterAddress = generateEthereumAddress()
+                        Log.d("RegisterScreen", "Generated voter address: $voterAddress")
+
+                        // Ensure we have a selected file URI
+                        selectedFileUri?.let { fileUri ->
+                            // Call the view model to register the user with KTP file and voter address
+                            viewModel.registerUser(
+                                nationalId = nationalId,
+                                fullName = fullName,
+                                email = email,
+                                password = password,
+                                birthPlace = birthPlace,
+                                birthDate = birthDate,
+                                address = address,
+                                region = selectedRegion,
+                                gender = selectedGender,
+                                voterAddress = voterAddress, // Add the voter address
+                                ktpFileUri = fileUri,
+                                role = "voter"
+                            )
+                        } ?: run {
+                            // If no file is selected, show error
+                            fileValidation = ValidationState(true, "ID card upload is required")
+                            Toast.makeText(context, "Please select an ID card file", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        // Show validation error toast
+                        Toast.makeText(context, "Please correct the errors in the form", Toast.LENGTH_SHORT).show()
+                    }
+                }
+
                 // Register button with scale animation
                 Button(
                     onClick = {
-                        if (validateAllFields()) {
-                            // Ensure we have a selected file URI
-                            selectedFileUri?.let { fileUri ->
-                                // Call the view model to register the user with KTP file
-                                viewModel.registerUser(
-                                    nationalId = nationalId,
-                                    fullName = fullName,
-                                    email = email,
-                                    password = password,
-                                    birthPlace = birthPlace,
-                                    birthDate = birthDate,
-                                    address = address,
-                                    region = selectedRegion,
-                                    gender = selectedGender,
-                                    ktpFileUri = fileUri,
-                                    role = "voter"
-                                )
-                            } ?: run {
-                                // If no file is selected, show error
-                                fileValidation = ValidationState(true, "ID card upload is required")
-                                Toast.makeText(context, "Please select an ID card file", Toast.LENGTH_SHORT).show()
-                            }
-                        } else {
-                            // Show validation error toast
-                            Toast.makeText(context, "Please correct the errors in the form", Toast.LENGTH_SHORT).show()
-                        }
+                        registerWithVoterAddress()
                     },
                     modifier = Modifier
                         .fillMaxWidth()

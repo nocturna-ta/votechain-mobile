@@ -32,6 +32,7 @@ class UserRepository(private val context: Context) {
     /**
      * Register a new user with or without KTP file
      * @param ktpFileUri Optional KTP file URI - if provided, form data approach will be used
+     * @param voterAddress Ethereum address to use as voter_address
      */
     suspend fun registerUser(
         email: String,
@@ -44,6 +45,7 @@ class UserRepository(private val context: Context) {
         residentialAddress: String,
         region: String,
         role: String = "voter",
+        voterAddress: String = "", // Added voter_address parameter
         ktpFileUri: Uri? = null
     ): Result<ApiResponse<UserRegistrationData>> = withContext(Dispatchers.IO) {
         try {
@@ -52,13 +54,15 @@ class UserRepository(private val context: Context) {
                 // Use multipart form data approach with file upload
                 registerWithFormData(
                     email, password, role, nik, fullName, gender,
-                    birthPlace, birthDate, residentialAddress, region, ktpFileUri
+                    birthPlace, birthDate, residentialAddress, region,
+                    voterAddress, ktpFileUri
                 )
             } else {
                 // Use JSON request approach without file
                 registerWithJson(
                     email, password, role, nik, fullName, gender,
-                    birthPlace, birthDate, residentialAddress, region
+                    birthPlace, birthDate, residentialAddress, region,
+                    voterAddress
                 )
             }
 
@@ -90,7 +94,8 @@ class UserRepository(private val context: Context) {
         birthPlace: String,
         birthDate: String,
         residentialAddress: String,
-        region: String
+        region: String,
+        voterAddress: String // Added voter_address parameter
     ): Response<ApiResponse<UserRegistrationData>> {
         val request = RegisterRequest(
             email = email,
@@ -102,7 +107,8 @@ class UserRepository(private val context: Context) {
             birth_place = birthPlace,
             birth_date = birthDate,
             residential_address = residentialAddress,
-            region = region
+            region = region,
+            voter_address = voterAddress
         )
 
         return apiService.registerUser(request)
@@ -130,6 +136,7 @@ class UserRepository(private val context: Context) {
         birthDate: String,
         residentialAddress: String,
         region: String,
+        voterAddress: String,
         ktpFileUri: Uri
     ): Response<ApiResponse<UserRegistrationData>> {
         // Get the file extension from the actual URI
@@ -149,7 +156,8 @@ class UserRepository(private val context: Context) {
             birth_place = birthPlace,
             birth_date = birthDate,
             residential_address = residentialAddress,
-            region = region
+            region = region,
+            voter_address = voterAddress
         )
 
         // Convert user data to JSON
