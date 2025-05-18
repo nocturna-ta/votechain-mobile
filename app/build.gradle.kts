@@ -53,7 +53,6 @@ dependencies {
     implementation(libs.androidx.espresso.core)
     implementation(libs.material3)
     testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
@@ -92,7 +91,6 @@ dependencies {
 
     // Testing
     androidTestImplementation (libs.androidx.junit.v115)
-    androidTestImplementation (libs.androidx.espresso.core.v351)
     androidTestImplementation (libs.ui.test.junit4)
     debugImplementation (libs.ui.tooling)
     debugImplementation (libs.ui.test.manifest)

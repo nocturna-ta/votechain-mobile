@@ -28,9 +28,10 @@ class MainActivity : ComponentActivity() {
 
                     VotechainNavGraph(
                         navController = navController,
-                        onNewsClick = { postSlug ->
-                            // Open the news in the browser
-                            val newsUrl = "https://www.kpu.go.id/page/detail/blog/$postSlug"
+                        onNewsClick = { newsItem ->
+                            // Open the news in the browser with the correct URL format:
+                            // https://www.kpu.go.id/berita/baca/id/post_slug
+                            val newsUrl = "https://www.kpu.go.id/berita/baca/${newsItem.id}/${newsItem.post_slug}"
                             openUrlInBrowser(context, newsUrl)
                         }
                     )

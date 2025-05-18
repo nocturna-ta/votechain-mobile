@@ -15,13 +15,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nocturna.votechain.R
+import com.nocturna.votechain.data.model.NewsItem
 import com.nocturna.votechain.ui.screens.BottomNavigation
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.PrimaryColors
 import com.nocturna.votechain.utils.openUrlInBrowser
+import com.nocturna.votechain.viewmodel.HomeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,7 +34,8 @@ fun HomeScreen(
     onVotesClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     onNotificationClick: () -> Unit = {},
-    onNewsClick: (String) -> Unit = {}
+    onNewsClick: (NewsItem) -> Unit = {},
+    viewModel: HomeViewModel = viewModel()
 ) {
     val currentRoute = "home" // Default route is home
     val context = LocalContext.current
@@ -87,25 +91,22 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Carousel Section - Now using our updated HomeCarousel with KPU news
+            // Carousel Section with News
             Column(
                 modifier = Modifier.fillMaxWidth()
             ) {
-//                Text(
-//                    text = "Latest News",
-//                    style = AppTypography.heading4SemiBold,
-//                    color = PrimaryColors.Primary80,
-//                    modifier = Modifier.padding(bottom = 12.dp)
-//                )
+                Text(
+                    text = "Latest News",
+                    style = AppTypography.heading4SemiBold,
+                    color = PrimaryColors.Primary80,
+                    modifier = Modifier.padding(bottom = 24.dp)
+                )
 
                 HomeCarousel(
-                    onNewsClick = { postSlug ->
-                        // Open the news in the browser
-                        val newsUrl = "https://www.kpu.go.id/page/detail/blog/$postSlug"
-                        openUrlInBrowser(context, newsUrl)
-                    }
+                    viewModel = viewModel,
+                    onNewsClick = { newsItem -> onNewsClick(newsItem) }
                 )
             }
 

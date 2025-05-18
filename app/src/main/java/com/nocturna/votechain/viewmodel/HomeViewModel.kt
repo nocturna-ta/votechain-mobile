@@ -1,6 +1,7 @@
 package com.nocturna.votechain.viewmodel
 
 import android.app.Application
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
@@ -24,6 +25,7 @@ import kotlinx.coroutines.launch
  * ViewModel for the Home screen
  */
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
+    private val TAG = "HomeViewModel"
     private val newsRepository = NewsRepository()
     private val context = getApplication<Application>()
 
@@ -63,18 +65,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
+            Log.d(TAG, "Fetching latest news...")
 
             newsRepository.getLatestNews().collect { result ->
                 _isLoading.value = false
                 result.fold(
                     onSuccess = { news ->
+                        Log.d(TAG, "Successfully fetched ${news.size} news items")
                         _latestNews.value = news
                         // Preload images
                         preloadImages(news)
                     },
                     onFailure = { e ->
+                        Log.e(TAG, "Error fetching news: ${e.message}", e)
                         _error.value = e.message ?: "Unknown error occurred"
-                        Log.e("HomeViewModel", "Error fetching news", e)
                     }
                 )
             }
@@ -88,8 +92,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             newsItems.forEach { newsItem ->
                 try {
+                    // Get the direct file_foto URL
+                    val imageUrl = "https://www.kpu.go.id/images/${newsItem.file_foto}"
+
+                    Log.d(TAG, "Preloading image: $imageUrl")
+
                     val request = ImageRequest.Builder(context)
-                        .data("https://www.kpu.go.id/images/blogs/${newsItem.foto_thumb}")
+                        .data(imageUrl)
                         .memoryCachePolicy(CachePolicy.ENABLED)
                         .diskCachePolicy(CachePolicy.ENABLED)
                         .build()
@@ -97,15 +106,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     val result = imageLoader.execute(request)
                     if (result is SuccessResult) {
                         val source = when (result.dataSource) {
-                            DataSource.MEMORY_CACHE -> "memory cache"
-//                            DataSource.DISK_CACHE -> "disk cache"
+                            DataSource.MEMORY -> "memory cache"
+                            DataSource.DISK -> "disk cache"
                             DataSource.NETWORK -> "network"
                             else -> "unknown"
                         }
-                        Log.d("HomeViewModel", "Preloaded image from $source: ${newsItem.foto_thumb}")
+                        Log.d(TAG, "Preloaded image from $source: ${newsItem.foto_thumb}")
                     }
                 } catch (e: Exception) {
-                    Log.e("HomeViewModel", "Failed to preload image: ${newsItem.foto_thumb}", e)
+                    Log.e(TAG, "Failed to preload image: ${newsItem.foto_thumb}", e)
                 }
             }
         }

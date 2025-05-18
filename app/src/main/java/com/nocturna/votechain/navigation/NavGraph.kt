@@ -19,6 +19,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.votingapp.ui.screens.VotingDetailScreen
+import com.nocturna.votechain.data.model.NewsItem
 import com.nocturna.votechain.ui.screens.LoadingScreen
 import com.nocturna.votechain.ui.screens.OTPVerificationScreen
 import com.nocturna.votechain.ui.screens.SplashScreen
@@ -35,7 +36,7 @@ fun VotechainNavGraph(
     startDestination: String = "splash",
     modifier: Modifier = Modifier,
     viewModel: VotingViewModel = viewModel(),
-    onNewsClick: (String) -> Unit = {}
+    onNewsClick: (NewsItem) -> Unit = {}
 ) {
     NavHost(
         navController = navController,
