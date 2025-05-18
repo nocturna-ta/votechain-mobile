@@ -7,7 +7,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.nocturna.votechain.blockchain.BlockchainManager
 import com.nocturna.votechain.data.network.ApiResponse
+import com.nocturna.votechain.data.network.Province
+import com.nocturna.votechain.data.network.Regency
 import com.nocturna.votechain.data.network.UserRegistrationData
+import com.nocturna.votechain.data.network.WilayahApiClient
 import com.nocturna.votechain.data.repository.UserRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,9 +38,24 @@ class RegisterViewModel(
     private val _nodeConnected = MutableStateFlow(false)
     val nodeConnected: StateFlow<Boolean> = _nodeConnected.asStateFlow()
 
+    // States for province and regency data
+    private val _provinces = MutableStateFlow<List<Province>>(emptyList())
+    val provinces: StateFlow<List<Province>> = _provinces.asStateFlow()
+
+    private val _regencies = MutableStateFlow<List<Regency>>(emptyList())
+    val regencies: StateFlow<List<Regency>> = _regencies.asStateFlow()
+
+    private val _isProvincesLoading = MutableStateFlow(false)
+    val isProvincesLoading: StateFlow<Boolean> = _isProvincesLoading.asStateFlow()
+
+    private val _isRegenciesLoading = MutableStateFlow(false)
+    val isRegenciesLoading: StateFlow<Boolean> = _isRegenciesLoading.asStateFlow()
+
     init {
         // Check blockchain connection on init
         checkNodeConnection()
+        // Initialize by fetching provinces
+        fetchProvinces()
     }
 
     /**
@@ -52,6 +70,42 @@ class RegisterViewModel(
             } catch (e: Exception) {
                 Log.e(TAG, "Error checking node connection: ${e.message}", e)
                 _nodeConnected.value = false
+            }
+        }
+    }
+
+    /**
+     * Fetch provinces from wilayah.id API
+     */
+    fun fetchProvinces() {
+        viewModelScope.launch {
+            _isProvincesLoading.value = true
+            try {
+                val response = WilayahApiClient.apiService.getProvinces()
+                _provinces.value = response.data
+                Log.d(TAG, "Fetched ${response.data.size} provinces")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching provinces: ${e.message}", e)
+            } finally {
+                _isProvincesLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Fetch regencies for a specific province from wilayah.id API
+     */
+    fun fetchRegencies(provinceCode: String) {
+        viewModelScope.launch {
+            _isRegenciesLoading.value = true
+            try {
+                val response = WilayahApiClient.apiService.getRegencies(provinceCode)
+                _regencies.value = response.data
+                Log.d(TAG, "Fetched ${response.data.size} regencies for province $provinceCode")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching regencies: ${e.message}", e)
+            } finally {
+                _isRegenciesLoading.value = false
             }
         }
     }

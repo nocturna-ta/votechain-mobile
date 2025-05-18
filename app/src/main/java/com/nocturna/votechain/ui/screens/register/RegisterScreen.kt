@@ -85,6 +85,13 @@ fun RegisterScreen(
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
+    // API data state
+    val provinces by viewModel.provinces.collectAsState()
+    val regencies by viewModel.regencies.collectAsState()
+    val isProvincesLoading by viewModel.isProvincesLoading.collectAsState()
+    val isRegenciesLoading by viewModel.isRegenciesLoading.collectAsState()
+    var selectedProvinceCode by remember { mutableStateOf("") }
+
     // File selection states
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
@@ -625,7 +632,6 @@ fun RegisterScreen(
 
                 // Province Dropdown
                 var expandedProvince by remember { mutableStateOf(false) }
-                val provinceOptions = listOf("West Java", "Central Java", "East Java", "Jakarta", "Banten")
 
                 Box(
                     modifier = Modifier.fillMaxWidth()
@@ -671,20 +677,50 @@ fun RegisterScreen(
                         onDismissRequest = { expandedProvince = false },
                         modifier = Modifier
                             .fillMaxWidth(0.9f)
+                            .heightIn(max = 250.dp)
                             .align(Alignment.TopStart)
                     ) {
-                        provinceOptions.forEach { province ->
+                        if (isProvincesLoading) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    color = MainColors.Primary1,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        } else if (provinces.isEmpty()) {
                             DropdownMenuItem(
-                                text = { Text(province, color = NeutralColors.Neutral70) },
-                                onClick = {
-                                    selectedProvince = province
-                                    expandedProvince = false
-                                    provinceValidation = validateField("province", province)
-                                    // Reset region when province changes
-                                    selectedRegion = ""
-                                    regionValidation = validateField("region", "")
-                                }
+                                text = {
+                                    Text(
+                                        "No provinces found",
+                                        color = NeutralColors.Neutral40
+                                    )
+                                },
+                                onClick = { /* No action */ }
                             )
+                        } else {
+                            provinces.forEach { province ->
+                                DropdownMenuItem(
+                                    text = { Text(province.name, color = NeutralColors.Neutral70) },
+                                    onClick = {
+                                        selectedProvince = province.name
+                                        selectedProvinceCode = province.code
+                                        expandedProvince = false
+                                        provinceValidation = validateField("province", province.name)
+
+                                        // Reset region when province changes
+                                        selectedRegion = ""
+                                        regionValidation = validateField("region", "")
+
+                                        // Fetch regencies for selected province
+                                        viewModel.fetchRegencies(province.code)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -693,19 +729,6 @@ fun RegisterScreen(
 
                 // Region Dropdown
                 var expandedRegion by remember { mutableStateOf(false) }
-                val regionOptions = if (selectedProvince == "West Java") {
-                    listOf("Bandung", "Bogor", "Bekasi", "Depok", "Cimahi")
-                } else if (selectedProvince == "Central Java") {
-                    listOf("Semarang", "Solo", "Magelang", "Pekalongan")
-                } else if (selectedProvince == "East Java") {
-                    listOf("Surabaya", "Malang", "Kediri", "Jember")
-                } else if (selectedProvince == "Jakarta") {
-                    listOf("Jakarta Pusat", "Jakarta Selatan", "Jakarta Barat", "Jakarta Timur", "Jakarta Utara")
-                } else if (selectedProvince == "Banten") {
-                    listOf("Serang", "Tangerang", "Cilegon", "Tangerang Selatan")
-                } else {
-                    listOf()
-                }
 
                 Box(
                     modifier = Modifier.fillMaxWidth()
@@ -765,17 +788,42 @@ fun RegisterScreen(
                         onDismissRequest = { expandedRegion = false },
                         modifier = Modifier
                             .fillMaxWidth(0.9f)
+                            .heightIn(max = 250.dp)
                             .align(Alignment.TopStart)
                     ) {
-                        regionOptions.forEach { region ->
+                        if (isRegenciesLoading) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.9f)
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    color = MainColors.Primary1,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        } else if (regencies.isEmpty()) {
                             DropdownMenuItem(
-                                text = { Text(region, color = NeutralColors.Neutral70) },
-                                onClick = {
-                                    selectedRegion = region
-                                    expandedRegion = false
-                                    regionValidation = validateField("region", region)
-                                }
+                                text = {
+                                    Text(
+                                        "No regions found for this province",
+                                        color = NeutralColors.Neutral40
+                                    )
+                                },
+                                onClick = { /* No action */ }
                             )
+                        } else {
+                            regencies.forEach { regency ->
+                                DropdownMenuItem(
+                                    text = { Text(regency.name, color = NeutralColors.Neutral70) },
+                                    onClick = {
+                                        selectedRegion = regency.name
+                                        expandedRegion = false
+                                        regionValidation = validateField("region", regency.name)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
