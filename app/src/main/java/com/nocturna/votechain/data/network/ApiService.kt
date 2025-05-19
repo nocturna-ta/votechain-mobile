@@ -31,6 +31,13 @@ interface ApiService {
         @Part("user") user: RequestBody,
         @Part ktp_photo: MultipartBody.Part?
     ): Response<ApiResponse<UserRegistrationData>>
+
+    /**
+     * Login a user
+     * Endpoint: /v1/user/login
+     */
+    @POST("v1/user/login")
+    suspend fun loginUser(@Body request: LoginRequest): Response<ApiResponse<UserLoginData>>
 }
 
 /**
@@ -42,7 +49,6 @@ data class RegisterRequest(
     val password: String,
     val role: String = "voter",
     val address: String = "",  // Ethereum wallet address
-    val voter_address: String = "", // Added voter_address for voter role
     val nik: String = "",
     val full_name: String = "",
     val gender: String = "",
@@ -50,16 +56,10 @@ data class RegisterRequest(
     val birth_date: String = "",
     val residential_address: String = "",
     val ktp_photo_path: String = "",
-    val `kpu-name`: String = "",
-    val region: String = ""
+    val kpu_name: String = "",
+    val region: String = "",
+    val telephone: String = "",
 )
-
-
-data class RegisterUserWrapper(
-    @SerializedName("user") // <-- IMPORTANT if using Gson
-    val user: RegisterRequest
-)
-
 
 /**
  * Data class for register response that matches the actual API structure
@@ -88,4 +88,24 @@ data class UserRegistrationData(
     val message: String,
     val requested_role: String,
     val verification_status: String
+)
+
+/**
+ * Data class for login request body
+ */
+data class LoginRequest(
+    val email: String,
+    val password: String
+)
+
+/**
+ * Data class for user login response data
+ */
+data class UserLoginData(
+    val token: String,
+    val message: String,
+    val is_active: Boolean,
+    val requested_role: String,
+    val verification_status: String,
+    val expires_at: String
 )

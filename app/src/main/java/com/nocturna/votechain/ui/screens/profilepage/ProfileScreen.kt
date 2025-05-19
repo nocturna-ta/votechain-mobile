@@ -61,7 +61,9 @@ import com.nocturna.votechain.utils.getLocalizedStrings
 @Composable
 fun ProfileScreen(
     onNavigateToFAQ: () -> Unit = {},
-    navController: NavController
+    navController: NavController,
+    onHomeClick: () -> Unit = {},
+    onVotesClick: () -> Unit = {}
 ) {
     var darkMode by remember { mutableStateOf(false) }
     var language by remember { mutableStateOf("English") }
@@ -338,7 +340,14 @@ fun ProfileScreen(
         ) {
             BottomNavigation(
                 currentRoute = currentRoute,
-                onNavigate = { /* Navigation would go here */ }
+                onNavigate = { route ->
+                    when (route) {
+                        "home" -> onHomeClick()
+                        "votes" -> onVotesClick()
+                        "profile" -> { /* Already on profile */
+                        }
+                    }
+                }
             )
         }
     }

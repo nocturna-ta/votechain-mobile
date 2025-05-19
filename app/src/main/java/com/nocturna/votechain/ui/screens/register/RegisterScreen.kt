@@ -54,6 +54,7 @@ import org.web3j.crypto.Keys
 import org.web3j.utils.Numeric
 import java.security.SecureRandom
 import android.util.Log
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 // Data class to manage validation state for each field
 data class ValidationState(
@@ -70,7 +71,7 @@ fun RegisterScreen(
     navigateToRejected: () -> Unit
 ) {
     val context = LocalContext.current
-    val viewModel = remember { RegisterViewModel(UserRepository(context)) }
+    val viewModel: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(context))
 
     // Form field values
     var nationalId by remember { mutableStateOf("") }
@@ -312,7 +313,7 @@ fun RegisterScreen(
 
     val scrollState = rememberScrollState()
 
-// File picker launcher - Modified to only accept image file types (JPG, JPEG, PNG)
+    // File picker launcher - Modified to only accept image file types (JPG, JPEG, PNG)
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -1117,37 +1118,14 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Generate a voter address before registration
-                fun generateEthereumAddress(): String {
-                    try {
-                        // Generate random private key
-                        val privateKeyBytes = ByteArray(32)
-                        SecureRandom().nextBytes(privateKeyBytes)
-
-                        // Create ECKeyPair from private key
-                        val privateKey = Numeric.toBigInt(privateKeyBytes)
-                        val keyPair = ECKeyPair.create(privateKey)
-
-                        // Get Ethereum address from key pair
-                        return "0x" + Keys.getAddress(keyPair)
-                    } catch (e: Exception) {
-                        Log.e("RegisterScreen", "Error generating Ethereum address: ${e.message}", e)
-                        // Return a placeholder in case of error
-                        return "0x0000000000000000000000000000000000000000"
-                    }
-                }
-
                 // Add this function to your RegisterScreen
                 fun registerWithVoterAddress() {
                     if (validateAllFields()) {
-                        // Generate an Ethereum address for the voter
-                        val voterAddress = generateEthereumAddress()
-                        Log.d("RegisterScreen", "Generated voter address: $voterAddress")
-
                         // Ensure we have a selected file URI
                         selectedFileUri?.let { fileUri ->
-                            // Call the view model to register the user with KTP file and voter address
-                            viewModel.registerUser(
+                            // Call the view model to register the user with KTP file
+                            // EnhancedUserRepository akan menghasilkan voter_address secara otomatis
+                            viewModel.registerUserWithVoterAddress(
                                 nationalId = nationalId,
                                 fullName = fullName,
                                 email = email,
@@ -1157,7 +1135,6 @@ fun RegisterScreen(
                                 address = address,
                                 region = selectedRegion,
                                 gender = selectedGender,
-                                voterAddress = voterAddress, // Add the voter address
                                 ktpFileUri = fileUri,
                                 role = "voter"
                             )
@@ -1171,6 +1148,7 @@ fun RegisterScreen(
                         Toast.makeText(context, "Please correct the errors in the form", Toast.LENGTH_SHORT).show()
                     }
                 }
+
 
                 // Register button with scale animation
                 Button(

@@ -29,7 +29,6 @@ import com.nocturna.votechain.ui.screens.profilepage.ProfileScreen
 import com.nocturna.votechain.ui.screens.votepage.CandidateSelectionScreen
 import com.nocturna.votechain.ui.screens.votepage.OTPVotingVerificationScreen
 import com.nocturna.votechain.ui.screens.votepage.ResultsScreen
-import com.nocturna.votechain.ui.screens.votepage.VotingScreen
 import com.nocturna.votechain.viewmodel.vote.VotingViewModel
 
 @Composable
@@ -157,8 +156,18 @@ fun VotechainNavGraph(
                     navController.navigate("candidate_president/$voteId")
                 },
                 onHomeClick = { /* Already on home */ },
-                onVotesClick = { navController.navigate("votes") },
-                onProfileClick = { navController.navigate("profile") },
+                onVotesClick = {
+                    navController.navigate("votes") {
+                        popUpTo("home") { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
+                onProfileClick = {
+                    navController.navigate("profile") {
+                        popUpTo("home") { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
                 onNotificationClick = { navController.navigate("notification") },
                 onNewsClick = onNewsClick
             )
@@ -170,14 +179,24 @@ fun VotechainNavGraph(
             )
         }
 
-        composable("votes") {
-            VotingScreen(
-                navController = navController,
-                viewModel = viewModel,
-                onHomeClick = { navController.navigate("home") },
-                onProfileClick = { navController.navigate("profile") }
-            )
-        }
+//        composable("votes") {
+//            VotingScreen(
+//                navController = navController,
+//                viewModel = viewModel,
+//                onHomeClick = {
+//                    navController.navigate("home") {
+//                        popUpTo("votes") { inclusive = true }
+//                        launchSingleTop = true
+//                    }
+//                },
+//                onProfileClick = {
+//                    navController.navigate("profile") {
+//                        popUpTo("votes") { inclusive = true }
+//                        launchSingleTop = true
+//                    }
+//                }
+//            )
+//        }
 
         composable(
             "candidate_president/{voteId}",
@@ -266,6 +285,7 @@ fun VotechainNavGraph(
             ResultsScreen(navController, viewModel)
         }
 
+
         // FAQ Screen - Updated implementation
         composable("faq") {
             FAQScreen(
@@ -275,11 +295,22 @@ fun VotechainNavGraph(
 
         composable("profile") {
             ProfileScreen(
-                // Add navigation to FAQ screen from profile
                 onNavigateToFAQ = {
                     navController.navigate("faq")
                 },
-                navController = navController
+                navController = navController,
+                onHomeClick = {
+                    navController.navigate("home") {
+                        popUpTo("profile") { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onVotesClick = {
+                    navController.navigate("votes") {
+                        popUpTo("profile") { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
             )
         }
 

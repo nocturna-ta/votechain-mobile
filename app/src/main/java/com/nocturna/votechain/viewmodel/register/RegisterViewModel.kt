@@ -1,5 +1,6 @@
 package com.nocturna.votechain.viewmodel.register
 
+import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -11,6 +12,7 @@ import com.nocturna.votechain.data.network.Province
 import com.nocturna.votechain.data.network.Regency
 import com.nocturna.votechain.data.network.UserRegistrationData
 import com.nocturna.votechain.data.network.WilayahApiClient
+import com.nocturna.votechain.data.repository.EnhancedUserRepository
 import com.nocturna.votechain.data.repository.UserRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,17 +24,16 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 /**
-* ViewModel for the Register Screen
-*/
+ * ViewModel for the Register Screen
+ */
 class RegisterViewModel(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val context: Context
 ) : ViewModel() {
     private val TAG = "RegisterViewModel"
     private val _uiState = MutableStateFlow<RegisterUiState>(RegisterUiState.Initial)
     val uiState: StateFlow<RegisterUiState> = _uiState.asStateFlow()
-
-    // BlockchainManager for Ethereum operations
-    private val blockchainManager = BlockchainManager
+    private val enhancedUserRepository = EnhancedUserRepository(context)
 
     // Node connection state
     private val _nodeConnected = MutableStateFlow(false)
@@ -64,7 +65,9 @@ class RegisterViewModel(
     private fun checkNodeConnection() {
         viewModelScope.launch {
             try {
-                val isConnected = blockchainManager.isConnected()
+                val isConnected = withContext(Dispatchers.IO) {
+                    BlockchainManager.isConnected()
+                }
                 _nodeConnected.value = isConnected
                 Log.d(TAG, "Ethereum node connection: ${if (isConnected) "CONNECTED" else "DISCONNECTED"}")
             } catch (e: Exception) {
@@ -111,24 +114,23 @@ class RegisterViewModel(
     }
 
     /**
-     * Register a new user with KTP file
+     * Register a new user with automatic voter address generation using BlockchainManager
      */
-    fun registerUser(
+    fun registerUserWithVoterAddress(
         nationalId: String,
         fullName: String,
         email: String,
         password: String,
         birthPlace: String,
-        birthDate: String, // Format: dd/MM/yyyy
+        birthDate: String,
         address: String,
         region: String,
         gender: String,
         ktpFileUri: Uri,
-        role: String = "voter",
-        voterAddress: String
+        role: String = "voter"
     ) {
         _uiState.value = RegisterUiState.Loading
-        Log.d(TAG, "Starting registration process")
+        Log.d(TAG, "Starting registration process with blockchain voter address generation")
 
         if (nationalId.isBlank() || fullName.isBlank() || email.isBlank() || password.isBlank()) {
             _uiState.value = RegisterUiState.Error("Required fields cannot be empty")
@@ -147,29 +149,14 @@ class RegisterViewModel(
             outputFormat.format(date!!)
         } catch (e: Exception) {
             Log.e(TAG, "Error formatting birth date: ${e.message}", e)
-            birthDate
+            birthDate // Fallback to original format if parsing fails
         }
 
         viewModelScope.launch {
             try {
-                // Generate Ethereum address using BlockchainManager
-                val voterAddress = blockchainManager.generateAddress()
-                Log.d(TAG, "Generated voter address: $voterAddress")
-
-                // If connected to node, try to fund the address with a small amount (0.01 ETH)
-                if (_nodeConnected.value) {
-                    try {
-                        withContext(Dispatchers.IO) {
-                            blockchainManager.fundVoterAddress(voterAddress)
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to fund voter address: ${e.message}", e)
-                        // Continue with registration even if funding fails
-                    }
-                }
-
-                Log.d(TAG, "Calling repository registerUser method with voter_address")
-                val result = userRepository.registerUser(
+                Log.d(TAG, "Using EnhancedUserRepository with new wallet generation")
+                // Use EnhancedUserRepository with the test flag
+                val result = enhancedUserRepository.registerWithVoterAddress(
                     email = email,
                     password = password,
                     nik = nationalId,
@@ -180,7 +167,6 @@ class RegisterViewModel(
                     residentialAddress = address,
                     region = region,
                     role = role,
-                    voterAddress = voterAddress, // Pass the generated address
                     ktpFileUri = ktpFileUri
                 )
 
@@ -221,21 +207,14 @@ class RegisterViewModel(
     /**
      * Factory for creating RegisterViewModel
      */
-    class Factory(
-        private val userRepository: UserRepository
-    ) : ViewModelProvider.Factory {
+    class Factory(private val context: Context) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(RegisterViewModel::class.java)) {
-                return RegisterViewModel(userRepository) as T
+                val userRepository = UserRepository(context)
+                return RegisterViewModel(userRepository, context) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        // No need to shut down BlockchainManager here since it's a singleton
-        // The app should handle shutdown in a more appropriate lifecycle
     }
 }

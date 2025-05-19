@@ -59,6 +59,7 @@ fun LoginScreen(
     var isPasswordValid by remember { mutableStateOf(true) }
     var isLoading by remember { mutableStateOf(false) }
     var showElements by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val emailError = "Please enter a valid email address"
     val passwordError = "Password must be at least 8 characters"
@@ -146,6 +147,25 @@ fun LoginScreen(
                         color = NeutralColors.Neutral70,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            // Display error message if any
+            AnimatedVisibility(
+                visible = errorMessage != null,
+                enter = fadeIn(tween(300)),
+                exit = fadeOut(tween(300))
+            ) {
+                errorMessage?.let {
+                    Text(
+                        text = it,
+                        style = AppTypography.paragraphRegular,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
                     )
                 }
             }

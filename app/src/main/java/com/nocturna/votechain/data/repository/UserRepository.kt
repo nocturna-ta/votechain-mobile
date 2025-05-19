@@ -45,7 +45,7 @@ class UserRepository(private val context: Context) {
         residentialAddress: String,
         region: String,
         role: String = "voter",
-        voterAddress: String = "", // Added voter_address parameter
+        voterAddress: String = "",
         ktpFileUri: Uri? = null
     ): Result<ApiResponse<UserRegistrationData>> = withContext(Dispatchers.IO) {
         try {
@@ -66,13 +66,32 @@ class UserRepository(private val context: Context) {
                 )
             }
 
+            // Enhanced logging for both success and error cases
             if (response.isSuccessful) {
                 response.body()?.let {
+                    Log.d("UserRepository", "Registration successful: ${it.message}")
                     Result.success(it)
-                } ?: Result.failure(Exception("Empty response body"))
+                } ?: run {
+                    Log.e("UserRepository", "Empty response body with success code: ${response.code()}")
+                    Result.failure(Exception("Empty response body"))
+                }
             } else {
                 val errorBody = response.errorBody()?.string()
+                Log.e("UserRepository", "Registration failed with code: ${response.code()}")
                 Log.e("UserRepository", "Error body: $errorBody")
+
+                // Try to parse the error body as JSON for more detailed logging
+                try {
+                    val gson = Gson()
+                    val errorJson = gson.fromJson(errorBody, ApiResponse::class.java)
+                    Log.e("UserRepository", "Parsed error: ${errorJson.message}, code: ${errorJson.code}")
+                    if (errorJson.error != null) {
+                        Log.e("UserRepository", "Error details: ${errorJson.error.error_message}")
+                    }
+                } catch (e: Exception) {
+                    Log.e("UserRepository", "Could not parse error JSON: ${e.message}")
+                }
+
                 Result.failure(Exception("Error: ${response.code()} - $errorBody"))
             }
         } catch (e: Exception) {
@@ -101,16 +120,16 @@ class UserRepository(private val context: Context) {
             email = email,
             password = password,
             role = role,
+            address = voterAddress,
             nik = nik,
             full_name = fullName,
             gender = gender,
             birth_place = birthPlace,
             birth_date = birthDate,
             residential_address = residentialAddress,
-            region = region,
-            voter_address = voterAddress
+            region = region
         )
-
+        Log.d("UserRepository", "Sending registration request with voter_address: $voterAddress")
         return apiService.registerUser(request)
     }
 
@@ -150,14 +169,14 @@ class UserRepository(private val context: Context) {
             email = email,
             password = password,
             role = role,
+            address = voterAddress,
             nik = nik,
             full_name = fullName,
             gender = gender,
             birth_place = birthPlace,
             birth_date = birthDate,
             residential_address = residentialAddress,
-            region = region,
-            voter_address = voterAddress
+            region = region
         )
 
         // Convert user data to JSON
@@ -171,7 +190,7 @@ class UserRepository(private val context: Context) {
 
         // Create file part with the appropriate MIME type
         val requestFile = ktpFile.asRequestBody(mimeType.toMediaTypeOrNull())
-        val ktpFilePart = MultipartBody.Part.createFormData("ktp_file", ktpFile.name, requestFile)
+        val ktpFilePart = MultipartBody.Part.createFormData("ktp_photo", ktpFile.name, requestFile)
 
 
         // Make API call with the updated parameters
