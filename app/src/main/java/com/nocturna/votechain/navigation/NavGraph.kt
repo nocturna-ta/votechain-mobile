@@ -18,7 +18,6 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.example.votingapp.ui.screens.VotingDetailScreen
 import com.nocturna.votechain.data.model.NewsItem
 import com.nocturna.votechain.ui.screens.LoadingScreen
 import com.nocturna.votechain.ui.screens.OTPVerificationScreen
@@ -27,7 +26,10 @@ import com.nocturna.votechain.ui.screens.homepage.NotificationScreen
 import com.nocturna.votechain.ui.screens.profilepage.AccountDetailsScreen
 import com.nocturna.votechain.ui.screens.profilepage.FAQScreen
 import com.nocturna.votechain.ui.screens.profilepage.ProfileScreen
+import com.nocturna.votechain.ui.screens.votepage.CandidateSelectionScreen
+import com.nocturna.votechain.ui.screens.votepage.OTPVotingVerificationScreen
 import com.nocturna.votechain.ui.screens.votepage.ResultsScreen
+import com.nocturna.votechain.ui.screens.votepage.VotingScreen
 import com.nocturna.votechain.viewmodel.vote.VotingViewModel
 
 @Composable
@@ -168,17 +170,14 @@ fun VotechainNavGraph(
             )
         }
 
-        // Added dedicated Votes screen route
-//        composable("votes") {
-//            VotingScreen(
-//                navController = navController,
-//                viewModel = viewModel,
-//                onCardClick = { categoryId ->
-//                    // Allow navigating to OTP verification from voting cards
-//                    navController.navigate("otp_verification")
-//                }
-//            )
-//        }
+        composable("votes") {
+            VotingScreen(
+                navController = navController,
+                viewModel = viewModel,
+                onHomeClick = { navController.navigate("home") },
+                onProfileClick = { navController.navigate("profile") }
+            )
+        }
 
         composable(
             "candidate_president/{voteId}",
@@ -217,6 +216,37 @@ fun VotechainNavGraph(
             VisionMissionScreen(
                 navController = navController,
                 candidateNumber = candidateNumber
+            )
+        }
+
+        // OTP Voting Verification screen
+        composable(
+            "otp_verification/{categoryId}",
+            arguments = listOf(navArgument("categoryId") { type = NavType.StringType })
+        ) {
+            val categoryId = it.arguments?.getString("categoryId") ?: ""
+            OTPVotingVerificationScreen(
+                navController = navController,
+                categoryId = categoryId,
+                onBackClick = { navController.popBackStack() },
+                onVerificationComplete = {
+                    // Navigate to candidate selection screen after successful verification
+                    navController.navigate("candidate_selection/$categoryId") {
+                        popUpTo("otp_verification/{categoryId}") { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(
+            "candidate_selection/{categoryId}",
+            arguments = listOf(navArgument("categoryId") { type = NavType.StringType })
+        ) {
+            val categoryId = it.arguments?.getString("categoryId") ?: ""
+            CandidateSelectionScreen(
+                categoryId = categoryId,
+                navController = navController,
+                viewModel = viewModel
             )
         }
 
@@ -259,4 +289,13 @@ fun VotechainNavGraph(
             )
         }
     }
+}
+
+@Composable
+fun VotingDetailScreen(
+    categoryId: String,
+    navController: NavHostController,
+    viewModel: VotingViewModel
+) {
+    TODO("Not yet implemented")
 }
