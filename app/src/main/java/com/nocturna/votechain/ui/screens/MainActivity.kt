@@ -9,6 +9,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.rememberNavController
+import com.nocturna.votechain.data.repository.UserLoginRepository
 import com.nocturna.votechain.navigation.VotechainNavGraph
 import com.nocturna.votechain.ui.theme.VotechainTheme
 import com.nocturna.votechain.utils.RegistrationStatusChecker
@@ -21,8 +22,15 @@ class MainActivity : ComponentActivity() {
         // Create an instance of RegistrationStatusChecker
         val registrationStatusChecker = RegistrationStatusChecker(this)
 
+        // Create an instance of UserLoginRepository to check login status
+        val userLoginRepository = UserLoginRepository(this)
+
         // Determine the appropriate start destination
-        val startDestination = registrationStatusChecker.getStartDestination()
+        val startDestination = when {
+            userLoginRepository.isUserLoggedIn() -> "home" // User is logged in, go directly to home
+            registrationStatusChecker.hasRegistrationState() -> registrationStatusChecker.getStartDestination()
+            else -> "splash" // Default start with splash screen
+        }
 
         setContent {
             VotechainTheme {

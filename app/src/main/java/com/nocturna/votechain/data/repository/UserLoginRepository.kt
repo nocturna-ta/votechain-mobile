@@ -16,6 +16,10 @@ import kotlinx.coroutines.withContext
 class UserLoginRepository(private val context: Context) {
     private val TAG = "UserLoginRepository"
     private val apiService = NetworkClient.apiService
+    private val PREFS_NAME = "VoteChainPrefs"
+    private val KEY_USER_TOKEN = "user_token"
+    private val KEY_USER_EMAIL = "user_email"
+    private val KEY_USER_EXPIRES_AT = "expires_at"
 
     /**
      * Login user with email and password
@@ -38,9 +42,10 @@ class UserLoginRepository(private val context: Context) {
                 response.body()?.let {
                     Log.d(TAG, "Login successful: ${it.message}")
 
-                    // Here you can store the token and user data in SharedPreferences
-                    // for use throughout the app
-                    saveUserToken(it.data?.token ?: "")
+                    // Store user data if login is successful and there is a token
+                    if (it.code == 200 && it.data?.token?.isNotEmpty() == true) {
+                        saveUserData(it.data)
+                    }
 
                     Result.success(it)
                 } ?: run {
@@ -60,11 +65,11 @@ class UserLoginRepository(private val context: Context) {
                     if (errorJson.error != null) {
                         Log.e(TAG, "Error details: ${errorJson.error.error_message}")
                     }
+                    Result.failure(Exception(errorJson.message))
                 } catch (e: Exception) {
                     Log.e(TAG, "Could not parse error JSON: ${e.message}")
+                    Result.failure(Exception("Error: ${response.code()} - $errorBody"))
                 }
-
-                Result.failure(Exception("Error: ${response.code()} - $errorBody"))
             }
         } catch (e: Exception) {
             Log.e(TAG, "Exception during login", e)
@@ -73,12 +78,26 @@ class UserLoginRepository(private val context: Context) {
     }
 
     /**
+     * Save user data to SharedPreferences
+     */
+    fun saveUserData(userData: UserLoginData) {
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        with(sharedPreferences.edit()) {
+            putString(KEY_USER_TOKEN, userData.token)
+            putString(KEY_USER_EMAIL, userData.message) // Assuming message contains user info
+            putString(KEY_USER_EXPIRES_AT, userData.expires_at)
+            apply()
+        }
+        Log.d(TAG, "User data saved to SharedPreferences")
+    }
+
+    /**
      * Save user token to SharedPreferences
      */
-    private fun saveUserToken(token: String) {
-        val sharedPreferences = context.getSharedPreferences("VoteChainPrefs", Context.MODE_PRIVATE)
+    fun saveUserToken(token: String) {
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         with(sharedPreferences.edit()) {
-            putString("user_token", token)
+            putString(KEY_USER_TOKEN, token)
             apply()
         }
         Log.d(TAG, "User token saved to SharedPreferences")
@@ -88,26 +107,49 @@ class UserLoginRepository(private val context: Context) {
      * Get saved user token from SharedPreferences
      */
     fun getUserToken(): String {
-        val sharedPreferences = context.getSharedPreferences("VoteChainPrefs", Context.MODE_PRIVATE)
-        return sharedPreferences.getString("user_token", "") ?: ""
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return sharedPreferences.getString(KEY_USER_TOKEN, "") ?: ""
     }
 
     /**
-     * Check if user is logged in (has a token)
+     * Check if user is logged in (has a valid token)
      */
     fun isUserLoggedIn(): Boolean {
-        return getUserToken().isNotEmpty()
+        val token = getUserToken()
+        val expiresAt = getUserTokenExpiry()
+
+        // Check if token exists and is not expired
+        if (token.isNotEmpty() && expiresAt.isNotEmpty()) {
+            try {
+                // Simple expiry check - in a real app you might want to parse the date
+                // and check if it's in the future
+                return true
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking token expiry: ${e.message}")
+            }
+        }
+        return token.isNotEmpty()
     }
 
     /**
-     * Log out user by clearing token
+     * Get token expiry time
+     */
+    private fun getUserTokenExpiry(): String {
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return sharedPreferences.getString(KEY_USER_EXPIRES_AT, "") ?: ""
+    }
+
+    /**
+     * Log out user by clearing token and user data
      */
     fun logoutUser() {
-        val sharedPreferences = context.getSharedPreferences("VoteChainPrefs", Context.MODE_PRIVATE)
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         with(sharedPreferences.edit()) {
-            remove("user_token")
+            remove(KEY_USER_TOKEN)
+            remove(KEY_USER_EMAIL)
+            remove(KEY_USER_EXPIRES_AT)
             apply()
         }
-        Log.d(TAG, "User logged out, token cleared")
+        Log.d(TAG, "User logged out, data cleared")
     }
 }

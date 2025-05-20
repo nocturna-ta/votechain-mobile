@@ -24,6 +24,20 @@ class LoginViewModel(
     private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Initial)
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
+    // Check initial login state
+    init {
+        checkLoginState()
+    }
+
+    /**
+     * Check if the user is already logged in
+     */
+    fun checkLoginState() {
+        if (userLoginRepository.isUserLoggedIn()) {
+            _uiState.value = LoginUiState.AlreadyLoggedIn
+        }
+    }
+
     /**
      * Login user with email and password
      */
@@ -41,22 +55,32 @@ class LoginViewModel(
 
                 result.fold(
                     onSuccess = { response ->
-                        if (response.data?.is_active == true) {
+                        if (response.code == 200 && response.data?.is_active == true) {
                             Log.d(TAG, "Login successful and user is active")
+                            // Save token for persistent login
+                            response.data.token?.let { token ->
+                                userLoginRepository.saveUserToken(token)
+                            }
                             _uiState.value = LoginUiState.Success(response)
-                        } else {
+                        } else if (response.code == 400 || response.code == 401) {
+                            Log.e(TAG, "Login failed: Invalid credentials")
+                            _uiState.value = LoginUiState.Error("Invalid email or password. Please try again.")
+                        } else if (response.data?.is_active == false) {
                             Log.e(TAG, "Login failed: User account is not active")
                             _uiState.value = LoginUiState.Error("Your account is not active. Please contact support.")
+                        } else {
+                            Log.e(TAG, "Login failed: ${response.message}")
+                            _uiState.value = LoginUiState.Error(response.message)
                         }
                     },
                     onFailure = { exception ->
                         Log.e(TAG, "Login failed: ${exception.message}", exception)
-                        _uiState.value = LoginUiState.Error(exception.message ?: "Unknown error occurred")
+                        _uiState.value = LoginUiState.Error(exception.message ?: "Failed to connect to server. Please check your internet connection.")
                     }
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Exception during login: ${e.message}", e)
-                _uiState.value = LoginUiState.Error(e.message ?: "Unknown error occurred")
+                _uiState.value = LoginUiState.Error(e.message ?: "An unexpected error occurred. Please try again.")
             }
         }
     }
@@ -76,11 +100,20 @@ class LoginViewModel(
     }
 
     /**
+     * Log out the current user
+     */
+    fun logoutUser() {
+        userLoginRepository.logoutUser()
+        _uiState.value = LoginUiState.Initial
+    }
+
+    /**
      * UI State for Login Screen
      */
     sealed class LoginUiState {
         data object Initial : LoginUiState()
         data object Loading : LoginUiState()
+        data object AlreadyLoggedIn : LoginUiState()
         data class Success(val data: ApiResponse<UserLoginData>) : LoginUiState()
         data class Error(val message: String) : LoginUiState()
     }
