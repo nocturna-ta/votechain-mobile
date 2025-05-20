@@ -4,8 +4,8 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.nocturna.votechain.blockchain.BlockchainManager
-import com.nocturna.votechain.data.network.ApiResponse
-import com.nocturna.votechain.data.network.UserRegistrationData
+import com.nocturna.votechain.data.model.ApiResponse
+import com.nocturna.votechain.data.model.UserRegistrationData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.security.SecureRandom

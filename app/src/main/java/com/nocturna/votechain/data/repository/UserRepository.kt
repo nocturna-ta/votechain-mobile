@@ -5,10 +5,10 @@ import android.net.Uri
 import android.util.Log
 import android.webkit.MimeTypeMap
 import com.google.gson.Gson
-import com.nocturna.votechain.data.network.ApiResponse
+import com.nocturna.votechain.data.model.ApiResponse
+import com.nocturna.votechain.data.model.RegisterRequest
+import com.nocturna.votechain.data.model.UserRegistrationData
 import com.nocturna.votechain.data.network.NetworkClient
-import com.nocturna.votechain.data.network.RegisterRequest
-import com.nocturna.votechain.data.network.UserRegistrationData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.*

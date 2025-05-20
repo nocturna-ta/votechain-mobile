@@ -3,10 +3,10 @@ package com.nocturna.votechain.data.repository
 import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
-import com.nocturna.votechain.data.network.ApiResponse
-import com.nocturna.votechain.data.network.LoginRequest
+import com.nocturna.votechain.data.model.ApiResponse
+import com.nocturna.votechain.data.model.LoginRequest
+import com.nocturna.votechain.data.model.UserLoginData
 import com.nocturna.votechain.data.network.NetworkClient
-import com.nocturna.votechain.data.network.UserLoginData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

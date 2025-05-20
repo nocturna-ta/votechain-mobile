@@ -24,7 +24,7 @@ import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.PrimaryColors
 import com.nocturna.votechain.utils.openUrlInBrowser
-import com.nocturna.votechain.viewmodel.HomeViewModel
+import com.nocturna.votechain.viewmodel.home.HomeViewModel
 import com.nocturna.votechain.utils.LanguageManager
 
 @OptIn(ExperimentalMaterial3Api::class)

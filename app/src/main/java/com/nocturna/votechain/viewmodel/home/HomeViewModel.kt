@@ -1,7 +1,6 @@
-package com.nocturna.votechain.viewmodel
+package com.nocturna.votechain.viewmodel.home
 
 import android.app.Application
-import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel

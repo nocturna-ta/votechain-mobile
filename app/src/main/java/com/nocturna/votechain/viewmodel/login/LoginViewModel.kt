@@ -5,8 +5,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.nocturna.votechain.data.network.ApiResponse
-import com.nocturna.votechain.data.network.UserLoginData
+import com.nocturna.votechain.data.model.ApiResponse
+import com.nocturna.votechain.data.model.UserLoginData
 import com.nocturna.votechain.data.repository.UserLoginRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

@@ -7,10 +7,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.nocturna.votechain.blockchain.BlockchainManager
-import com.nocturna.votechain.data.network.ApiResponse
-import com.nocturna.votechain.data.network.Province
-import com.nocturna.votechain.data.network.Regency
-import com.nocturna.votechain.data.network.UserRegistrationData
+import com.nocturna.votechain.data.model.ApiResponse
+import com.nocturna.votechain.data.model.Province
+import com.nocturna.votechain.data.model.Regency
+import com.nocturna.votechain.data.model.UserRegistrationData
 import com.nocturna.votechain.data.network.WilayahApiClient
 import com.nocturna.votechain.data.repository.EnhancedUserRepository
 import com.nocturna.votechain.data.repository.RegistrationStateManager

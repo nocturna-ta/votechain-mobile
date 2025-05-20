@@ -53,7 +53,7 @@ import com.nocturna.votechain.ui.theme.InfoColors
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.utils.LanguageManager
-import com.nocturna.votechain.viewmodel.HomeViewModel
+import com.nocturna.votechain.viewmodel.home.HomeViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 

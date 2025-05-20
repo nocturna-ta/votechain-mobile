@@ -2,24 +2,23 @@ package com.nocturna.votechain.data.network
 
 import android.util.Log
 import com.google.gson.GsonBuilder
-import com.nocturna.votechain.data.model.ProvinceResponse
-import com.nocturna.votechain.data.model.RegencyResponse
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.GET
-import retrofit2.http.Path
 import java.util.concurrent.TimeUnit
 
-object WilayahApiClient {
-    private const val BASE_URL = "https://wilayah.id/api/"
-    private const val TAG = "WilayahApiClient"
+/**
+ * Network client for connecting to the Election API
+ */
+object ElectionNetworkClient {
+    const val BASE_URL = "https://222a-36-80-96-33.ngrok-free.app/"
+    private const val TAG = "ElectionNetworkClient"
 
     /**
      * Create and configure OkHttpClient with logging and timeouts
      */
-    private fun createOkHttpClient(): OkHttpClient {
+    fun createOkHttpClient(): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor { message ->
             Log.d(TAG, message)
         }.apply {
@@ -34,18 +33,19 @@ object WilayahApiClient {
                     .build()
                 chain.proceed(request)
             }
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
             .build()
     }
 
     /**
      * Create and configure Retrofit instance
      */
-    private val retrofit: Retrofit by lazy {
+    val retrofit: Retrofit by lazy {
         val gson = GsonBuilder()
             .setLenient()
+            .serializeNulls()
             .create()
 
         Retrofit.Builder()
@@ -58,7 +58,7 @@ object WilayahApiClient {
     /**
      * Create API service instance
      */
-    val apiService: WilayahApiService by lazy {
-        retrofit.create(WilayahApiService::class.java)
+    val electionApiService: ElectionApiService by lazy {
+        retrofit.create(ElectionApiService::class.java)
     }
 }

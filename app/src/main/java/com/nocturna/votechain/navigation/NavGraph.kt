@@ -30,6 +30,7 @@ import com.nocturna.votechain.ui.screens.register.RegistrationFlowController
 import com.nocturna.votechain.ui.screens.votepage.CandidateSelectionScreen
 import com.nocturna.votechain.ui.screens.votepage.OTPVotingVerificationScreen
 import com.nocturna.votechain.ui.screens.votepage.ResultsScreen
+import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
 import com.nocturna.votechain.viewmodel.vote.VotingViewModel
 
 @Composable
@@ -38,6 +39,7 @@ fun VotechainNavGraph(
     startDestination: String = "splash",
     modifier: Modifier = Modifier,
     viewModel: VotingViewModel = viewModel(),
+    electionViewModel: ElectionViewModel = viewModel(factory = ElectionViewModel.Factory()),
     onNewsClick: (NewsItem) -> Unit = {}
 ) {
     NavHost(
@@ -193,14 +195,25 @@ fun VotechainNavGraph(
             )
         }
 
+//        composable(
+//            "candidate_detail/{candidateId}",
+//            arguments = listOf(navArgument("candidateId") { type = NavType.StringType })
+//        ) {
+//            val candidateId = it.arguments?.getString("candidateId") ?: ""
+//            DetailCandidateScreen(
+//                candidateId = candidateId,
+//                onBackClick = { navController.popBackStack() }
+//            )
+//        }
         composable(
-            "candidate_detail/{candidateId}",
+            "candidate_detail_api/{candidateId}",
             arguments = listOf(navArgument("candidateId") { type = NavType.StringType })
         ) {
             val candidateId = it.arguments?.getString("candidateId") ?: ""
             DetailCandidateScreen(
                 candidateId = candidateId,
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                viewModel = electionViewModel
             )
         }
 

@@ -1,5 +1,8 @@
 package com.nocturna.votechain.ui.screens.homepage
 
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,17 +16,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.nocturna.votechain.R
+import com.nocturna.votechain.data.model.Candidate
 import com.nocturna.votechain.data.model.CandidatePersonalInfo
 import com.nocturna.votechain.data.model.EducationEntry
 import com.nocturna.votechain.data.model.WorkEntry
 import com.nocturna.votechain.data.repository.CandidateRepository
 import com.nocturna.votechain.domain.GetCandidateDetail
+import com.nocturna.votechain.ui.components.EducationHistoryTable
+import com.nocturna.votechain.ui.components.TableRow
+import com.nocturna.votechain.ui.components.WorkHistoryTable
 import com.nocturna.votechain.viewmodel.candidate.CandidateDetailViewModel
 import com.nocturna.votechain.ui.screens.LoadingScreen
 import com.nocturna.votechain.ui.theme.AdditionalColors
@@ -34,6 +44,7 @@ import com.nocturna.votechain.ui.theme.PrimaryColors
 import com.nocturna.votechain.ui.theme.VotechainTheme
 import com.nocturna.votechain.ui.theme.CandidateDetailStyling
 import com.nocturna.votechain.utils.LanguageManager
+import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
 
 /**
  * Screen that displays detailed information about a candidate
@@ -44,17 +55,44 @@ fun DetailCandidateScreen(
     candidateId: String,
     onBackClick: () -> Unit,
     styling: CandidateDetailStyling = CandidateDetailStyling(),
-    viewModel: CandidateDetailViewModel = viewModel(
-        factory = provideCandidateDetailViewModelFactory()
-    )
+    viewModel: ElectionViewModel = viewModel(factory = ElectionViewModel.Factory())
 ) {
     val strings = LanguageManager.getLocalizedStrings()
-    val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val electionPairs by viewModel.electionPairs.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
 
-    // Fetch candidate data when the screen is first composed
-    LaunchedEffect(candidateId) {
-        viewModel.fetchCandidateDetail(candidateId)
+    // Parse the candidateId to get type (president/vicePresident) and actual id
+    var candidate: Candidate? = null
+
+    // Fetch election pairs if not already loaded
+    LaunchedEffect(Unit) {
+        if (electionPairs.isEmpty()) {
+            viewModel.fetchElectionPairs()
+        }
+    }
+
+// Extract the candidate data based on the ID format
+    LaunchedEffect(candidateId, electionPairs) {
+        if (electionPairs.isNotEmpty()) {
+            val parts = candidateId.split("_")
+            if (parts.size >= 2) {
+                val type = parts[0]
+                val id = parts.subList(1, parts.size).joinToString("_")
+
+                // Find the election pair with the matching ID
+                val pair = electionPairs.find { it.id == id }
+
+                // Get the appropriate candidate
+                candidate = when (type) {
+                    "president" -> pair?.president
+                    "vice" -> pair?.vice_president
+                    else -> null
+                }
+            }
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -90,14 +128,50 @@ fun DetailCandidateScreen(
         }
 
         // Main content based on UI state
-        when (uiState) {
-            is CandidateDetailViewModel.CandidateDetailUiState.Loading -> {
+        when {
+            isLoading -> {
                 LoadingScreen()
             }
+            error != null -> {
+                // Show error message
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Error Loading Data",
+                            style = AppTypography.heading4Medium,
+                            color = MainColors.Primary1
+                        )
 
-            is CandidateDetailViewModel.CandidateDetailUiState.Success -> {
-                val data = (uiState as CandidateDetailViewModel.CandidateDetailUiState.Success).data
+                        Spacer(modifier = Modifier.height(8.dp))
 
+                        Text(
+                            text = error ?: "Unknown error occurred",
+                            style = AppTypography.heading5Regular,
+                            color = NeutralColors.Neutral70,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Button(
+                            onClick = { viewModel.fetchElectionPairs() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MainColors.Primary1
+                            )
+                        ) {
+                            Text("Try Again")
+                        }
+                    }
+                }
+            }
+            candidate != null -> {
                 // Main content
                 Column(
                     modifier = Modifier
@@ -107,8 +181,12 @@ fun DetailCandidateScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     // Candidate photo
-                    Image(
-                        painter = painterResource(id = data.personalInfo.photoResId),
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(candidate?.photo_path)
+                            .crossfade(true)
+                            .error(R.drawable.pc_anies) // Placeholder if image fails to load
+                            .build(),
                         contentDescription = "Candidate Photo",
                         modifier = Modifier
                             .size(200.dp)
@@ -118,15 +196,15 @@ fun DetailCandidateScreen(
 
                     // Candidate name
                     Text(
-                        text = data.personalInfo.fullName,
+                        text = candidate?.full_name ?: "",
                         style = AppTypography.heading5Bold,
                         color = PrimaryColors.Primary70,
                         textAlign = TextAlign.Center
                     )
 
-                    // Candidate position
+                    // Candidate position (job)
                     Text(
-                        text = data.personalInfo.position,
+                        text = candidate?.job ?: "",
                         style = AppTypography.heading6Regular,
                         color = NeutralColors.Neutral50,
                         textAlign = TextAlign.Center,
@@ -134,7 +212,7 @@ fun DetailCandidateScreen(
                     )
 
                     // Personal Information Section
-                    PersonalInfoSection(data.personalInfo, styling)
+                    CandidatePersonalInfoFromApi(candidate!!, strings, styling)
 
                     Spacer(modifier = Modifier.height(24.dp))
 
@@ -149,7 +227,15 @@ fun DetailCandidateScreen(
                         textAlign = TextAlign.Center
                     )
 
-                    EducationHistorySection(data.educationHistory, styling)
+                    // Convert API education data to the format used by our component
+                    val educationEntries = candidate?.education_history?.map {
+                        com.nocturna.votechain.data.model.EducationEntry(
+                            institution = it.institute_name,
+                            period = it.year
+                        )
+                    } ?: emptyList()
+
+                    EducationHistoryTable(educationEntries)
 
                     Spacer(modifier = Modifier.height(24.dp))
 
@@ -164,51 +250,35 @@ fun DetailCandidateScreen(
                         textAlign = TextAlign.Center
                     )
 
-                    WorkHistorySection(data.workHistory, styling)
+                    // Convert API work data to the format used by our component
+                    val workEntries = candidate?.work_experience?.map {
+                        com.nocturna.votechain.data.model.WorkEntry(
+                            institution = it.institute_name,
+                            position = it.position,
+                            period = it.year
+                        )
+                    } ?: emptyList()
+
+                    WorkHistoryTable(workEntries)
 
                     // Spacer at the bottom for better scrolling experience
                     Spacer(modifier = Modifier.height(80.dp))
                 }
             }
-
-            is CandidateDetailViewModel.CandidateDetailUiState.Error -> {
-                // Show error message
-                val errorMessage = (uiState as CandidateDetailViewModel.CandidateDetailUiState.Error).message
+            else -> {
+                // Fallback in case no candidate data is found
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Terjadi kesalahan",
-                            style = AppTypography.heading4Medium,
-                            color = MainColors.Primary1
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = errorMessage,
-                            style = AppTypography.heading5Regular,
-                            color = NeutralColors.Neutral70,
-                            textAlign = TextAlign.Center
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Button(
-                            onClick = { viewModel.fetchCandidateDetail(candidateId) },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MainColors.Primary1
-                            )
-                        ) {
-                            Text("Coba Lagi")
-                        }
-                    }
+                    Text(
+                        text = "No candidate data found",
+                        style = AppTypography.heading4Medium,
+                        color = NeutralColors.Neutral70,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }
@@ -216,284 +286,29 @@ fun DetailCandidateScreen(
 }
 
 @Composable
-fun PersonalInfoSection(
-    personalInfo: CandidatePersonalInfo,
+fun CandidatePersonalInfoFromApi(
+    candidate: Candidate,
+    strings: com.nocturna.votechain.utils.LocalizedStrings,
     styling: CandidateDetailStyling
 ) {
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        val strings = LanguageManager.getLocalizedStrings()
-        // Gender Row
-        PersonalInfoRow(
-            label = strings.genderCandidate,
-            value = personalInfo.gender,
-            styling = styling
-        )
+        // Gender
+        TableRow(label = strings.genderCandidate, value = candidate.gender)
 
-        // Birth Place/Date Row
-        PersonalInfoRow(
-            label = strings.birthInfo,
-            value = personalInfo.birthInfo,
-            styling = styling
-        )
+        // Birth Info
+        TableRow(label = strings.birthInfo, value = "${candidate.birth_place}, ${candidate.birth_date}")
 
-        // Religion Row
-        PersonalInfoRow(
-            label = strings.religion,
-            value = personalInfo.religion,
-            styling = styling
-        )
+        // Religion
+        TableRow(label = strings.religion, value = candidate.religion)
 
-        // Education Row
-        PersonalInfoRow(
-            label = strings.education,
-            value = personalInfo.education,
-            styling = styling,
-        )
+        // Education
+        TableRow(label = strings.education, value = candidate.last_education)
 
-        // Occupation Row
-        PersonalInfoRow(
-            label = strings.occupation,
-            value = personalInfo.occupation,
-            styling = styling
-        )
+        // Job/Occupation
+        TableRow(label = strings.occupation, value = candidate.job)
     }
-}
-
-@Composable
-fun PersonalInfoRow(
-    label: String,
-    value: String,
-    styling: CandidateDetailStyling
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 1.dp)
-    ) {
-        Text(
-            text = label,
-            style = styling.personalInfoLabelStyle,
-            color = styling.personalInfoLabelColor,
-            modifier = Modifier
-                .weight(1f)
-                .background(color = NeutralColors.Neutral10)
-                .padding(vertical = 12.dp, horizontal = 8.dp)
-        )
-
-        Text(
-            text = value,
-            style = styling.personalInfoValueStyle,
-            color = styling.personalInfoValueColor,
-            modifier = Modifier
-                .weight(1f)
-                .background(color = NeutralColors.Neutral10)
-                .padding(vertical = 12.dp, horizontal = 8.dp)
-        )
-    }
-
-    Divider(
-        color =  AdditionalColors.strokeColor,
-        thickness = 1.dp
-    )
-}
-
-@Composable
-fun EducationHistorySection(
-    educationHistory: List<EducationEntry>,
-    styling: CandidateDetailStyling
-) {
-    val strings = LanguageManager.getLocalizedStrings()
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(NeutralColors.Neutral10)
-    ) {
-        // Table header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(styling.tableHeaderBackground)
-                .padding(vertical = 8.dp)
-        ) {
-            Text(
-                text = strings.institution,
-                style = styling.tableHeaderTextStyle,
-                color = styling.tableHeaderTextColor,
-                modifier = Modifier
-                    .weight(1.5f)
-                    .padding(horizontal = 8.dp),
-                textAlign = TextAlign.Center
-            )
-
-            Text(
-                text = strings.period,
-                style = styling.tableHeaderTextStyle,
-                color = styling.tableHeaderTextColor,
-                modifier = Modifier
-                    .weight(0.8f)
-                    .padding(horizontal = 8.dp),
-                textAlign = TextAlign.Center
-            )
-        }
-
-        // Dynamic education entries
-        educationHistory.forEach { entry ->
-            EducationEntryRow(entry, styling)
-        }
-    }
-}
-
-@Composable
-fun EducationEntryRow(
-    entry: EducationEntry,
-    styling: CandidateDetailStyling
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(NeutralColors.Neutral10)
-            .padding(vertical = 8.dp)
-    ) {
-        Text(
-            text = entry.institution,
-            style = styling.educationInstitutionStyle,
-            color = styling.educationInstitutionColor,
-            modifier = Modifier
-                .weight(1.5f)
-                .padding(horizontal = 8.dp)
-        )
-
-        Text(
-            text = entry.period,
-            style = styling.educationPeriodStyle,
-            color = styling.educationPeriodColor,
-            modifier = Modifier
-                .weight(0.8f)
-                .padding(horizontal = 8.dp)
-        )
-    }
-
-    Divider(
-        color = AdditionalColors.strokeColor,
-        thickness = 1.dp
-    )
-}
-
-@Composable
-fun WorkHistorySection(
-    workHistory: List<WorkEntry>,
-    styling: CandidateDetailStyling
-) {
-    val strings = LanguageManager.getLocalizedStrings()
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(NeutralColors.Neutral30)
-    ) {
-        // Table header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(styling.tableHeaderBackground)
-                .padding(vertical = 8.dp)
-        ) {
-            Text(
-                text = strings.institution,
-                style = styling.tableHeaderTextStyle,
-                color = styling.tableHeaderTextColor,
-                modifier = Modifier
-                    .weight(1.5f)
-                    .padding(horizontal = 8.dp),
-                textAlign = TextAlign.Center
-            )
-
-            Text(
-                text = strings.position,
-                style = styling.tableHeaderTextStyle,
-                color = styling.tableHeaderTextColor,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 8.dp),
-                textAlign = TextAlign.Center
-            )
-
-            Text(
-                text = strings.period,
-                style = styling.tableHeaderTextStyle,
-                color = styling.tableHeaderTextColor,
-                modifier = Modifier
-                    .weight(0.8f)
-                    .padding(horizontal = 8.dp),
-                textAlign = TextAlign.Center
-            )
-        }
-
-        // Dynamic work experience entries
-        workHistory.forEach { entry ->
-            WorkEntryRow(entry, styling)
-        }
-    }
-}
-
-@Composable
-fun WorkEntryRow(
-    entry: WorkEntry,
-    styling: CandidateDetailStyling
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(NeutralColors.Neutral10)
-            .padding(vertical = 8.dp)
-    ) {
-        Text(
-            text = entry.institution,
-            style = styling.workInstitutionStyle,
-            color = styling.workInstitutionColor,
-            modifier = Modifier
-                .weight(1.5f)
-                .padding(horizontal = 8.dp)
-        )
-
-        Text(
-            text = entry.position,
-            style = styling.workPositionStyle,
-            color = styling.workPositionColor,
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 8.dp)
-        )
-
-        Text(
-            text = entry.period,
-            style = styling.workPeriodStyle,
-            color = styling.workPeriodColor,
-            modifier = Modifier
-                .weight(0.8f)
-                .padding(horizontal = 8.dp)
-        )
-    }
-
-    Divider(
-        color =  AdditionalColors.strokeColor,
-        thickness = 1.dp
-    )
-}
-
-/**
- * Factory method to provide CandidateDetailViewModel
- */
-@Composable
-private fun provideCandidateDetailViewModelFactory(): CandidateDetailViewModel.Factory {
-    val repository = remember { CandidateRepository() }
-    val useCase = remember { GetCandidateDetail(repository) }
-    return remember { CandidateDetailViewModel.Factory(useCase) }
 }
 
 /**

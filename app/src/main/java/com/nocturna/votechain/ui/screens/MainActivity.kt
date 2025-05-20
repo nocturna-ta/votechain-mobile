@@ -8,12 +8,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.nocturna.votechain.data.repository.UserLoginRepository
 import com.nocturna.votechain.navigation.VotechainNavGraph
 import com.nocturna.votechain.ui.theme.VotechainTheme
 import com.nocturna.votechain.utils.RegistrationStatusChecker
 import com.nocturna.votechain.utils.openUrlInBrowser
+import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,10 +42,12 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val navController = rememberNavController()
                     val context = LocalContext.current
+                    val electionViewModel: ElectionViewModel = viewModel(factory = ElectionViewModel.Factory())
 
                     VotechainNavGraph(
                         navController = navController,
-                        startDestination = startDestination, // Use the determined start destination
+                        startDestination = startDestination,
+                        electionViewModel = electionViewModel,
                         onNewsClick = { newsItem ->
                             // Open the news in the browser with the correct URL format:
                             // https://www.kpu.go.id/berita/baca/id/post_slug
