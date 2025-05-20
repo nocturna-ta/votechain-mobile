@@ -18,11 +18,18 @@ import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.VotechainTheme
+import com.nocturna.votechain.viewmodel.register.RegisterViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.platform.LocalContext
+import com.nocturna.votechain.utils.LanguageManager
 
 @Composable
 fun AcceptedScreen(
-    onLoginClick: () -> Unit = {}
+    onLoginClick: () -> Unit = {},
+    viewModel: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(LocalContext.current))
 ) {
+    val strings = LanguageManager.getLocalizedStrings()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -32,7 +39,7 @@ fun AcceptedScreen(
     ) {
         Image(
             painter = painterResource(id = R.drawable.approve),
-            contentDescription = "Verification Approved",
+            contentDescription = strings.verificationApproved,
             modifier = Modifier.size(224.dp)
         )
 
@@ -40,7 +47,7 @@ fun AcceptedScreen(
 
         // Title text
         Text(
-            text = "Verification Approved",
+            text = strings.verificationApproved,
             style = AppTypography.heading1Bold,
             color = MainColors.Primary1,
             textAlign = TextAlign.Center
@@ -50,7 +57,7 @@ fun AcceptedScreen(
 
         // Description text
         Text(
-            text = "Congratulations! Your account has been created successfully. Please log in to access your account and participate in the election",
+            text = strings.verificationApprovedDescription,
             style = AppTypography.heading4Medium,
             color = NeutralColors.Neutral70,
             textAlign = TextAlign.Center
@@ -70,7 +77,7 @@ fun AcceptedScreen(
             shape = RoundedCornerShape(28.dp)
         ) {
             Text(
-                text = "Log in",
+                text = strings.login,
                 style = AppTypography.heading4SemiBold,
                 color = NeutralColors.Neutral10
             )

@@ -2,6 +2,7 @@ package com.nocturna.votechain.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,12 +24,15 @@ import androidx.compose.ui.unit.dp
 import com.nocturna.votechain.R
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
+import com.nocturna.votechain.utils.LanguageManager
 
 @Composable
 fun BottomNavigation(
     currentRoute: String,
     onNavigate: (String) -> Unit
 ) {
+    val strings = LanguageManager.getLocalizedStrings()
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -38,86 +42,66 @@ fun BottomNavigation(
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly,
+            horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.Top
         ) {
             // Home Icon
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = androidx.compose.foundation.layout.Arrangement.Top,
-                modifier = Modifier
-                    .padding(top = 12.dp) // Uniform top padding for all items
-                    .clickable { onNavigate("home") }
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.home),
-                    contentDescription = "Home",
-                    tint = if (currentRoute == "home") MainColors.Primary1 else NeutralColors.Neutral50,
-                    modifier = Modifier.size(24.dp)
-                )
-                if (currentRoute == "home") {
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 8.dp)
-                            .width(28.dp)
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(MainColors.Primary1)
-                    )
-                }
-            }
+            BottomNavItem(
+                icon = R.drawable.home,
+                label = strings.homeNav,
+                isSelected = currentRoute == "home",
+                onClick = { onNavigate("home") }
+            )
 
             // Votes Icon
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = androidx.compose.foundation.layout.Arrangement.Top,
-                modifier = Modifier
-                    .padding(top = 12.dp) // Uniform top padding for all items
-                    .clickable { onNavigate("votes") }
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.voting),
-                    contentDescription = "Votes",
-                    tint = if (currentRoute == "votes") MainColors.Primary1 else NeutralColors.Neutral50,
-                    modifier = Modifier.size(24.dp)
-                )
-                if (currentRoute == "votes") {
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 8.dp)
-                            .width(28.dp)
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(MainColors.Primary1)
-                    )
-                }
-            }
+            BottomNavItem(
+                icon = R.drawable.voting,
+                label = strings.votesNav,
+                isSelected = currentRoute == "votes",
+                onClick = { onNavigate("votes") }
+            )
 
             // Profile Icon
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = androidx.compose.foundation.layout.Arrangement.Top,
+            BottomNavItem(
+                icon = R.drawable.profile,
+                label = strings.profileNav,
+                isSelected = currentRoute == "profile",
+                onClick = { onNavigate("profile") }
+            )
+        }
+    }
+}
+
+@Composable
+private fun BottomNavItem(
+    icon: Int,
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top,
+        modifier = Modifier
+            .padding(top = 12.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Icon(
+            painter = painterResource(id = icon),
+            contentDescription = label,
+            tint = if (isSelected) MainColors.Primary1 else NeutralColors.Neutral50,
+            modifier = Modifier.size(24.dp)
+        )
+
+        if (isSelected) {
+            Box(
                 modifier = Modifier
-                    .padding(top = 12.dp) // Uniform top padding for all items
-                    .clickable { onNavigate("profile") }
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.profile),
-                    contentDescription = "Profile",
-                    tint = if (currentRoute == "profile") MainColors.Primary1 else NeutralColors.Neutral50,
-                    modifier = Modifier.size(24.dp)
-                )
-                if (currentRoute == "profile") {
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 8.dp)
-                            .width(28.dp)
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(MainColors.Primary1)
-                    )
-                }
-            }
+                    .padding(top = 8.dp)
+                    .width(28.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(MainColors.Primary1)
+            )
         }
     }
 }

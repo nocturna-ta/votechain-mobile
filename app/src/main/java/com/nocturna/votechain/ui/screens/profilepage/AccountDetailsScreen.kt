@@ -21,6 +21,7 @@ import com.nocturna.votechain.R
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
+import com.nocturna.votechain.utils.LanguageManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -30,6 +31,7 @@ fun AccountDetailsScreen(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
+    val strings = LanguageManager.getLocalizedStrings()
     val scrollState = rememberScrollState()
 
     // Mock data - in a real app, this would come from a ViewModel
@@ -60,7 +62,7 @@ fun AccountDetailsScreen(
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             painter = painterResource(id = R.drawable.back),
-                            contentDescription = "Back",
+                            contentDescription = strings.back,
                             tint = MainColors.Primary1
                         )
                     }
@@ -83,7 +85,7 @@ fun AccountDetailsScreen(
         ) {
             // Balance
             Text(
-                text = "Balance",
+                text = strings.balance,
                 style = AppTypography.heading5Regular,
                 color = NeutralColors.Neutral70,
                 modifier = Modifier.padding(bottom = 8.dp, top = 16.dp)
@@ -108,7 +110,7 @@ fun AccountDetailsScreen(
 
             // NIK
             Text(
-                text = "Nomor Induk Kependudukan",
+                text = strings.nik,
                 style = AppTypography.heading5Regular,
                 color = NeutralColors.Neutral70,
                 modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
@@ -133,7 +135,7 @@ fun AccountDetailsScreen(
 
             // Private Key
             Text(
-                text = "Private Key",
+                text = strings.privateKey,
                 style = AppTypography.heading5Regular,
                 color = NeutralColors.Neutral70,
                 modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
@@ -172,7 +174,7 @@ fun AccountDetailsScreen(
 
             // Public Key
             Text(
-                text = "Public Key",
+                text = strings.publicKey,
                 style = AppTypography.heading5Regular,
                 color = NeutralColors.Neutral70,
                 modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)

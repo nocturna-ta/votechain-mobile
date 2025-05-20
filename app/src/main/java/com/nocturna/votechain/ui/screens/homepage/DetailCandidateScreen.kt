@@ -33,6 +33,7 @@ import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.PrimaryColors
 import com.nocturna.votechain.ui.theme.VotechainTheme
 import com.nocturna.votechain.ui.theme.CandidateDetailStyling
+import com.nocturna.votechain.utils.LanguageManager
 
 /**
  * Screen that displays detailed information about a candidate
@@ -47,6 +48,7 @@ fun DetailCandidateScreen(
         factory = provideCandidateDetailViewModelFactory()
     )
 ) {
+    val strings = LanguageManager.getLocalizedStrings()
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
 
@@ -72,7 +74,7 @@ fun DetailCandidateScreen(
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.back),
-                    contentDescription = "Back",
+                    contentDescription = strings.back,
                     tint = MainColors.Primary1,
                     modifier = Modifier.size(20.dp) // Smaller icon size
                 )
@@ -80,7 +82,7 @@ fun DetailCandidateScreen(
 
             // Screen title
             Text(
-                text = "Detail Candidate",
+                text = strings.detailCandidate,
                 style = AppTypography.heading4Regular,
                 color = PrimaryColors.Primary80,
                 modifier = Modifier.align(Alignment.Center)
@@ -138,7 +140,7 @@ fun DetailCandidateScreen(
 
                     // Education History Section
                     Text(
-                        text = "Education History",
+                        text = strings.educationHistory,
                         style = styling.sectionTitleStyle,
                         color = styling.sectionTitleColor,
                         modifier = Modifier
@@ -153,7 +155,7 @@ fun DetailCandidateScreen(
 
                     // Work History Section
                     Text(
-                        text = "Work History",
+                        text = strings.workHistory,
                         style = styling.sectionTitleStyle,
                         color = styling.sectionTitleColor,
                         modifier = Modifier
@@ -221,37 +223,38 @@ fun PersonalInfoSection(
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
+        val strings = LanguageManager.getLocalizedStrings()
         // Gender Row
         PersonalInfoRow(
-            label = "Gender",
+            label = strings.genderCandidate,
             value = personalInfo.gender,
             styling = styling
         )
 
         // Birth Place/Date Row
         PersonalInfoRow(
-            label = "Birth Place/Date",
+            label = strings.birthInfo,
             value = personalInfo.birthInfo,
             styling = styling
         )
 
         // Religion Row
         PersonalInfoRow(
-            label = "Religion",
+            label = strings.religion,
             value = personalInfo.religion,
             styling = styling
         )
 
         // Education Row
         PersonalInfoRow(
-            label = "Last Education",
+            label = strings.education,
             value = personalInfo.education,
             styling = styling,
         )
 
         // Occupation Row
         PersonalInfoRow(
-            label = "Occupation",
+            label = strings.occupation,
             value = personalInfo.occupation,
             styling = styling
         )
@@ -301,6 +304,8 @@ fun EducationHistorySection(
     educationHistory: List<EducationEntry>,
     styling: CandidateDetailStyling
 ) {
+    val strings = LanguageManager.getLocalizedStrings()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -315,7 +320,7 @@ fun EducationHistorySection(
                 .padding(vertical = 8.dp)
         ) {
             Text(
-                text = "Institution",
+                text = strings.institution,
                 style = styling.tableHeaderTextStyle,
                 color = styling.tableHeaderTextColor,
                 modifier = Modifier
@@ -325,7 +330,7 @@ fun EducationHistorySection(
             )
 
             Text(
-                text = "Period",
+                text = strings.period,
                 style = styling.tableHeaderTextStyle,
                 color = styling.tableHeaderTextColor,
                 modifier = Modifier
@@ -383,6 +388,8 @@ fun WorkHistorySection(
     workHistory: List<WorkEntry>,
     styling: CandidateDetailStyling
 ) {
+    val strings = LanguageManager.getLocalizedStrings()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -397,7 +404,7 @@ fun WorkHistorySection(
                 .padding(vertical = 8.dp)
         ) {
             Text(
-                text = "Institution",
+                text = strings.institution,
                 style = styling.tableHeaderTextStyle,
                 color = styling.tableHeaderTextColor,
                 modifier = Modifier
@@ -407,7 +414,7 @@ fun WorkHistorySection(
             )
 
             Text(
-                text = "Position",
+                text = strings.position,
                 style = styling.tableHeaderTextStyle,
                 color = styling.tableHeaderTextColor,
                 modifier = Modifier
@@ -417,7 +424,7 @@ fun WorkHistorySection(
             )
 
             Text(
-                text = "Period",
+                text = strings.period,
                 style = styling.tableHeaderTextStyle,
                 color = styling.tableHeaderTextColor,
                 modifier = Modifier

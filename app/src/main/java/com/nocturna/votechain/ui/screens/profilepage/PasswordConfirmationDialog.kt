@@ -22,6 +22,8 @@ import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.DangerColors
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
+import com.nocturna.votechain.utils.LanguageManager
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun PasswordConfirmationDialog(
@@ -30,6 +32,9 @@ fun PasswordConfirmationDialog(
     isOpen: Boolean
 ) {
     if (!isOpen) return
+
+    val strings = LanguageManager.getLocalizedStrings()
+    val context = LocalContext.current
 
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }

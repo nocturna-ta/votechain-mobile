@@ -25,6 +25,7 @@ import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.PrimaryColors
 import com.nocturna.votechain.utils.openUrlInBrowser
 import com.nocturna.votechain.viewmodel.HomeViewModel
+import com.nocturna.votechain.utils.LanguageManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +38,7 @@ fun HomeScreen(
     onNewsClick: (NewsItem) -> Unit = {},
     viewModel: HomeViewModel = viewModel()
 ) {
+    val strings = LanguageManager.getLocalizedStrings()
     val currentRoute = "home" // Default route is home
     val context = LocalContext.current
 
@@ -71,12 +73,12 @@ fun HomeScreen(
             ) {
                 Column {
                     Text(
-                        text = "Empowering Democracy",
+                        text = strings.empoweringDemocracy,
                         style = AppTypography.heading4Regular,
                         color = PrimaryColors.Primary70
                     )
                     Text(
-                        text = "One Vote at a Time",
+                        text = strings.oneVoteAtATime,
                         style = AppTypography.heading1Bold,
                         color = PrimaryColors.Primary80
                     )
@@ -85,7 +87,7 @@ fun HomeScreen(
                 IconButton(onClick = { onNotificationClick() }) {
                     Icon(
                         painter = painterResource(id = R.drawable.notification),
-                        contentDescription = "Notifications",
+                        contentDescription = strings.notification,
                         tint = MainColors.Primary1
                     )
                 }
@@ -98,7 +100,7 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Latest News",
+                    text = strings.latestNews,
                     style = AppTypography.heading4SemiBold,
                     color = PrimaryColors.Primary80,
                     modifier = Modifier.padding(bottom = 24.dp)
@@ -114,7 +116,7 @@ fun HomeScreen(
 
             // Active Votes List Section
             Text(
-                text = "Active Votes List",
+                text = strings.activeVotesList,
                 style = AppTypography.heading4SemiBold,
                 color = PrimaryColors.Primary80
             )

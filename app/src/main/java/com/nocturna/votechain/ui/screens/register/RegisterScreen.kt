@@ -68,10 +68,10 @@ fun RegisterScreen(
     onLoginClick: () -> Unit,
     onWaitingScreen: () -> Unit,
     navigateToAccepted: () -> Unit,
-    navigateToRejected: () -> Unit
+    navigateToRejected: () -> Unit,
+    viewModel: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(LocalContext.current))
 ) {
     val context = LocalContext.current
-    val viewModel: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(context))
 
     // Form field values
     var nationalId by remember { mutableStateOf("") }

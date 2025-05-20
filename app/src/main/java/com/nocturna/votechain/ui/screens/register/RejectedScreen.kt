@@ -10,20 +10,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nocturna.votechain.R
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.VotechainTheme
+import com.nocturna.votechain.utils.LanguageManager
+import com.nocturna.votechain.viewmodel.register.RegisterViewModel
 
 @Composable
 fun RejectedScreen(
-    onRetryClick: () -> Unit = {}
+    onRetryClick: () -> Unit = {},
+    viewModel: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(LocalContext.current))
 ) {
+    val strings = LanguageManager.getLocalizedStrings()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -33,7 +40,7 @@ fun RejectedScreen(
     ) {
         Image(
             painter = painterResource(id = R.drawable.rejected),
-            contentDescription = "Verification Failed",
+            contentDescription = strings.verificationDenied,
             modifier = Modifier.size(224.dp),
             contentScale = ContentScale.Fit
         )
@@ -42,7 +49,7 @@ fun RejectedScreen(
 
         // Title text
         Text(
-            text = "Verification Denied",
+            text = strings.verificationDenied,
             style = AppTypography.heading1Bold,
             color = MainColors.Primary1,
             textAlign = TextAlign.Center
@@ -52,7 +59,7 @@ fun RejectedScreen(
 
         // Description text
         Text(
-            text = "Your data could not be verified in the Voter List. Please review your details and try again",
+            text = strings.verificationDeniedDescription,
             style = AppTypography.heading4Medium,
             color = NeutralColors.Neutral70,
             textAlign = TextAlign.Center
@@ -72,7 +79,7 @@ fun RejectedScreen(
             shape = RoundedCornerShape(28.dp)
         ) {
             Text(
-                text = "Retry Registration",
+                text = strings.retryRegistration,
                 style = AppTypography.heading4SemiBold,
                 color = NeutralColors.Neutral10
             )

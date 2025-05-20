@@ -13,6 +13,7 @@ import com.nocturna.votechain.data.network.Regency
 import com.nocturna.votechain.data.network.UserRegistrationData
 import com.nocturna.votechain.data.network.WilayahApiClient
 import com.nocturna.votechain.data.repository.EnhancedUserRepository
+import com.nocturna.votechain.data.repository.RegistrationStateManager
 import com.nocturna.votechain.data.repository.UserRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +35,9 @@ class RegisterViewModel(
     private val _uiState = MutableStateFlow<RegisterUiState>(RegisterUiState.Initial)
     val uiState: StateFlow<RegisterUiState> = _uiState.asStateFlow()
     private val enhancedUserRepository = EnhancedUserRepository(context)
+
+    // Registration state manager
+    private val registrationStateManager = RegistrationStateManager(context)
 
     // Node connection state
     private val _nodeConnected = MutableStateFlow(false)
@@ -57,6 +61,29 @@ class RegisterViewModel(
         checkNodeConnection()
         // Initialize by fetching provinces
         fetchProvinces()
+        // Check initial registration state
+        checkRegistrationState()
+    }
+
+    /**
+     * Check for any stored registration state
+     */
+    private fun checkRegistrationState() {
+        val state = registrationStateManager.getRegistrationState()
+        when (state) {
+            RegistrationStateManager.STATE_WAITING -> {
+                _uiState.value = RegisterUiState.Waiting
+            }
+            RegistrationStateManager.STATE_APPROVED -> {
+                _uiState.value = RegisterUiState.Approved
+            }
+            RegistrationStateManager.STATE_REJECTED -> {
+                _uiState.value = RegisterUiState.Rejected
+            }
+            else -> {
+                // Initial state, do nothing
+            }
+        }
     }
 
     /**
@@ -188,6 +215,14 @@ class RegisterViewModel(
     }
 
     /**
+     * Clear registration state when user successfully logs in
+     */
+    fun clearRegistrationState() {
+        registrationStateManager.clearRegistrationState()
+        _uiState.value = RegisterUiState.Initial
+    }
+
+    /**
      * Reset the UI state to initial
      */
     fun resetState() {
@@ -195,13 +230,16 @@ class RegisterViewModel(
     }
 
     /**
-     * UI State for Register Screen
+     * UI State for Register Screen with additional states
      */
     sealed class RegisterUiState {
         data object Initial : RegisterUiState()
         data object Loading : RegisterUiState()
         data class Success(val data: ApiResponse<UserRegistrationData>) : RegisterUiState()
         data class Error(val message: String) : RegisterUiState()
+        data object Waiting : RegisterUiState()
+        data object Approved : RegisterUiState()
+        data object Rejected : RegisterUiState()
     }
 
     /**

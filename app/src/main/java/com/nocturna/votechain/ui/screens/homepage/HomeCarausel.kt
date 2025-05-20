@@ -52,6 +52,7 @@ import com.nocturna.votechain.ui.theme.DangerColors
 import com.nocturna.votechain.ui.theme.InfoColors
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
+import com.nocturna.votechain.utils.LanguageManager
 import com.nocturna.votechain.viewmodel.HomeViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -154,6 +155,8 @@ fun NewsCarouselItemContent(
     newsItem: NewsItem,
     onClick: () -> Unit
 ) {
+    val strings = LanguageManager.getLocalizedStrings()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -232,7 +235,7 @@ fun NewsCarouselItemContent(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "More details",
+                            text = strings.moreDetails,
                             style = AppTypography.heading6Medium,
                             color = InfoColors.Info50,
                         )
@@ -249,9 +252,3 @@ fun NewsCarouselItemContent(
         }
     }
 }
-
-data class CarouselItem(
-    val imageRes: Int,
-    val title: String,
-    val description: String
-)

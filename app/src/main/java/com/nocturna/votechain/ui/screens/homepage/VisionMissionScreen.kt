@@ -28,6 +28,7 @@ import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.PrimaryColors
 import com.nocturna.votechain.ui.theme.VotechainTheme
+import com.nocturna.votechain.utils.LanguageManager
 
 @Composable
 fun VisionMissionScreen(
@@ -36,6 +37,8 @@ fun VisionMissionScreen(
     onBackClick: () -> Unit = { navController.popBackStack() },
     modifier: Modifier = Modifier
 ) {
+    val strings = LanguageManager.getLocalizedStrings()
+
     // Create and remember the presenter
     val scrollState = rememberScrollState()
     val presenter = remember { VisionMissionViewModelImpl() }
@@ -64,7 +67,7 @@ fun VisionMissionScreen(
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.back),
-                    contentDescription = "Back",
+                    contentDescription = strings.back,
                     tint = MainColors.Primary1,
                     modifier = Modifier.size(20.dp) // Smaller icon size
                 )
@@ -72,7 +75,7 @@ fun VisionMissionScreen(
 
             // Centered title
             Text(
-                text = "Vision & Mission",
+                text = strings.visionMission,
                 style = AppTypography.heading4Regular,
                 color = PrimaryColors.Primary80,
                 modifier = Modifier.align(Alignment.Center)
@@ -136,7 +139,7 @@ fun VisionMissionScreen(
 
                 // Vision Section
                 Text(
-                    text = "Visi:",
+                    text = strings.vision,
                     style = AppTypography.heading5Bold,
                     color = PrimaryColors.Primary70,
                     textAlign = TextAlign.Center,
@@ -157,7 +160,7 @@ fun VisionMissionScreen(
 
                 // Mission Section
                 Text(
-                    text = "Misi:",
+                    text = strings.mission,
                     style = AppTypography.heading5Bold,
                     color = PrimaryColors.Primary70,
                     textAlign = TextAlign.Center,
@@ -217,7 +220,7 @@ fun VisionMissionScreen(
                             modifier = Modifier.padding(24.dp)
                         ) {
                             Text(
-                                text = "More Information",
+                                text = strings.moreInformation,
                                 style = AppTypography.heading6SemiBold,
                                 color = NeutralColors.Neutral10
                             )
@@ -236,16 +239,5 @@ fun VisionMissionScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-fun VisionMissionScreenPreview() {
-    VotechainTheme {
-        val previewNavController = rememberNavController()
-        VisionMissionScreen(
-            navController = previewNavController,
-            candidateNumber = 1
-        )
     }
 }

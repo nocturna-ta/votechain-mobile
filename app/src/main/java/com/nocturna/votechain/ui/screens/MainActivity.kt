@@ -11,11 +11,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.rememberNavController
 import com.nocturna.votechain.navigation.VotechainNavGraph
 import com.nocturna.votechain.ui.theme.VotechainTheme
+import com.nocturna.votechain.utils.RegistrationStatusChecker
 import com.nocturna.votechain.utils.openUrlInBrowser
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Create an instance of RegistrationStatusChecker
+        val registrationStatusChecker = RegistrationStatusChecker(this)
+
+        // Determine the appropriate start destination
+        val startDestination = registrationStatusChecker.getStartDestination()
 
         setContent {
             VotechainTheme {
@@ -28,6 +35,7 @@ class MainActivity : ComponentActivity() {
 
                     VotechainNavGraph(
                         navController = navController,
+                        startDestination = startDestination, // Use the determined start destination
                         onNewsClick = { newsItem ->
                             // Open the news in the browser with the correct URL format:
                             // https://www.kpu.go.id/berita/baca/id/post_slug

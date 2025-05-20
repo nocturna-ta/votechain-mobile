@@ -40,6 +40,7 @@ import com.nocturna.votechain.R
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
+import com.nocturna.votechain.utils.LanguageManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -50,6 +51,8 @@ fun LoginScreen(
     onLoginClick: () -> Unit,
     onForgotPasswordClick: () -> Unit = {}
 ) {
+    val strings = LanguageManager.getLocalizedStrings()
+
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -134,7 +137,7 @@ fun LoginScreen(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "Login Account",
+                        text = strings.loginAccount,
                         style = AppTypography.heading1Bold,
                         color = MainColors.Primary1
                     )
@@ -142,7 +145,7 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "Access your account to participate in and manage your voting activities",
+                        text = strings.loginDescription,
                         style = AppTypography.heading4Medium,
                         color = NeutralColors.Neutral70,
                         textAlign = TextAlign.Center,
@@ -180,7 +183,7 @@ fun LoginScreen(
                             email = it
                             isEmailValid = validateEmail(it)
                         },
-                        label = { Text("Email") },
+                        label = { Text(strings.email) },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -224,7 +227,7 @@ fun LoginScreen(
                             password = it
                             isPasswordValid = validatePassword(it)
                         },
-                        label = { Text("Password") },
+                        label = { Text(strings.password) },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -277,7 +280,7 @@ fun LoginScreen(
                     // Forgot password link
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
                         Text(
-                            text = "Forgot Password?",
+                            text = strings.forgotPassword,
                             style = AppTypography.heading6Medium,
                             color = MainColors.Primary1,
                             modifier = Modifier
@@ -328,7 +331,7 @@ fun LoginScreen(
                                 )
                             } else {
                                 Text(
-                                    "Log in",
+                                    strings.login,
                                     style = AppTypography.heading4SemiBold,
                                     color = NeutralColors.Neutral10
                                 )
@@ -352,12 +355,12 @@ fun LoginScreen(
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = "Don't have an account? ",
+                                text = strings.dontHaveAccount,
                                 color = NeutralColors.Neutral70,
                                 style = AppTypography.heading5Medium
                             )
                             Text(
-                                text = "Register",
+                                text = strings.register,
                                 color = MainColors.Primary1,
                                 style = AppTypography.heading5Medium,
                                 modifier = Modifier.clickable(onClick = onRegisterClick)

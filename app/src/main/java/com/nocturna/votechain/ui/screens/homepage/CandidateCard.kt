@@ -25,6 +25,7 @@ import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.PrimaryColors
+import com.nocturna.votechain.utils.LanguageManager
 
 /**
  * A composable that displays a candidate card with both presidential and vice-presidential candidates
@@ -52,6 +53,8 @@ fun CandidateCard(
     onViewVicePresidentProfile: () -> Unit,
     onVisionMissionClick: () -> Unit
 ) {
+    val strings = LanguageManager.getLocalizedStrings()
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -69,7 +72,7 @@ fun CandidateCard(
         ) {
             // Candidate Number
             Text(
-                text = "Candidate",
+                text = strings.candidate,
                 style = AppTypography.heading6Medium,
                 color = PrimaryColors.Primary60
             )
@@ -96,7 +99,7 @@ fun CandidateCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Presidential",
+                        text = strings.presidentialCandidate,
                         style = AppTypography.paragraphRegular,
                         color = NeutralColors.Neutral50,
                         textAlign = TextAlign.Center
@@ -114,7 +117,7 @@ fun CandidateCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Vice Presidential",
+                        text = strings.vicePresidentialCandidate,
                         style = AppTypography.paragraphRegular,
                         color = NeutralColors.Neutral50,
                         textAlign = TextAlign.Center
@@ -177,7 +180,7 @@ fun CandidateCard(
                                 modifier = Modifier.align(Alignment.Center)
                             ) {
                                 Text(
-                                    text = "View Profile",
+                                    text = strings.viewProfile,
                                     style = AppTypography.smallParagraphRegular,
                                     color = NeutralColors.Neutral60
                                 )
@@ -246,7 +249,7 @@ fun CandidateCard(
                                 modifier = Modifier.align(Alignment.Center)
                             ) {
                                 Text(
-                                    text = "View Profile",
+                                    text = strings.viewProfile,
                                     style = AppTypography.smallParagraphRegular,
                                     color = NeutralColors.Neutral60
                                 )
@@ -277,7 +280,7 @@ fun CandidateCard(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Proposing Parties",
+                    text = strings.proposingParties,
                     style = AppTypography.smallParagraphRegular,
                     color = NeutralColors.Neutral50
                 )
@@ -322,7 +325,7 @@ fun CandidateCard(
                         .height(34.dp)
                 ) {
                     Text(
-                        text = "Candidate's Vision & Mission",
+                        text = strings.visionMission,
                         style = AppTypography.smallParagraphRegular,
                         color = NeutralColors.Neutral10
                     )

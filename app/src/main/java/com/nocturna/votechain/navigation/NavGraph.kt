@@ -26,6 +26,7 @@ import com.nocturna.votechain.ui.screens.homepage.NotificationScreen
 import com.nocturna.votechain.ui.screens.profilepage.AccountDetailsScreen
 import com.nocturna.votechain.ui.screens.profilepage.FAQScreen
 import com.nocturna.votechain.ui.screens.profilepage.ProfileScreen
+import com.nocturna.votechain.ui.screens.register.RegistrationFlowController
 import com.nocturna.votechain.ui.screens.votepage.CandidateSelectionScreen
 import com.nocturna.votechain.ui.screens.votepage.OTPVotingVerificationScreen
 import com.nocturna.votechain.ui.screens.votepage.ResultsScreen
@@ -96,30 +97,10 @@ fun VotechainNavGraph(
             )
         }
 
+        // Registration flow - now using the controller
         composable("register") {
-            RegisterScreen(
-                onRegisterClick = {
-                    // This is handled within the screen
-                },
-                onLoginClick = {
-                    // When login text is clicked, navigate back to login screen
-                    navController.navigate("login") {
-                        popUpTo("register") { inclusive = true }
-                    }
-                },
-                onWaitingScreen = {
-                    navController.navigate("waiting")
-                },
-                navigateToAccepted = {
-                    navController.navigate("accepted") {
-                        popUpTo("register") { inclusive = true }
-                    }
-                },
-                navigateToRejected = {
-                    navController.navigate("rejected") {
-                        popUpTo("register") { inclusive = true }
-                    }
-                }
+            RegistrationFlowController(
+                navController = navController
             )
         }
 

@@ -17,12 +17,15 @@ import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.PrimaryColors
 import com.nocturna.votechain.ui.theme.VotechainTheme
+import com.nocturna.votechain.utils.LanguageManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationScreen(
     onBackClick: () -> Unit = {}
 ) {
+    val strings = LanguageManager.getLocalizedStrings()
+
     Column(modifier = Modifier.fillMaxSize()) {
         // Custom top bar with centered title
         Box(
@@ -40,7 +43,7 @@ fun NotificationScreen(
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.back),
-                    contentDescription = "Back",
+                    contentDescription = strings.back,
                     tint = MainColors.Primary1,
                     modifier = Modifier.size(20.dp) // Smaller icon size
                 )
@@ -48,7 +51,7 @@ fun NotificationScreen(
 
             // Centered title
             Text(
-                text = "Notification",
+                text = strings.notification,
                 style = AppTypography.heading4Regular,
                 color = PrimaryColors.Primary80,
                 modifier = Modifier.align(Alignment.Center)

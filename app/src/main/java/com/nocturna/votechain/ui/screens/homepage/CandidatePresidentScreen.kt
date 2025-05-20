@@ -22,6 +22,7 @@ import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.PrimaryColors
 import com.nocturna.votechain.ui.theme.VotechainTheme
+import com.nocturna.votechain.utils.LanguageManager
 
 @Composable
 fun CandidatePresidentScreen(
@@ -29,11 +30,12 @@ fun CandidatePresidentScreen(
     onViewProfileClick: (String) -> Unit = {},
     navController: NavController? = null
 ) {
+    val strings = LanguageManager.getLocalizedStrings()
     val scrollState = rememberScrollState()
-    var selectedFilter by remember { mutableStateOf("All Candidates") }
+    var selectedFilter by remember { mutableStateOf(strings.allCandidates) }
     var expandedDropdown by remember { mutableStateOf(false) }
     val dropdownOptions = listOf(
-        "All Candidates",
+        strings.allCandidates,
         "Candidate 1",
         "Candidate 2",
         "Candidate 3"
@@ -68,7 +70,7 @@ fun CandidatePresidentScreen(
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.back),
-                    contentDescription = "Back",
+                    contentDescription = strings.back,
                     tint = MainColors.Primary1,
                     modifier = Modifier.size(20.dp) // Smaller icon size
                 )
@@ -76,7 +78,7 @@ fun CandidatePresidentScreen(
 
             // Centered title
             Text(
-                text = "Candidate President",
+                text = strings.candidatePresident,
                 style = AppTypography.heading4Regular,
                 color = PrimaryColors.Primary80,
                 modifier = Modifier.align(Alignment.Center)
