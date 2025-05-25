@@ -1,6 +1,8 @@
 package com.nocturna.votechain.ui.screens
 
+import android.content.ContentValues.TAG
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
+import com.nocturna.votechain.data.repository.RegistrationStateManager
 import com.nocturna.votechain.data.repository.UserLoginRepository
 import com.nocturna.votechain.navigation.VotechainNavGraph
 import com.nocturna.votechain.ui.theme.VotechainTheme
@@ -18,21 +21,24 @@ import com.nocturna.votechain.utils.openUrlInBrowser
 import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
 
 class MainActivity : ComponentActivity() {
+    private val TAG = "MainActivity"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Create an instance of RegistrationStatusChecker
+        // Create repository instances
+        val userLoginRepository = UserLoginRepository(this)
+        val registrationStateManager = RegistrationStateManager(this)
         val registrationStatusChecker = RegistrationStatusChecker(this)
 
-        // Create an instance of UserLoginRepository to check login status
-        val userLoginRepository = UserLoginRepository(this)
+        // Determine the appropriate start destination with enhanced logic
+        val startDestination = determineStartDestination(
+            userLoginRepository,
+            registrationStateManager,
+            registrationStatusChecker
+        )
 
-        // Determine the appropriate start destination
-        val startDestination = when {
-            userLoginRepository.isUserLoggedIn() -> "home" // User is logged in, go directly to home
-            registrationStatusChecker.hasRegistrationState() -> registrationStatusChecker.getStartDestination()
-            else -> "splash" // Default start with splash screen
-        }
+        Log.d(TAG, "Determined start destination: $startDestination")
 
         setContent {
             VotechainTheme {
@@ -57,6 +63,61 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * Determine the appropriate start destination based on user state
+ * Priority order:
+ * 1. If user is logged in -> Home screen
+ * 2. If user has pending registration -> Appropriate registration screen
+ * 3. Default -> Splash screen
+ */
+private fun determineStartDestination(
+    userLoginRepository: UserLoginRepository,
+    registrationStateManager: RegistrationStateManager,
+    registrationStatusChecker: RegistrationStatusChecker
+): String {
+
+    // First check if user is logged in
+    if (userLoginRepository.isUserLoggedIn()) {
+        Log.d(TAG, "User is logged in, going to home screen")
+        // If user is logged in, clear any lingering registration states
+        val currentRegState = registrationStateManager.getRegistrationState()
+        if (currentRegState != RegistrationStateManager.STATE_NONE) {
+            Log.d(TAG, "Clearing registration state for logged in user: $currentRegState")
+            registrationStateManager.clearRegistrationState()
+        }
+        return "home"
+    }
+
+    // Check for registration states
+    val registrationState = registrationStateManager.getRegistrationState()
+    Log.d(TAG, "Registration state: $registrationState")
+
+    return when (registrationState) {
+        RegistrationStateManager.STATE_WAITING -> {
+            Log.d(TAG, "User has pending registration, going to waiting screen")
+            "waiting"
+        }
+        RegistrationStateManager.STATE_APPROVED -> {
+            Log.d(TAG, "User has approved registration, going to accepted screen")
+            "accepted"
+        }
+        RegistrationStateManager.STATE_REJECTED -> {
+            Log.d(TAG, "User has rejected registration, clearing state and going to splash")
+            // Clear rejected state automatically so user can register again
+            registrationStateManager.clearRegistrationState()
+            "splash"
+        }
+        RegistrationStateManager.STATE_NONE -> {
+            Log.d(TAG, "No registration state, going to splash screen")
+            "splash"
+        }
+        else -> {
+            Log.d(TAG, "Unknown registration state: $registrationState, going to splash")
+            "splash"
         }
     }
 }

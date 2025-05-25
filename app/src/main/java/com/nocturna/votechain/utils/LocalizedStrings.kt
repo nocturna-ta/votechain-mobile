@@ -173,14 +173,14 @@ private fun getIndonesianStrings(): LocalizedStrings {
 
         // Login & Registration
         login = "Masuk",
-        loginAccount = "Masuk Akun",
-        loginDescription = "Akses akun Anda untuk berpartisipasi dan mengelola aktivitas voting Anda",
+        loginAccount = "Masuk ke Akun",
+        loginDescription = "Akses akun Anda untuk dapat berpartisipasi dan mengelola aktivitas pemungutan suara",
         email = "Email",
         password = "Kata Sandi",
         forgotPassword = "Lupa Kata Sandi?",
         register = "Daftar",
         registerAccount = "Buat Akun",
-        registerDescription = "Buat akun untuk mengakses dan menjelajahi semua kesempatan voting yang tersedia",
+        registerDescription = "Buat akun untuk mengakses dan menjelajahi semua kesempatan pemungutan suara yang tersedia",
         dontHaveAccount = "Belum punya akun? ",
         alreadyHaveAccount = "Sudah punya akun? ",
 
@@ -196,7 +196,7 @@ private fun getIndonesianStrings(): LocalizedStrings {
         male = "Laki-laki",
         female = "Perempuan",
         setPassword = "Buat Kata Sandi",
-        uploadKtp = "Unggah KTP Anda",
+        uploadKtp = "Unggah Kartu Tanda Penduduk (KTP) Anda",
         uploadKtpDescription = "Format file yang diterima: JPG, JPEG, dan PNG",
         browseFiles = "Pilih File",
 

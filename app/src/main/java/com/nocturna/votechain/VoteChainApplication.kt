@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import com.nocturna.votechain.blockchain.BlockchainManager
 import com.nocturna.votechain.utils.LanguageManager
+import com.nocturna.votechain.utils.ThemeManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -24,11 +25,20 @@ class VoteChainApplication : Application() {
 
         // Initialize language manager
         initializeLanguageManager()
+
+        // Initialize theme manager
+        initializeThemeManager()
     }
 
     private fun initializeLanguageManager() {
         // Initialize with saved language preference (defaults to Indonesian)
         LanguageManager.initialize(this)
         Log.d(TAG, "Language initialized to: ${LanguageManager.getLanguage(this)}")
+    }
+
+    private fun initializeThemeManager() {
+        // Initialize with saved theme preference (defaults to Light Mode)
+        ThemeManager.initialize(this)
+        Log.d(TAG, "Theme initialized to: ${ThemeManager.getTheme(this)}")
     }
 }

@@ -5,7 +5,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.graphics.Color
+import com.nocturna.votechain.utils.ThemeManager
 
 private val DarkColorScheme = darkColorScheme(
     primary = MainColors.Primary1,
@@ -122,10 +124,20 @@ object ExtendedColors {
 
 @Composable
 fun VotechainTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) {
+    // Get current theme from ThemeManager
+    val themeState = ThemeManager.currentTheme.collectAsState().value
+
+    // Determine whether to use dark theme based on the selected theme
+    val useDarkTheme = when (themeState) {
+        ThemeManager.THEME_LIGHT -> false
+        ThemeManager.THEME_DARK -> true
+        ThemeManager.THEME_SYSTEM -> isSystemInDarkTheme()
+        else -> false // Default to light theme
+    }
+
+    val colorScheme = if (useDarkTheme) {
         DarkColorScheme
     } else {
         LightColorScheme

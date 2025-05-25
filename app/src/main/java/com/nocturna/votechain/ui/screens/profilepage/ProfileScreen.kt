@@ -35,6 +35,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -56,6 +58,7 @@ import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.PrimaryColors
+import com.nocturna.votechain.utils.ThemeManager
 import com.nocturna.votechain.utils.getLocalizedStrings
 
 @Composable
@@ -65,10 +68,10 @@ fun ProfileScreen(
     onHomeClick: () -> Unit = {},
     onVotesClick: () -> Unit = {}
 ) {
-    var darkMode by remember { mutableStateOf(false) }
-    var language by remember { mutableStateOf("English") }
+    var language by remember { mutableStateOf("Indonesia") }
     // State to control dropdown visibility
     var showLanguageDropdown by remember { mutableStateOf(false) }
+    var showThemeDropdown by remember { mutableStateOf(false) }
     // Current route is set to "profile" since we're on the profile/settings screen
     val currentRoute = "profile"
 
@@ -77,6 +80,9 @@ fun ProfileScreen(
 
     // String resources based on selected language
     val strings = getLocalizedStrings(language)
+
+    val context = LocalContext.current
+    val currentTheme by ThemeManager.currentTheme.collectAsState()
 
     Box(
         modifier = Modifier
@@ -193,32 +199,92 @@ fun ProfileScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clickable { showThemeDropdown = true }
                         .padding(vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Dark Mode",
+                        text = "Theme",
                         style = AppTypography.heading5Medium,
                         color = NeutralColors.Neutral40
                     )
-                    // Custom styled smaller switch
+
+                    // Theme selection pill
                     Box(
                         modifier = Modifier
-                            .scale(0.8f) // Make the switch smaller
+                            .clip(RoundedCornerShape(12.dp))
+                            .border(1.dp, NeutralColors.Neutral30, RoundedCornerShape(12.dp))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Switch(
-                            checked = darkMode,
-                            onCheckedChange = { darkMode = it },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF2A6B6B),
-                                uncheckedThumbColor = Color.White,
-                                uncheckedTrackColor = Color(0xFFDDDDDD),
-                                // Using a lighter track outline for a thinner border appearance
-                                uncheckedBorderColor = Color(0xFFCCCCCC),
-                                checkedBorderColor = Color(0xFF2A6B6B)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = currentTheme,
+                                style = AppTypography.paragraphRegular,
+                                color = NeutralColors.Neutral40
                             )
+                            Icon(
+                                painter = painterResource(id = R.drawable.down2),
+                                contentDescription = null,
+                                tint = NeutralColors.Neutral40,
+                                modifier = Modifier
+                                    .padding(start = 4.dp)
+                                    .size(14.dp)
+                            )
+                        }
+                    }
+
+                    // Theme dropdown menu
+                    DropdownMenu(
+                        expanded = showThemeDropdown,
+                        onDismissRequest = { showThemeDropdown = false },
+                        modifier = Modifier
+                            .background(Color.White)
+                            .width(200.dp)
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = ThemeManager.THEME_LIGHT,
+                                    style = AppTypography.paragraphRegular,
+                                    color = if (currentTheme == ThemeManager.THEME_LIGHT)
+                                        MainColors.Primary1 else NeutralColors.Neutral70
+                                )
+                            },
+                            onClick = {
+                                ThemeManager.setTheme(context, ThemeManager.THEME_LIGHT)
+                                showThemeDropdown = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = ThemeManager.THEME_DARK,
+                                    style = AppTypography.paragraphRegular,
+                                    color = if (currentTheme == ThemeManager.THEME_DARK)
+                                        MainColors.Primary1 else NeutralColors.Neutral70
+                                )
+                            },
+                            onClick = {
+                                ThemeManager.setTheme(context, ThemeManager.THEME_DARK)
+                                showThemeDropdown = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = ThemeManager.THEME_SYSTEM,
+                                    style = AppTypography.paragraphRegular,
+                                    color = if (currentTheme == ThemeManager.THEME_SYSTEM)
+                                        MainColors.Primary1 else NeutralColors.Neutral70
+                                )
+                            },
+                            onClick = {
+                                ThemeManager.setTheme(context, ThemeManager.THEME_SYSTEM)
+                                showThemeDropdown = false
+                            }
                         )
                     }
                 }

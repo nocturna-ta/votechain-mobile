@@ -76,6 +76,7 @@ fun VotechainNavGraph(
                 },
                 onRegisterClick = {
                     // When register text is clicked, navigate to register screen
+                    // The RegistrationFlowController will handle checking for existing registration states
                     navController.navigate("register")
                 },
                 onForgotPasswordClick = {

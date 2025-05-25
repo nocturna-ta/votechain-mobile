@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 object NetworkClient {
 
     // Update BASE_URL to the new endpoint
-    const val BASE_URL = "https://bd78-36-80-96-33.ngrok-free.app/"
+    const val BASE_URL = "https://546b-36-69-143-43.ngrok-free.app"
     private const val TAG = "NetworkClient"
 
     /**

@@ -33,6 +33,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import android.app.DatePickerDialog
 import android.net.Uri
+import android.net.wifi.WifiConfiguration.AuthAlgorithm.strings
 import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -55,6 +56,7 @@ import org.web3j.utils.Numeric
 import java.security.SecureRandom
 import android.util.Log
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nocturna.votechain.utils.LanguageManager
 
 // Data class to manage validation state for each field
 data class ValidationState(
@@ -72,6 +74,7 @@ fun RegisterScreen(
     viewModel: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(LocalContext.current))
 ) {
     val context = LocalContext.current
+    val strings = LanguageManager.getLocalizedStrings()
 
     // Form field values
     var nationalId by remember { mutableStateOf("") }
@@ -361,7 +364,7 @@ fun RegisterScreen(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "Create Account",
+                    text = strings.registerAccount,
                     style = AppTypography.heading1Bold,
                     color = MainColors.Primary1
                 )
@@ -369,7 +372,7 @@ fun RegisterScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Create an account to access and explore all available voting opportunities",
+                    text = strings.registerDescription,
                     style = AppTypography.heading4Medium,
                     color = NeutralColors.Neutral70,
                     textAlign = TextAlign.Center,
@@ -388,7 +391,7 @@ fun RegisterScreen(
                         nationalId = it
                         nationalIdValidation = validateField("nationalId", it)
                     },
-                    label = { Text("National Identification Number") },
+                    label = { Text(strings.nationalId) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -424,7 +427,7 @@ fun RegisterScreen(
                         fullName = it
                         fullNameValidation = validateField("fullName", it)
                     },
-                    label = { Text("Full Name") },
+                    label = { Text(strings.fullName) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -460,7 +463,7 @@ fun RegisterScreen(
                         email = it
                         emailValidation = validateField("email", it)
                     },
-                    label = { Text("Email") },
+                    label = { Text(strings.email) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -501,7 +504,7 @@ fun RegisterScreen(
                             birthPlace = it
                             birthPlaceValidation = validateField("birthPlace", it)
                         },
-                        label = { Text("Birth Place") },
+                        label = { Text(strings.birthPlace) },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -555,7 +558,7 @@ fun RegisterScreen(
                     OutlinedTextField(
                         value = birthDate,
                         onValueChange = { birthDate = it },
-                        label = { Text("Birth Date") },
+                        label = { Text(strings.birthDate) },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -602,7 +605,7 @@ fun RegisterScreen(
                         address = it
                         addressValidation = validateField("address", it)
                     },
-                    label = { Text("Address") },
+                    label = { Text(strings.address) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -638,7 +641,7 @@ fun RegisterScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     OutlinedTextField(
-                        value = selectedProvince.ifEmpty { "Select Province" },
+                        value = selectedProvince.ifEmpty { strings.province },
                         onValueChange = {},
                         readOnly = true,
                         trailingIcon = {
@@ -735,7 +738,7 @@ fun RegisterScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     OutlinedTextField(
-                        value = selectedRegion.ifEmpty { "Select Region" },
+                        value = selectedRegion.ifEmpty { strings.region },
                         onValueChange = {},
                         readOnly = true,
                         trailingIcon = {
@@ -833,13 +836,13 @@ fun RegisterScreen(
 
                 // Gender Dropdown
                 var expandedGender by remember { mutableStateOf(false) }
-                val genderOptions = listOf("Male", "Female")
+                val genderOptions = listOf(strings.male, strings.female)
 
                 Box(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     OutlinedTextField(
-                        value = selectedGender.ifEmpty { "Select Gender" },
+                        value = selectedGender.ifEmpty { strings.gender },
                         onValueChange = {},
                         readOnly = true,
                         modifier = Modifier
@@ -903,7 +906,7 @@ fun RegisterScreen(
                         password = it
                         passwordValidation = validateField("password", it)
                     },
-                    label = { Text("Set Password") },
+                    label = { Text(strings.setPassword) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -977,14 +980,14 @@ fun RegisterScreen(
                             verticalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = "Upload your ID card (KTP)",
+                                text = strings.uploadKtp,
                                 style = AppTypography.heading5Medium,
                                 color = NeutralColors.Neutral70,
                                 textAlign = TextAlign.Center
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Accepted file formats: JPG, JPEG, and PNG",
+                                text = strings.uploadKtpDescription,
                                 style = AppTypography.paragraphRegular,
                                 color = NeutralColors.Neutral40,
                                 textAlign = TextAlign.Center
@@ -999,7 +1002,7 @@ fun RegisterScreen(
                                 )
                             ) {
                                 Text(
-                                    "Browse files",
+                                    strings.browseFiles,
                                     style = AppTypography.paragraphBold
                                 )
                             }
@@ -1168,7 +1171,7 @@ fun RegisterScreen(
                     shape = MaterialTheme.shapes.medium,
                     enabled = isFormValid
                 ) {
-                    Text("Register", style = AppTypography.heading4SemiBold, color = NeutralColors.Neutral10)
+                    Text(strings.register, style = AppTypography.heading4SemiBold, color = NeutralColors.Neutral10)
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -1187,12 +1190,12 @@ fun RegisterScreen(
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = "Already have an account? ",
+                            text = strings.alreadyHaveAccount,
                             color = NeutralColors.Neutral70,
                             style = AppTypography.heading5Medium
                         )
                         Text(
-                            text = "Log in",
+                            text = strings.login,
                             color = MainColors.Primary1,
                             style = AppTypography.heading5Medium,
                             modifier = Modifier.clickable(onClick = onLoginClick)

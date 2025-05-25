@@ -69,7 +69,11 @@ fun RejectedScreen(
 
         // Retry button
         Button(
-            onClick = onRetryClick,
+            onClick = {
+                // Clear the rejected state and allow new registration
+                viewModel.retryRegistration()
+                onRetryClick()
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),

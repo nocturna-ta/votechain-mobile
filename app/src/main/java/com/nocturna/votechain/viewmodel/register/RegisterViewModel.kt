@@ -62,28 +62,54 @@ class RegisterViewModel(
         // Initialize by fetching provinces
         fetchProvinces()
         // Check initial registration state
-        checkRegistrationState()
+        checkInitialRegistrationState()
     }
 
     /**
-     * Check for any stored registration state
+     * Check for any stored registration state when ViewModel is created
+     * This ensures persistence across app restarts
      */
-    private fun checkRegistrationState() {
+    private fun checkInitialRegistrationState() {
         val state = registrationStateManager.getRegistrationState()
+        Log.d(TAG, "Checking initial registration state: $state")
+
         when (state) {
             RegistrationStateManager.STATE_WAITING -> {
+                Log.d(TAG, "Found waiting registration state")
                 _uiState.value = RegisterUiState.Waiting
             }
             RegistrationStateManager.STATE_APPROVED -> {
+                Log.d(TAG, "Found approved registration state")
                 _uiState.value = RegisterUiState.Approved
             }
             RegistrationStateManager.STATE_REJECTED -> {
-                _uiState.value = RegisterUiState.Rejected
+                Log.d(TAG, "Found rejected registration state - allowing new registration")
+                // Clear rejected state to allow new registration
+                registrationStateManager.clearRegistrationState()
+                _uiState.value = RegisterUiState.Initial
             }
             else -> {
-                // Initial state, do nothing
+                Log.d(TAG, "No stored registration state found")
+                _uiState.value = RegisterUiState.Initial
             }
         }
+    }
+
+    /**
+     * Check if user has any pending registration state
+     * This can be called externally to check before allowing registration
+     */
+    fun hasActiveRegistrationState(): Boolean {
+        val state = registrationStateManager.getRegistrationState()
+        return state == RegistrationStateManager.STATE_WAITING ||
+                state == RegistrationStateManager.STATE_APPROVED
+    }
+
+    /**
+     * Get current registration state for external use
+     */
+    fun getCurrentRegistrationState(): Int {
+        return registrationStateManager.getRegistrationState()
     }
 
     /**
@@ -156,6 +182,13 @@ class RegisterViewModel(
         ktpFileUri: Uri,
         role: String = "voter"
     ) {
+        // Check if there's already an active registration
+        if (hasActiveRegistrationState()) {
+            Log.w(TAG, "Registration blocked - active registration state exists")
+            _uiState.value = RegisterUiState.Error("You already have an active registration request")
+            return
+        }
+
         _uiState.value = RegisterUiState.Loading
         Log.d(TAG, "Starting registration process with blockchain voter address generation")
 
@@ -182,7 +215,14 @@ class RegisterViewModel(
         viewModelScope.launch {
             try {
                 Log.d(TAG, "Using EnhancedUserRepository with new wallet generation")
-                // Use EnhancedUserRepository with the test flag
+
+                // Save registration as waiting state immediately
+                registrationStateManager.saveRegistrationState(
+                    RegistrationStateManager.STATE_WAITING,
+                    email,
+                    nationalId
+                )
+
                 val result = enhancedUserRepository.registerWithVoterAddress(
                     email = email,
                     password = password,
@@ -199,33 +239,101 @@ class RegisterViewModel(
 
                 result.fold(
                     onSuccess = { response ->
-                        Log.d(TAG, "Registration successful: ${response.message}")
-                        _uiState.value = RegisterUiState.Success(response)
+                        Log.d(TAG, "Registration API call successful: ${response.message}")
+
+                        // Parse the verification status and save appropriate state
+                        val verificationStatus = response.data?.verification_status?.lowercase()
+                        Log.d(TAG, "Verification status received: $verificationStatus")
+
+                        when (verificationStatus) {
+                            "pending", "waiting" -> {
+                                registrationStateManager.saveRegistrationState(
+                                    RegistrationStateManager.STATE_WAITING,
+                                    email,
+                                    nationalId
+                                )
+                                _uiState.value = RegisterUiState.Waiting
+                            }
+                            "accepted", "approved" -> {
+                                registrationStateManager.saveRegistrationState(
+                                    RegistrationStateManager.STATE_APPROVED,
+                                    email,
+                                    nationalId
+                                )
+                                _uiState.value = RegisterUiState.Approved
+                            }
+                            "rejected", "denied" -> {
+                                registrationStateManager.saveRegistrationState(
+                                    RegistrationStateManager.STATE_REJECTED,
+                                    email,
+                                    nationalId
+                                )
+                                _uiState.value = RegisterUiState.Rejected
+                            }
+                            else -> {
+                                // Default to waiting if status is unclear
+                                registrationStateManager.saveRegistrationState(
+                                    RegistrationStateManager.STATE_WAITING,
+                                    email,
+                                    nationalId
+                                )
+                                _uiState.value = RegisterUiState.Waiting
+                            }
+                        }
                     },
                     onFailure = { exception ->
                         Log.e(TAG, "Registration failed: ${exception.message}", exception)
+                        // Clear the waiting state since registration failed
+                        registrationStateManager.clearRegistrationState()
                         _uiState.value = RegisterUiState.Error(exception.message ?: "Unknown error occurred")
                     }
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Exception during registration: ${e.message}", e)
+                // Clear the waiting state since registration failed
+                registrationStateManager.clearRegistrationState()
                 _uiState.value = RegisterUiState.Error(e.message ?: "Unknown error occurred")
             }
         }
     }
 
     /**
-     * Clear registration state when user successfully logs in
+     * Clear registration state when user successfully completes the process
+     * This should be called when user successfully logs in after approval
      */
     fun clearRegistrationState() {
+        Log.d(TAG, "Clearing registration state")
         registrationStateManager.clearRegistrationState()
         _uiState.value = RegisterUiState.Initial
+    }
+
+    /**
+     * Handle retry registration - only allowed for rejected registrations
+     */
+    fun retryRegistration() {
+        val currentState = registrationStateManager.getRegistrationState()
+        if (currentState == RegistrationStateManager.STATE_REJECTED) {
+            Log.d(TAG, "Retrying registration after rejection")
+            registrationStateManager.clearRegistrationState()
+            _uiState.value = RegisterUiState.Initial
+        } else {
+            Log.w(TAG, "Retry registration not allowed for current state: $currentState")
+        }
     }
 
     /**
      * Reset the UI state to initial
      */
     fun resetState() {
+        _uiState.value = RegisterUiState.Initial
+    }
+
+    /**
+     * For testing/admin purposes - force clear registration state
+     */
+    fun forceClearRegistrationState() {
+        Log.d(TAG, "Force clearing registration state")
+        registrationStateManager.clearRegistrationState()
         _uiState.value = RegisterUiState.Initial
     }
 
