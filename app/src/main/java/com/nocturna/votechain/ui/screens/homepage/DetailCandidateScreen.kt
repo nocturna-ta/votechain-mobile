@@ -1,5 +1,6 @@
 package com.nocturna.votechain.ui.screens.homepage
 
+import android.util.Log
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -43,6 +44,8 @@ import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.PrimaryColors
 import com.nocturna.votechain.ui.theme.VotechainTheme
 import com.nocturna.votechain.ui.theme.CandidateDetailStyling
+import com.nocturna.votechain.utils.CandidateHelper
+import com.nocturna.votechain.utils.DateFormatter
 import com.nocturna.votechain.utils.LanguageManager
 import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
 
@@ -65,7 +68,7 @@ fun DetailCandidateScreen(
     val error by viewModel.error.collectAsState()
 
     // Parse the candidateId to get type (president/vicePresident) and actual id
-    var candidate: Candidate? = null
+    var candidate: Candidate? by remember { mutableStateOf(null) }
 
     // Fetch election pairs if not already loaded
     LaunchedEffect(Unit) {
@@ -74,24 +77,22 @@ fun DetailCandidateScreen(
         }
     }
 
-// Extract the candidate data based on the ID format
+    // Extract the candidate data based on the ID format
     LaunchedEffect(candidateId, electionPairs) {
+        Log.d("DetailCandidateScreen", "LaunchedEffect triggered")
+        Log.d("DetailCandidateScreen", "CandidateId received: $candidateId")
+        Log.d("DetailCandidateScreen", "Election pairs count: ${electionPairs.size}")
+
         if (electionPairs.isNotEmpty()) {
-            val parts = candidateId.split("_")
-            if (parts.size >= 2) {
-                val type = parts[0]
-                val id = parts.subList(1, parts.size).joinToString("_")
-
-                // Find the election pair with the matching ID
-                val pair = electionPairs.find { it.id == id }
-
-                // Get the appropriate candidate
-                candidate = when (type) {
-                    "president" -> pair?.president
-                    "vice" -> pair?.vice_president
-                    else -> null
-                }
+            // Log all available pairs
+            electionPairs.forEachIndexed { index, pair ->
+                Log.d("DetailCandidateScreen", "Pair $index: ID=${pair.id}, President=${pair.president.full_name}, VP=${pair.vice_president.full_name}")
             }
+
+            candidate = CandidateHelper.getCandidateFromId(candidateId, electionPairs)
+            Log.d("DetailCandidateScreen", "Final candidate: ${candidate?.full_name}")
+        } else {
+            Log.w("DetailCandidateScreen", "No election pairs available")
         }
     }
 
@@ -185,7 +186,7 @@ fun DetailCandidateScreen(
                         model = ImageRequest.Builder(context)
                             .data(candidate?.photo_path)
                             .crossfade(true)
-                            .error(R.drawable.pc_anies) // Placeholder if image fails to load
+                            .error(R.drawable.ic_launcher_background)
                             .build(),
                         contentDescription = "Candidate Photo",
                         modifier = Modifier
@@ -219,8 +220,8 @@ fun DetailCandidateScreen(
                     // Education History Section
                     Text(
                         text = strings.educationHistory,
-                        style = styling.sectionTitleStyle,
-                        color = styling.sectionTitleColor,
+                        style = AppTypography.heading6SemiBold,
+                        color = PrimaryColors.Primary70,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 10.dp),
@@ -229,7 +230,7 @@ fun DetailCandidateScreen(
 
                     // Convert API education data to the format used by our component
                     val educationEntries = candidate?.education_history?.map {
-                        com.nocturna.votechain.data.model.EducationEntry(
+                        EducationEntry(
                             institution = it.institute_name,
                             period = it.year
                         )
@@ -242,8 +243,8 @@ fun DetailCandidateScreen(
                     // Work History Section
                     Text(
                         text = strings.workHistory,
-                        style = styling.sectionTitleStyle,
-                        color = styling.sectionTitleColor,
+                        style = AppTypography.heading6SemiBold,
+                        color = PrimaryColors.Primary70,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 10.dp),
@@ -252,7 +253,7 @@ fun DetailCandidateScreen(
 
                     // Convert API work data to the format used by our component
                     val workEntries = candidate?.work_experience?.map {
-                        com.nocturna.votechain.data.model.WorkEntry(
+                        WorkEntry(
                             institution = it.institute_name,
                             position = it.position,
                             period = it.year
@@ -276,7 +277,7 @@ fun DetailCandidateScreen(
                     Text(
                         text = "No candidate data found",
                         style = AppTypography.heading4Medium,
-                        color = NeutralColors.Neutral70,
+                        color = NeutralColors.Neutral50,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -297,11 +298,18 @@ fun CandidatePersonalInfoFromApi(
         // Gender
         TableRow(label = strings.genderCandidate, value = candidate.gender)
 
-        // Birth Info
-        TableRow(label = strings.birthInfo, value = "${candidate.birth_place}, ${candidate.birth_date}")
+        // Birth Info - using formatted date
+        val formattedBirthInfo = DateFormatter.formatBirthInfo(
+            birthPlace = candidate.birth_place,
+            birthDate = candidate.birth_date,
+            language = "Indonesia" // You can get this from LanguageManager if needed
+        )
+        TableRow(label = strings.birthInfo, value = formattedBirthInfo)
 
-        // Religion
-        TableRow(label = strings.religion, value = candidate.religion)
+        // Religion (only show if not empty)
+        if (candidate.religion.isNotEmpty()) {
+            TableRow(label = strings.religion, value = candidate.religion)
+        }
 
         // Education
         TableRow(label = strings.education, value = candidate.last_education)
@@ -319,7 +327,7 @@ fun CandidatePersonalInfoFromApi(
 fun DetailCandidateScreenPreview() {
     VotechainTheme {
         DetailCandidateScreen(
-            candidateId = "anies",
+            candidateId = "president_test_id",
             onBackClick = {}
         )
     }
@@ -341,7 +349,7 @@ fun DetailCandidateScreenCustomStylePreview() {
 
     VotechainTheme {
         DetailCandidateScreen(
-            candidateId = "anies",
+            candidateId = "president_test_id",
             onBackClick = {},
             styling = customStyling
         )

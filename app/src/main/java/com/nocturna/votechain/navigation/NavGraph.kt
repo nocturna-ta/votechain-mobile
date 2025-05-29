@@ -30,6 +30,7 @@ import com.nocturna.votechain.ui.screens.register.RegistrationFlowController
 import com.nocturna.votechain.ui.screens.votepage.CandidateSelectionScreen
 import com.nocturna.votechain.ui.screens.votepage.OTPVotingVerificationScreen
 import com.nocturna.votechain.ui.screens.votepage.ResultsScreen
+import com.nocturna.votechain.ui.screens.votepage.VotingScreen
 import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
 import com.nocturna.votechain.viewmodel.vote.VotingViewModel
 
@@ -163,24 +164,24 @@ fun VotechainNavGraph(
             )
         }
 
-//        composable("votes") {
-//            VotingScreen(
-//                navController = navController,
-//                viewModel = viewModel,
-//                onHomeClick = {
-//                    navController.navigate("home") {
-//                        popUpTo("votes") { inclusive = true }
-//                        launchSingleTop = true
-//                    }
-//                },
-//                onProfileClick = {
-//                    navController.navigate("profile") {
-//                        popUpTo("votes") { inclusive = true }
-//                        launchSingleTop = true
-//                    }
-//                }
-//            )
-//        }
+        composable("votes") {
+            VotingScreen(
+                navController = navController,
+                viewModel = viewModel,
+                onHomeClick = {
+                    navController.navigate("home") {
+                        popUpTo("votes") { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onProfileClick = {
+                    navController.navigate("profile") {
+                        popUpTo("votes") { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
 
         composable(
             "candidate_president/{voteId}",
@@ -196,16 +197,6 @@ fun VotechainNavGraph(
             )
         }
 
-//        composable(
-//            "candidate_detail/{candidateId}",
-//            arguments = listOf(navArgument("candidateId") { type = NavType.StringType })
-//        ) {
-//            val candidateId = it.arguments?.getString("candidateId") ?: ""
-//            DetailCandidateScreen(
-//                candidateId = candidateId,
-//                onBackClick = { navController.popBackStack() }
-//            )
-//        }
         composable(
             "candidate_detail_api/{candidateId}",
             arguments = listOf(navArgument("candidateId") { type = NavType.StringType })

@@ -195,7 +195,50 @@ fun ProfileScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                // Dark Mode Toggle - Simplified styling
+                // Accessibility Settings
+//                Row(
+//                    modifier = Modifier
+//                        .fillMaxWidth()
+//                        .clickable {
+//                            if (isAccessibilityEnabled) {
+//                                accessibilityManager.speakAction("Pengaturan bantuan suara")
+//                            }
+//                        }
+//                        .padding(vertical = 12.dp),
+//                    verticalAlignment = Alignment.CenterVertically,
+//                    horizontalArrangement = Arrangement.SpaceBetween
+//                ) {
+//                    Column {
+//                        Text(
+//                            text = "Bantuan Suara",
+//                            style = AppTypography.heading5Medium,
+//                            color = NeutralColors.Neutral40
+//                        )
+//                        Text(
+//                            text = "Untuk pengguna tunanetra",
+//                            style = AppTypography.paragraphRegular,
+//                            color = NeutralColors.Neutral50
+//                        )
+//                    }
+//
+//                    Switch(
+//                        checked = isAccessibilityEnabled,
+//                        onCheckedChange = { enabled ->
+//                            if (enabled) {
+//                                accessibilityManager.initialize()
+//                            } else {
+//                                accessibilityManager.setEnabled(false)
+//                            }
+//                        },
+//                        colors = SwitchDefaults.colors(
+//                            checkedThumbColor = MainColors.Primary1,
+//                            checkedTrackColor = MainColors.Primary1.copy(alpha = 0.5f)
+//                        )
+//                    )
+//                }
+//
+//                Divider(color = NeutralColors.Neutral20, thickness = 1.dp)
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

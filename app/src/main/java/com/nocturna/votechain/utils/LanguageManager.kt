@@ -17,7 +17,7 @@ object LanguageManager {
     private const val KEY_LANGUAGE = "selected_language"
 
     // Default language is Indonesian
-    private const val DEFAULT_LANGUAGE = "Indonesia"
+    private const val DEFAULT_LANGUAGE = "English"
 
     // Available languages
     val LANGUAGE_INDONESIAN = "Indonesia"

@@ -1,5 +1,6 @@
 package com.nocturna.votechain.ui.screens.homepage
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +17,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -29,6 +31,7 @@ import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.PrimaryColors
 import com.nocturna.votechain.ui.theme.VotechainTheme
+import com.nocturna.votechain.utils.CandidateHelper
 import com.nocturna.votechain.utils.LanguageManager
 import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
 
@@ -49,12 +52,6 @@ fun CandidatePresidentScreen(
 
     var selectedFilter by remember { mutableStateOf(strings.allCandidates) }
     var expandedDropdown by remember { mutableStateOf(false) }
-//    val dropdownOptions = listOf(
-//        strings.allCandidates,
-//        "Candidate 1",
-//        "Candidate 2",
-//        "Candidate 3"
-//    )
 
     val currentRoute = navController?.currentBackStackEntry?.destination?.route
     val voteId = if (currentRoute?.contains("candidate_president") == true) {
@@ -92,7 +89,7 @@ fun CandidatePresidentScreen(
                     painter = painterResource(id = R.drawable.back),
                     contentDescription = strings.back,
                     tint = MainColors.Primary1,
-                    modifier = Modifier.size(20.dp) // Smaller icon size
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
@@ -214,15 +211,14 @@ fun CandidatePresidentScreen(
                                     text = option,
                                     style = AppTypography.heading5Regular,
                                     color = if (option == selectedFilter)
-                                        NeutralColors.Neutral10  // White text for selected item
+                                        NeutralColors.Neutral10
                                     else
-                                        NeutralColors.Neutral70  // Dark gray for non-selected
+                                        NeutralColors.Neutral70
                                 )
                             },
                             onClick = {
                                 selectedFilter = option
                                 expandedDropdown = false
-                                // Handle filter selection logic here
                             }
                         )
                     }
@@ -249,8 +245,24 @@ fun CandidatePresidentScreen(
                 filteredPairs.forEach { pair ->
                     CandidateCardFromApi(
                         electionPair = pair,
-                        onViewPresidentProfile = { onViewProfileClick("president_${pair.id}") },
-                        onViewVicePresidentProfile = { onViewProfileClick("vice_president_${pair.id}") },
+                        onViewPresidentProfile = {
+                            // Navigate to detail screen with president data
+                            val candidateId = CandidateHelper.createCandidateId(
+                                CandidateHelper.CandidateType.PRESIDENT,
+                                pair.id
+                            )
+                            Log.d("CandidatePresidentScreen", "President profile clicked, navigating to: $candidateId")
+                            navController?.navigate("candidate_detail_api/$candidateId")
+                        },
+                        onViewVicePresidentProfile = {
+                            // Navigate to detail screen with vice president data
+                            val candidateId = CandidateHelper.createCandidateId(
+                                CandidateHelper.CandidateType.VICE_PRESIDENT,
+                                pair.id
+                            )
+                            Log.d("CandidateVicePresidentScreen", "Vice president profile clicked, navigating to: $candidateId")
+                            navController?.navigate("candidate_detail_api/$candidateId")
+                        },
                         onVisionMissionClick = { onVisionMissionClick(pair.election_no.toIntOrNull() ?: 1) }
                     )
 
@@ -263,168 +275,6 @@ fun CandidatePresidentScreen(
         }
     }
 }
-
-
-//        // Filter dropdown
-//        Box(
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .padding(horizontal = 24.dp, vertical = 24.dp)
-//        ) {
-//            // Make the entire field clickable to toggle dropdown
-//            Box(
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .clickable { expandedDropdown = !expandedDropdown }
-//            ) {
-//                OutlinedTextField(
-//                    value = selectedFilter,
-//                    onValueChange = {},
-//                    readOnly = true,
-//                    modifier = Modifier.fillMaxWidth(),
-//                    shape = RoundedCornerShape(8.dp),
-//                    colors = OutlinedTextFieldDefaults.colors(
-//                        focusedBorderColor = NeutralColors.Neutral30,
-//                        unfocusedBorderColor = NeutralColors.Neutral30,
-//                        focusedContainerColor = Color.White,
-//                        unfocusedContainerColor = Color.White,
-//                        focusedTextColor = NeutralColors.Neutral40,
-//                        unfocusedTextColor = NeutralColors.Neutral40
-//                    ),
-//                    textStyle = AppTypography.heading5Regular,
-//                    trailingIcon = {
-//                        Icon(
-//                            painter = painterResource(id = R.drawable.down2),
-//                            contentDescription = "Filter",
-//                            tint = if (expandedDropdown) MainColors.Primary1 else NeutralColors.Neutral40,
-//                            modifier = Modifier.clickable { expandedDropdown = !expandedDropdown }
-//                        )
-//                    }
-//                )
-//            }
-//
-//            DropdownMenu(
-//                expanded = expandedDropdown,
-//                onDismissRequest = { expandedDropdown = false },
-//                modifier = Modifier
-//                    .fillMaxWidth(0.88f)
-//                    .background(Color.White)
-//            ) {
-//                dropdownOptions.forEach { option ->
-//                    DropdownMenuItem(
-//                        modifier = Modifier
-//                            .fillMaxWidth()
-//                            .background(
-//                                if (option == selectedFilter)
-//                                    MainColors.Primary1
-//                                else
-//                                    Color.White
-//                            )
-//                            .padding(vertical = 4.dp),
-//                        text = {
-//                            Text(
-//                                text = option,
-//                                style = AppTypography.heading5Regular,
-//                                color = if (option == selectedFilter)
-//                                    NeutralColors.Neutral10  // White text for selected item
-//                                else
-//                                    NeutralColors.Neutral70  // Dark gray for non-selected
-//                            )
-//                        },
-//                        onClick = {
-//                            selectedFilter = option
-//                            expandedDropdown = false
-//                            // Handle filter selection logic here
-//                        }
-//                    )
-//                }
-//            }
-//        }
-//
-//        // Candidates list
-//        Column(
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .weight(1f)
-//                .verticalScroll(scrollState)
-//                .padding(horizontal = 24.dp)
-//        ) {
-//            // Display candidate cards based on filter selection
-//            if (selectedFilter == "All Candidates" || selectedFilter == "Candidate 1") {
-//                // Candidate 1
-//                CandidateCard(
-//                    number = 1,
-//                    president = "Anies",
-//                    vicePresident = "Imin",
-//                    presidentImageRes = R.drawable.pc_anies,
-//                    vicePresidentImageRes = R.drawable.pc_imin,
-//                    parties = listOf(
-//                        R.drawable.pp_pks,
-//                        R.drawable.pp_pkb,
-//                        R.drawable.pp_nasdem
-//                    ),
-//                    onViewPresidentProfile = { onViewProfileClick("anies") },
-//                    onViewVicePresidentProfile = { onViewProfileClick("imin") },
-//                    onVisionMissionClick = { onVisionMissionClick(1) }
-//                )
-//
-//                if (selectedFilter == "All Candidates") {
-//                    Spacer(modifier = Modifier.height(14.dp))
-//                }
-//            }
-//
-//            if (selectedFilter == "All Candidates" || selectedFilter == "Candidate 2") {
-//                // Candidate 2
-//                CandidateCard(
-//                    number = 2,
-//                    president = "Prabowo",
-//                    vicePresident = "Gibran",
-//                    presidentImageRes = R.drawable.pc_prabowo,
-//                    vicePresidentImageRes = R.drawable.pc_gibran,
-//                    parties = listOf(
-//                        R.drawable.pp_pan,
-//                        R.drawable.pp_golkar,
-//                        R.drawable.pp_pdip,
-//                        R.drawable.pp_demokrat,
-//                        R.drawable.pp_nasdem,
-//                        R.drawable.pp_pbb,
-//                        R.drawable.pp_psi
-//                    ),
-//                    onViewPresidentProfile = { onViewProfileClick("prabowo") },
-//                    onViewVicePresidentProfile = { onViewProfileClick("gibran") },
-//                    onVisionMissionClick = { onVisionMissionClick(2) }
-//                )
-//
-//                if (selectedFilter == "All Candidates") {
-//                    Spacer(modifier = Modifier.height(14.dp))
-//                }
-//            }
-//
-//            if (selectedFilter == "All Candidates" || selectedFilter == "Candidate 3") {
-//                // Candidate 3
-//                CandidateCard(
-//                    number = 3,
-//                    president = "Ganjar",
-//                    vicePresident = "Mahfud MD",
-//                    presidentImageRes = R.drawable.pc_ganjar,
-//                    vicePresidentImageRes = R.drawable.pc_mahfud,
-//                    parties = listOf(
-//                        R.drawable.pp_pdip,
-//                        R.drawable.pp_ppp,
-//                        R.drawable.pp_hanura,
-//                        R.drawable.pp_perindo
-//                    ),
-//                    onViewPresidentProfile = { onViewProfileClick("ganjar") },
-//                    onViewVicePresidentProfile = { onViewProfileClick("mahfud MD") },
-//                    onVisionMissionClick = { onVisionMissionClick(3) }
-//                )
-//            }
-//
-//            // Add bottom padding to ensure the last item is fully visible
-//            Spacer(modifier = Modifier.height(80.dp))
-//        }
-//    }
-//}
 
 @Composable
 fun CandidateCardFromApi(
@@ -463,7 +313,7 @@ fun CandidateCardFromApi(
                 color = PrimaryColors.Primary60
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Headers with dividers
             Row(
@@ -527,7 +377,7 @@ fun CandidateCardFromApi(
                             model = ImageRequest.Builder(context)
                                 .data(electionPair.president.photo_path)
                                 .crossfade(true)
-                                .error(R.drawable.pc_anies) // Placeholder if image fails to load
+                                .error(R.drawable.ic_launcher_background)
                                 .build(),
                             contentDescription = "Presidential Candidate ${electionPair.president.full_name}",
                             modifier = Modifier
@@ -540,7 +390,8 @@ fun CandidateCardFromApi(
                         Text(
                             text = electionPair.president.full_name,
                             style = AppTypography.heading6SemiBold,
-                            color = PrimaryColors.Primary70
+                            color = PrimaryColors.Primary70,
+                            textAlign = TextAlign.Center
                         )
 
                         Spacer(modifier = Modifier.height(10.dp))
@@ -552,9 +403,9 @@ fun CandidateCardFromApi(
                                     color = NeutralColors.Neutral30,
                                     shape = RoundedCornerShape(12.dp)
                                 )
-                                .height(24.dp) // Fixed compact height
+                                .height(24.dp)
                                 .clickable(onClick = onViewPresidentProfile)
-                                .padding(horizontal = 10.dp, vertical = 3.dp) // Minimal padding
+                                .padding(horizontal = 10.dp, vertical = 3.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -597,7 +448,7 @@ fun CandidateCardFromApi(
                             model = ImageRequest.Builder(context)
                                 .data(electionPair.vice_president.photo_path)
                                 .crossfade(true)
-                                .error(R.drawable.pc_imin) // Placeholder if image fails to load
+                                .error(R.drawable.pc_imin)
                                 .build(),
                             contentDescription = "Vice Presidential Candidate ${electionPair.vice_president.full_name}",
                             modifier = Modifier
@@ -610,7 +461,8 @@ fun CandidateCardFromApi(
                         Text(
                             text = electionPair.vice_president.full_name,
                             style = AppTypography.heading6SemiBold,
-                            color = PrimaryColors.Primary70
+                            color = PrimaryColors.Primary70,
+                            textAlign = TextAlign.Center
                         )
 
                         Spacer(modifier = Modifier.height(10.dp))
@@ -622,9 +474,9 @@ fun CandidateCardFromApi(
                                     color = NeutralColors.Neutral30,
                                     shape = RoundedCornerShape(12.dp)
                                 )
-                                .height(24.dp) // Fixed compact height
+                                .height(24.dp)
                                 .clickable(onClick = onViewVicePresidentProfile)
-                                .padding(horizontal = 10.dp, vertical = 3.dp) // Minimal padding
+                                .padding(horizontal = 10.dp, vertical = 3.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -648,9 +500,6 @@ fun CandidateCardFromApi(
                     }
                 }
             }
-
-            // Party logos section would go here, but since we don't have them in the API response,
-            // we can either hide this section or use placeholder logos
 
             // Vision & Mission Button
             Box(
