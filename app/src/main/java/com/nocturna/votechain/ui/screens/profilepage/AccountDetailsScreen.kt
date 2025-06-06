@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -18,6 +19,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.nocturna.votechain.R
+import com.nocturna.votechain.data.repository.VoterRepository
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
@@ -33,12 +35,18 @@ fun AccountDetailsScreen(
 ) {
     val strings = LanguageManager.getLocalizedStrings()
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
 
-    // Mock data - in a real app, this would come from a ViewModel
-    val balance = "0.01"
-    val nik = "4529644389000739"
-    val privateKey = "•••••••••••••••••••••••••••"
-    val publicKey = "M7l6aAvZ12vxzLbbvFE7lyWVU292"
+    // Get voter data from repository
+    val voterRepository = remember { VoterRepository(context) }
+    val voterData = voterRepository.getVoterDataLocally()
+    val walletInfo = voterRepository.getWalletInfo()
+
+    // Data from voter or default values
+    val balance = walletInfo.balance
+    val nik = voterData?.nik ?: "No NIK available"
+    val privateKey = if (walletInfo.privateKey.isNotEmpty()) walletInfo.privateKey else "Not available yet"
+    val publicKey = walletInfo.publicKey.ifEmpty { "No public key available" }
 
     var showPrivateKey by remember { mutableStateOf(false) }
 

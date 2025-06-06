@@ -5,6 +5,7 @@ import com.nocturna.votechain.data.model.LoginRequest
 import com.nocturna.votechain.data.model.RegisterRequest
 import com.nocturna.votechain.data.model.UserLoginData
 import com.nocturna.votechain.data.model.UserRegistrationData
+import com.nocturna.votechain.data.model.VoterResponse
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Response
@@ -12,6 +13,8 @@ import retrofit2.http.Body
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
+import retrofit2.http.GET
+import retrofit2.http.Header
 
 /**
  * API Service interface for network requests
@@ -41,4 +44,13 @@ interface ApiService {
      */
     @POST("v1/user/login")
     suspend fun loginUser(@Body request: LoginRequest): Response<ApiResponse<UserLoginData>>
+
+    /**
+     * Get voter information
+     * Endpoint: /v1/voter
+     */
+    @GET("v1/voter")
+    suspend fun getVoterData(
+        @Header("Authorization") token: String
+    ): Response<VoterResponse>
 }

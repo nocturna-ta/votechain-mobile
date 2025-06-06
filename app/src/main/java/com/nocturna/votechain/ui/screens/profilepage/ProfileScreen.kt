@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,8 +18,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.Button
@@ -54,6 +57,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.nocturna.votechain.data.repository.VoterRepository
+import com.nocturna.votechain.ui.screens.BottomNavigation
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
@@ -69,20 +74,21 @@ fun ProfileScreen(
     onVotesClick: () -> Unit = {}
 ) {
     var language by remember { mutableStateOf("Indonesia") }
-    // State to control dropdown visibility
     var showLanguageDropdown by remember { mutableStateOf(false) }
     var showThemeDropdown by remember { mutableStateOf(false) }
-    // Current route is set to "profile" since we're on the profile/settings screen
     val currentRoute = "profile"
-
-    // State for password confirmation dialog
     var showPasswordDialog by remember { mutableStateOf(false) }
 
-    // String resources based on selected language
     val strings = getLocalizedStrings(language)
-
     val context = LocalContext.current
     val currentTheme by ThemeManager.currentTheme.collectAsState()
+
+    // Get voter data from repository
+    val voterRepository = remember { VoterRepository(context) }
+    val voterData = voterRepository.getVoterDataLocally()
+    val walletInfo = voterRepository.getWalletInfo()
+
+    val scrollState = rememberScrollState()
 
     Box(
         modifier = Modifier
@@ -92,6 +98,7 @@ fun ProfileScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(scrollState)
         ) {
             // Header with gradient teal background
             Box(
@@ -106,7 +113,6 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxSize()
                 )
             }
-
 
             // Profile Card - positioned to overlap with the header
             Card(
@@ -128,42 +134,60 @@ fun ProfileScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = "Luh Komang Devi Savitri",
-                            style = AppTypography.heading4Bold,
-                            color = PrimaryColors.Primary60
-                        )
-
-                        Button(
-                            onClick = { showPasswordDialog = true },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MainColors.Primary1
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 3.dp, vertical = 4.dp),
-                            modifier = Modifier.height(26.dp)
-                        ) {
-                            Text("View", style = AppTypography.heading6Regular)
-                            Icon(
-                                painter = painterResource(id = R.drawable.right2),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .padding(start = 4.dp)
-                                    .size(12.dp)
+                        Column {
+                            // Display voter full name or fallback
+                            Text(
+                                text = voterData?.full_name ?: "User Name",
+                                style = AppTypography.heading4Bold,
+                                color = PrimaryColors.Primary80
                             )
-                        }
-                    }
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(top = 8.dp)
-                    ) {
-                        // Using tag_complete.xml drawable
-                        Image(
-                            painter = painterResource(id = R.drawable.tag_complete),
-                            contentDescription = null,
-                            modifier = Modifier.height(24.dp)
-                        )
+                            // Display voting status with appropriate icon
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(top = 4.dp)
+                            ) {
+                                // Display appropriate status image based on has_voted
+                                Image(
+                                    painter = painterResource(
+                                        id = if (voterData?.has_voted == true) {
+                                            R.drawable.tag_complete
+                                        } else {
+                                            R.drawable.tag_incomplete
+                                        }
+                                    ),
+                                    contentDescription = if (voterData?.has_voted == true) {
+                                        "Vote Complete"
+                                    } else {
+                                        "Vote Incomplete"
+                                    },
+                                    modifier = Modifier.size(80.dp, 24.dp)
+                                )
+                            }
+                        }
+                        Column {
+                            Button(
+                                onClick = {
+                                    showPasswordDialog = true
+                                    navController.navigate("account_details")
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MainColors.Primary1
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 3.dp, vertical = 4.dp),
+                                modifier = Modifier.height(26.dp),
+                            ) {
+                                Text("View", style = AppTypography.heading6Regular)
+                                Icon(
+                                    painter = painterResource(id = R.drawable.right2),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .padding(start = 4.dp)
+                                        .size(12.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -195,7 +219,7 @@ fun ProfileScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                // Accessibility Settings
+//                // Accessibility Settings
 //                Row(
 //                    modifier = Modifier
 //                        .fillMaxWidth()
@@ -334,7 +358,6 @@ fun ProfileScreen(
 
                 Divider(color = NeutralColors.Neutral20, thickness = 1.dp)
 
-                // Language Selector - Dropdown style
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -464,6 +487,7 @@ fun ProfileScreen(
 
 @Composable
 fun BottomNavigation(
+    modifier: Modifier = Modifier,
     currentRoute: String,
     onNavigate: (String) -> Unit
 ) {

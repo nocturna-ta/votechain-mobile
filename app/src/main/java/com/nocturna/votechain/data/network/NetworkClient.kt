@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 object NetworkClient {
 
     // Update BASE_URL to the new endpoint
-    const val BASE_URL = "https://a814-36-69-143-31.ngrok-free.app/"
+    const val BASE_URL = "https://67d2-36-69-143-235.ngrok-free.app"
     private const val TAG = "NetworkClient"
 
     /**
@@ -60,9 +60,16 @@ object NetworkClient {
     }
 
     /**
-     * Create API service instance
+     * Create API service instance for user-related operations
      */
     val apiService: ApiService by lazy {
         retrofit.create(ApiService::class.java)
+    }
+
+    /**
+     * Create API service instance for voter-related operations
+     */
+    val voterApiService: VoterApiService by lazy {
+        retrofit.create(VoterApiService::class.java)
     }
 }

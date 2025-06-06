@@ -11,18 +11,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Repository class to handle user login operations
+ * Repository class to handle user login operations with voter data integration
  */
 class UserLoginRepository(private val context: Context) {
     private val TAG = "UserLoginRepository"
     private val apiService = NetworkClient.apiService
+    private val voterRepository = VoterRepository(context)
+
     private val PREFS_NAME = "VoteChainPrefs"
     private val KEY_USER_TOKEN = "user_token"
     private val KEY_USER_EMAIL = "user_email"
     private val KEY_USER_EXPIRES_AT = "expires_at"
 
     /**
-     * Login user with email and password
+     * Login user with email and password, then fetch voter data
      * @return Result containing either the successful response or an exception
      */
     suspend fun loginUser(
@@ -39,15 +41,27 @@ class UserLoginRepository(private val context: Context) {
             val response = apiService.loginUser(request)
 
             if (response.isSuccessful) {
-                response.body()?.let {
-                    Log.d(TAG, "Login successful: ${it.message}")
+                response.body()?.let { loginResponse ->
+                    Log.d(TAG, "Login successful: ${loginResponse.message}")
 
                     // Store user data if login is successful and there is a token
-                    if (it.code == 200 && it.data?.token?.isNotEmpty() == true) {
-                        saveUserData(it.data)
+                    if (loginResponse.code == 200 && loginResponse.data?.token?.isNotEmpty() == true) {
+                        saveUserData(loginResponse.data, email)
+
+                        // Fetch voter data after successful login
+                        try {
+                            val voterResult = voterRepository.fetchVoterData(loginResponse.data.token)
+                            if (voterResult.isSuccess) {
+                                Log.d(TAG, "Voter data fetched successfully")
+                            } else {
+                                Log.w(TAG, "Failed to fetch voter data: ${voterResult.exceptionOrNull()?.message}")
+                            }
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Exception while fetching voter data", e)
+                        }
                     }
 
-                    Result.success(it)
+                    Result.success(loginResponse)
                 } ?: run {
                     Log.e(TAG, "Empty response body with success code: ${response.code()}")
                     Result.failure(Exception("Empty response body"))
@@ -78,17 +92,17 @@ class UserLoginRepository(private val context: Context) {
     }
 
     /**
-     * Save user data to SharedPreferences
+     * Save user data to SharedPreferences including email
      */
-    fun saveUserData(userData: UserLoginData) {
+    private fun saveUserData(userData: UserLoginData, email: String) {
         val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         with(sharedPreferences.edit()) {
             putString(KEY_USER_TOKEN, userData.token)
-            putString(KEY_USER_EMAIL, userData.message) // Assuming message contains user info
+            putString(KEY_USER_EMAIL, email) // Save the email used for login
             putString(KEY_USER_EXPIRES_AT, userData.expires_at)
             apply()
         }
-        Log.d(TAG, "User data saved to SharedPreferences")
+        Log.d(TAG, "User data saved to SharedPreferences with email: $email")
     }
 
     /**
@@ -109,6 +123,14 @@ class UserLoginRepository(private val context: Context) {
     fun getUserToken(): String {
         val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return sharedPreferences.getString(KEY_USER_TOKEN, "") ?: ""
+    }
+
+    /**
+     * Get saved user email from SharedPreferences
+     */
+    fun getUserEmail(): String {
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return sharedPreferences.getString(KEY_USER_EMAIL, "") ?: ""
     }
 
     /**
@@ -140,7 +162,7 @@ class UserLoginRepository(private val context: Context) {
     }
 
     /**
-     * Log out user by clearing token and user data
+     * Log out user by clearing token, user data, and voter data
      */
     fun logoutUser() {
         val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -150,6 +172,10 @@ class UserLoginRepository(private val context: Context) {
             remove(KEY_USER_EXPIRES_AT)
             apply()
         }
-        Log.d(TAG, "User logged out, data cleared")
+
+        // Clear voter data as well
+        voterRepository.clearVoterData()
+
+        Log.d(TAG, "User logged out, all data cleared")
     }
 }
