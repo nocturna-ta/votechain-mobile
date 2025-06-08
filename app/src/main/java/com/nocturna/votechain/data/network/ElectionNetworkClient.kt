@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
  * Network client for connecting to the Election API
  */
 object ElectionNetworkClient {
-    const val BASE_URL = "https://759a-36-69-143-235.ngrok-free.app"
+    const val BASE_URL = "https://7483-36-69-141-45.ngrok-free.app"
     private const val TAG = "ElectionNetworkClient"
 
     /**

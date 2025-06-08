@@ -210,17 +210,13 @@ fun VotechainNavGraph(
         }
 
         composable(
-            "vision_mission/{candidateNumber}/{voteId}",
-            arguments = listOf(
-                navArgument("candidateNumber") { type = NavType.IntType },
-                navArgument("voteId") { type = NavType.StringType }
-            )
-        ) {
-            val candidateNumber = it.arguments?.getInt("candidateNumber") ?: 1
-            val voteId = it.arguments?.getString("voteId") ?: ""
+            route = "vision_mission/{pairId}",
+            arguments = listOf(navArgument("pairId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val pairId = backStackEntry.arguments?.getString("pairId") ?: ""
             VisionMissionScreen(
                 navController = navController,
-                candidateNumber = candidateNumber
+                pairId = pairId
             )
         }
 

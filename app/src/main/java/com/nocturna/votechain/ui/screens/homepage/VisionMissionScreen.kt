@@ -1,52 +1,54 @@
 package com.nocturna.votechain.ui.screens.homepage
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.nocturna.votechain.R
+import com.nocturna.votechain.data.model.WorkProgram
 import com.nocturna.votechain.viewmodel.candidate.VisionMissionViewModelImpl
 import com.nocturna.votechain.ui.screens.LoadingScreen
-import com.nocturna.votechain.ui.theme.AppTypography
-import com.nocturna.votechain.ui.theme.MainColors
-import com.nocturna.votechain.ui.theme.NeutralColors
-import com.nocturna.votechain.ui.theme.PrimaryColors
-import com.nocturna.votechain.ui.theme.VotechainTheme
+import com.nocturna.votechain.ui.theme.*
 import com.nocturna.votechain.utils.LanguageManager
 
 @Composable
 fun VisionMissionScreen(
     navController: NavController,
-    candidateNumber: Int,
+    pairId: String, // Changed from candidateNumber to pairId
     onBackClick: () -> Unit = { navController.popBackStack() },
     modifier: Modifier = Modifier
 ) {
     val strings = LanguageManager.getLocalizedStrings()
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
 
     // Create and remember the presenter
-    val scrollState = rememberScrollState()
     val presenter = remember { VisionMissionViewModelImpl() }
     val uiState by presenter.uiState.collectAsState()
 
-    // Load data when the screen is first composed or when candidateNumber changes
-    LaunchedEffect(candidateNumber) {
-        presenter.loadData(candidateNumber)
+    // Load data when the screen is first composed or when pairId changes
+    LaunchedEffect(pairId) {
+        presenter.loadDataFromAPI(pairId) // Updated method call
     }
 
     // Main screen content
@@ -55,6 +57,7 @@ fun VisionMissionScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(Color.White)
                 .padding(vertical = 24.dp)
         ) {
             Box(
@@ -69,7 +72,7 @@ fun VisionMissionScreen(
                     painter = painterResource(id = R.drawable.back),
                     contentDescription = strings.back,
                     tint = MainColors.Primary1,
-                    modifier = Modifier.size(20.dp) // Smaller icon size
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
@@ -83,160 +86,362 @@ fun VisionMissionScreen(
         }
 
         // Main content based on UI state
-        if (uiState.isLoading) {
-            // Handle loading state
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                LoadingScreen()
-            }
-        } else if (uiState.error != null) {
-            // Handle error state
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+        when {
+            uiState.isLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Error Loading Data",
-                        style = AppTypography.heading4Medium,
-                        color = MainColors.Primary1
-                    )
+                    LoadingScreen()
+                }
+            }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = uiState.error ?: "Unknown error occurred",
-                        style = AppTypography.heading5Regular,
-                        color = NeutralColors.Neutral70,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(
-                        onClick = { presenter.loadData(candidateNumber) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MainColors.Primary1
-                        )
+            uiState.error != null -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(16.dp)
                     ) {
-                        Text("Try Again")
+                        Text(
+                            text = "Error Loading Data",
+                            style = AppTypography.heading4Medium,
+                            color = MainColors.Primary1
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = uiState.error ?: "Unknown error occurred",
+                            style = AppTypography.heading5Regular,
+                            color = NeutralColors.Neutral70,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Button(
+                            onClick = { presenter.loadDataFromAPI(pairId) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MainColors.Primary1
+                            )
+                        ) {
+                            Text("Try Again")
+                        }
                     }
                 }
             }
-        } else {
-            // Content when data is successfully loaded
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = 24.dp)
-            ) {
-                Spacer(modifier = Modifier.height(14.dp))
 
-                // Vision Section
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    // Vision Section
+                    item {
+                        VisionSection(vision = uiState.vision)
+                    }
+
+                    // Mission Section
+                    item {
+                        MissionSection(mission = uiState.mission)
+                    }
+
+                    // Work Programs Section
+                    if (uiState.workPrograms.isNotEmpty()) {
+                        item {
+                            WorkProgramsSection(programs = uiState.workPrograms)
+                        }
+                    }
+
+                    // More Information Card (only if programDocs exists)
+                    uiState.programDocs?.let { programDocs ->
+                        if (programDocs.isNotBlank()) {
+                            item {
+                                MoreInformationCard(
+                                    onCardClick = {
+                                        try {
+                                            uriHandler.openUri(programDocs)
+                                        } catch (e: Exception) {
+                                            // Handle error opening link
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VisionSection(vision: String) {
+    val strings = LanguageManager.getLocalizedStrings()
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(elevation = 2.dp, shape = RoundedCornerShape(16.dp)),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalArrangement = Arrangement.Start
+        ) {
+            // Vision Icon
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        MainColors.Primary1.copy(alpha = 0.1f),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "V",
+                    style = AppTypography.heading5Bold,
+                    color = MainColors.Primary1
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = strings.vision,
-                    style = AppTypography.heading5Bold,
-                    color = PrimaryColors.Primary70,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
+                    style = AppTypography.heading6SemiBold,
+                    color = NeutralColors.Neutral80
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "\"${uiState.vision}\"",
-                    style = AppTypography.paragraphMedium,
+                    text = vision.ifBlank { "Vision not available" },
+                    style = AppTypography.paragraphRegular,
                     color = NeutralColors.Neutral80,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
+                    textAlign = TextAlign.Justify
                 )
+            }
+        }
+    }
+}
 
-                Spacer(modifier = Modifier.height(24.dp))
+@Composable
+private fun MissionSection(mission: String) {
+    val strings = LanguageManager.getLocalizedStrings()
 
-                // Mission Section
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(elevation = 2.dp, shape = RoundedCornerShape(16.dp)),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalArrangement = Arrangement.Start
+        ) {
+            // Mission Icon
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        PrimaryColors.Primary50.copy(alpha = 0.1f),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "M",
+                    style = AppTypography.heading5Bold,
+                    color = PrimaryColors.Primary50
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = strings.mission,
-                    style = AppTypography.heading5Bold,
-                    color = PrimaryColors.Primary70,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
+                    style = AppTypography.heading6SemiBold,
+                    color = NeutralColors.Neutral80
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = mission.ifBlank { "Mission not available" },
+                    style = AppTypography.paragraphRegular,
+                    color = NeutralColors.Neutral80,
+                    textAlign = TextAlign.Justify
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WorkProgramsSection(programs: List<WorkProgram>) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(elevation = 2.dp, shape = RoundedCornerShape(16.dp)),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.Top
+            ) {
+                // Work Programs Icon
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            PrimaryColors.Primary50.copy(alpha = 0.1f),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "P",
+                        style = AppTypography.heading5Bold,
+                        color = PrimaryColors.Primary50
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Text(
+                    text = "Work Programs:",
+                    style = AppTypography.heading6SemiBold,
+                    color = NeutralColors.Neutral80
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            programs.forEach { program ->
+                WorkProgramItem(program = program)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun WorkProgramItem(program: WorkProgram) {
+    val context = LocalContext.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                NeutralColors.Neutral10,
+                RoundedCornerShape(8.dp)
+            )
+            .padding(12.dp)
+    ) {
+        Text(
+            text = program.programName,
+            style = AppTypography.paragraphSemiBold,
+            color = NeutralColors.Neutral80
+        )
+
+        if (program.programDesc.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            program.programDesc.forEach { desc ->
+                Row(
+                    modifier = Modifier.padding(vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "• ",
+                        style = AppTypography.paragraphRegular,
+                        color = NeutralColors.Neutral60
+                    )
+                    Text(
+                        text = desc,
+                        style = AppTypography.paragraphRegular,
+                        color = NeutralColors.Neutral60,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+
+        program.programPhoto?.let { photoUrl ->
+            if (photoUrl.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(photoUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = program.programName,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MoreInformationCard(onCardClick: () -> Unit) {
+    val strings = LanguageManager.getLocalizedStrings()
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onCardClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Background Image
+            Image(
+                painter = painterResource(id = R.drawable.background),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Content
+            Column(
+                modifier = Modifier.padding(24.dp)
+            ) {
+                Text(
+                    text = strings.moreInformation,
+                    style = AppTypography.heading6SemiBold,
+                    color = NeutralColors.Neutral10
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Mission list
-                uiState.missions.forEachIndexed { index, mission ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 24.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Text(
-                            text = "${index + 1}.",
-                            style = AppTypography.paragraphRegular,
-                            color = NeutralColors.Neutral80,
-                            modifier = Modifier.width(24.dp)
-                        )
-                        Text(
-                            text = mission,
-                            style = AppTypography.paragraphRegular,
-                            color = NeutralColors.Neutral80,
-                            textAlign = TextAlign.Justify
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // More Information Button
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    onClick = {
-                        val candidateId = when (candidateNumber) {
-                            1 -> "anies"
-                            2 -> "prabowo"
-                            3 -> "ganjar"
-                            else -> "anies"
-                        }
-                        navController.navigate("candidate_detail/$candidateId")
-                    }
-                ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        Image(
-                            painter = painterResource(id = R.drawable.background),
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-
-                        Column(
-                            modifier = Modifier.padding(24.dp)
-                        ) {
-                            Text(
-                                text = strings.moreInformation,
-                                style = AppTypography.heading6SemiBold,
-                                color = NeutralColors.Neutral10
-                            )
-
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            Text(
-                                text = "Click here to access detailed information about the vision, mission, and work programs of candidate number ${uiState.candidateNumber}",
-                                style = AppTypography.paragraphRegular,
-                                color = NeutralColors.Neutral10
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-                }
+                Text(
+                    text = "Click here to access detailed information about the vision, mission, and complete work programs of this candidate pair.",
+                    style = AppTypography.paragraphRegular,
+                    color = NeutralColors.Neutral10
+                )
             }
         }
     }
