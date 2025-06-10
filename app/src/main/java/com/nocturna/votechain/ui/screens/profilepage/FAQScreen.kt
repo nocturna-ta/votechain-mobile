@@ -24,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -72,7 +73,7 @@ fun FAQScreen(
                 Icon(
                     painter = painterResource(id = R.drawable.back),
                     contentDescription = "Back",
-                    tint = MainColors.Primary1,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(20.dp) // Smaller icon size
                 )
             }
@@ -81,7 +82,7 @@ fun FAQScreen(
             Text(
                 text = "FAQ",
                 style = AppTypography.heading4Regular,
-                color = PrimaryColors.Primary80,
+                color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier.align(Alignment.Center)
             )
         }
@@ -133,7 +134,7 @@ fun ExpandableFAQItem(
             Text(
                 text = question,
                 style = AppTypography.heading5Medium,
-                color = NeutralColors.Neutral70,
+                color = MaterialTheme.colorScheme.inverseSurface,
                 modifier = Modifier.weight(1f)
             )
 
@@ -142,7 +143,7 @@ fun ExpandableFAQItem(
                     id = if (expanded) R.drawable.down2 else R.drawable.right2
                 ),
                 contentDescription = if (expanded) "Collapse" else "Expand",
-                tint = NeutralColors.Neutral30
+                tint = MaterialTheme.colorScheme.outline
             )
         }
 
@@ -158,24 +159,18 @@ fun ExpandableFAQItem(
                     .fillMaxWidth()
                     .padding(bottom = 16.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(NeutralColors.Neutral10)
                     .padding(8.dp)
             ) {
-                CompositionLocalProvider(LocalContentColor provides NeutralColors.Neutral70) {
+                CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.inverseSurface) {
                     ProvideTextStyle(value = AppTypography.heading6Medium) {
                         answer()
                     }
                 }
-//                Text(
-//                    text = answer,
-//                    style = AppTypography.heading6Medium,
-//                    color = NeutralColors.Neutral70
-//                )
             }
         }
 
         Divider(
-            color = NeutralColors.Neutral20,
+            color = MaterialTheme.colorScheme.outlineVariant,
             thickness = 1.dp
         )
     }

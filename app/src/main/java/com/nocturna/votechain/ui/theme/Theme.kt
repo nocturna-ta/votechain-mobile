@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -20,7 +21,7 @@ import com.nocturna.votechain.utils.ThemeManager
 
 private val LightColorScheme = lightColorScheme(
     primary = MainColors.Primary1,
-    onPrimary = NeutralColors.Neutral10,
+    onPrimary = NeutralColors.Neutral50,
     primaryContainer = PrimaryColors.Primary20,
     onPrimaryContainer = PrimaryColors.Primary90,
 
@@ -52,14 +53,14 @@ private val LightColorScheme = lightColorScheme(
 
     scrim = NeutralColors.Neutral90.copy(alpha = 0.8f),
 
-    inverseSurface = NeutralColors.Neutral90,
+    inverseSurface = NeutralColors.Neutral70,
     inverseOnSurface = NeutralColors.Neutral10,
     inversePrimary = PrimaryColors.Primary40,
 )
 
 private val DarkColorScheme = darkColorScheme(
     primary = PrimaryColors.Primary60,
-    onPrimary = NeutralColors.Neutral10,
+    onPrimary = NeutralColors.Neutral50,
     primaryContainer = PrimaryColors.Primary70,
     onPrimaryContainer = NeutralColors.Neutral10,
 
@@ -85,9 +86,47 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = NeutralColors.Neutral10,
     surfaceVariant = NeutralColors.Neutral10,
     onSurfaceVariant = NeutralColors.Neutral40,
+
     outline = NeutralColors.Neutral30,
     outlineVariant = AdditionalColors.strokeColor,
+
+    inverseSurface = NeutralColors.Neutral10,
+    inverseOnSurface = NeutralColors.Neutral10,
+    inversePrimary = PrimaryColors.Primary40,
 )
+
+object StatusBarColors {
+    /**
+     * Get status bar background color based on theme
+     */
+    @Composable
+    fun getStatusBarColor(isDarkTheme: Boolean): Color {
+        return if (isDarkTheme) {
+            NeutralColors.Neutral70 // Dark mode: Gray background
+        } else {
+            NeutralColors.Neutral10 // Light mode: White background
+        }
+    }
+
+    /**
+     * Get status bar icon tint based on theme
+     */
+    @Composable
+    fun getStatusBarIconTint(isDarkTheme: Boolean): Color {
+        return if (isDarkTheme) {
+            NeutralColors.Neutral10 // Dark mode: White icons
+        } else {
+            NeutralColors.Neutral80 // Light mode: Dark icons
+        }
+    }
+
+    /**
+     * Check if status bar should use light icons
+     */
+    fun shouldUseLightStatusBarIcons(isDarkTheme: Boolean): Boolean {
+        return !isDarkTheme // Light icons untuk dark theme, dark icons untuk light theme
+    }
+}
 
 @Composable
 fun VotechainTheme(
@@ -113,12 +152,23 @@ fun VotechainTheme(
         else -> LightColorScheme
     }
 
+    // Get status bar colors
+    val statusBarColor = StatusBarColors.getStatusBarColor(darkTheme)
+    val statusBarIconTint = StatusBarColors.getStatusBarIconTint(darkTheme)
+    val useLightIcons = StatusBarColors.shouldUseLightStatusBarIcons(darkTheme)
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+
+            // Apply custom status bar styling
+            window.statusBarColor = statusBarColor.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = useLightIcons
+
+            // Navigation bar tetap menggunakan surface color
+            window.navigationBarColor = colorScheme.surface.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
         }
     }
 

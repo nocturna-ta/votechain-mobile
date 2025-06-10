@@ -181,10 +181,11 @@ fun ProfileScreen(
                                 contentPadding = PaddingValues(horizontal = 3.dp, vertical = 4.dp),
                                 modifier = Modifier.height(26.dp),
                             ) {
-                                Text("View", style = AppTypography.heading6Regular)
+                                Text("View", style = AppTypography.heading6Regular, color = NeutralColors.Neutral10)
                                 Icon(
                                     painter = painterResource(id = R.drawable.right2),
                                     contentDescription = null,
+                                    tint = NeutralColors.Neutral10,
                                     modifier = Modifier
                                         .padding(start = 4.dp)
                                         .size(12.dp)

@@ -89,7 +89,7 @@ private fun BottomNavItem(
         Icon(
             painter = painterResource(id = icon),
             contentDescription = label,
-            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier.size(24.dp)
         )
 
