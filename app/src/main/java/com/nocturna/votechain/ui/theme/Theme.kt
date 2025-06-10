@@ -1,16 +1,64 @@
 package com.nocturna.votechain.ui.theme
 
+import android.app.Activity
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import com.nocturna.votechain.utils.ThemeManager
 
-private val DarkColorScheme = darkColorScheme(
+private val LightColorScheme = lightColorScheme(
     primary = MainColors.Primary1,
+    onPrimary = NeutralColors.Neutral10,
+    primaryContainer = PrimaryColors.Primary20,
+    onPrimaryContainer = PrimaryColors.Primary90,
+
+    secondary = MainColors.Primary2,
+    onSecondary = NeutralColors.Neutral10,
+    secondaryContainer = PrimaryColors.Primary30,
+    onSecondaryContainer = PrimaryColors.Primary80,
+
+    tertiary = PrimaryColors.Primary40,
+    onTertiary = NeutralColors.Neutral10,
+    tertiaryContainer = PrimaryColors.Primary20,
+    onTertiaryContainer = PrimaryColors.Primary90,
+
+    error = DangerColors.Danger50,
+    onError = NeutralColors.Neutral10,
+    errorContainer = DangerColors.Danger20,
+    onErrorContainer = DangerColors.Danger90,
+
+    background = NeutralColors.Neutral10,
+    onBackground = NeutralColors.Neutral40,
+
+    surface = NeutralColors.Neutral10,
+    onSurface = PrimaryColors.Primary60,
+    surfaceVariant = PrimaryColors.Primary80,
+    onSurfaceVariant = NeutralColors.Neutral40,
+
+    outline = NeutralColors.Neutral30,
+    outlineVariant = NeutralColors.Neutral20,
+
+    scrim = NeutralColors.Neutral90.copy(alpha = 0.8f),
+
+    inverseSurface = NeutralColors.Neutral90,
+    inverseOnSurface = NeutralColors.Neutral10,
+    inversePrimary = PrimaryColors.Primary40,
+)
+
+private val DarkColorScheme = darkColorScheme(
+    primary = PrimaryColors.Primary60,
     onPrimary = NeutralColors.Neutral10,
     primaryContainer = PrimaryColors.Primary70,
     onPrimaryContainer = NeutralColors.Neutral10,
@@ -30,129 +78,77 @@ private val DarkColorScheme = darkColorScheme(
     errorContainer = DangerColors.Danger70,
     onErrorContainer = NeutralColors.Neutral10,
 
-    background = NeutralColors.Neutral10,
-    onBackground = NeutralColors.Neutral90,
-    surface = NeutralColors.Neutral20,
-    onSurface = NeutralColors.Neutral90,
+    background = NeutralColors.Neutral70,
+    onBackground = NeutralColors.Neutral10,
 
-    surfaceVariant = NeutralColors.Neutral20,
-    onSurfaceVariant = NeutralColors.Neutral80,
-    outline = NeutralColors.Neutral70
+    surface = NeutralColors.Neutral70,
+    onSurface = NeutralColors.Neutral10,
+    surfaceVariant = NeutralColors.Neutral10,
+    onSurfaceVariant = NeutralColors.Neutral40,
+    outline = NeutralColors.Neutral30,
+    outlineVariant = AdditionalColors.strokeColor,
 )
-
-private val LightColorScheme = lightColorScheme(
-    primary = MainColors.Primary1,
-    onPrimary = NeutralColors.Neutral10,
-    primaryContainer = PrimaryColors.Primary30,
-    onPrimaryContainer = PrimaryColors.Primary90,
-
-    secondary = MainColors.Primary2,
-    onSecondary = NeutralColors.Neutral10,
-    secondaryContainer = SecondaryColors.Secondary30,
-    onSecondaryContainer = SecondaryColors.Secondary90,
-
-    tertiary = PrimaryColors.Primary40,
-    onTertiary = NeutralColors.Neutral10,
-    tertiaryContainer = PrimaryColors.Primary20,
-    onTertiaryContainer = PrimaryColors.Primary80,
-
-    error = DangerColors.Danger50,
-    onError = NeutralColors.Neutral10,
-    errorContainer = DangerColors.Danger20,
-    onErrorContainer = DangerColors.Danger90,
-
-    background = NeutralColors.Neutral10,
-    onBackground = NeutralColors.Neutral90,
-    surface = NeutralColors.Neutral20,
-    onSurface = NeutralColors.Neutral90,
-
-    surfaceVariant = NeutralColors.Neutral20,
-    onSurfaceVariant = NeutralColors.Neutral70,
-    outline = NeutralColors.Neutral60
-)
-
-object ExtendedColors {
-    val success: Color
-        @Composable
-        get() = if (isSystemInDarkTheme()) SuccessColors.Success60 else SuccessColors.Success50
-
-    val warning: Color
-        @Composable
-        get() = if (isSystemInDarkTheme()) WarningColors.Warning60 else WarningColors.Warning50
-
-    val info: Color
-        @Composable
-        get() = if (isSystemInDarkTheme()) InfoColors.Info60 else InfoColors.Info50
-
-    val onSuccess: Color
-        @Composable
-        get() = NeutralColors.Neutral10
-
-    val onWarning: Color
-        @Composable
-        get() = NeutralColors.Neutral90
-
-    val onInfo: Color
-        @Composable
-        get() = NeutralColors.Neutral10
-
-    // Container colors
-    val successContainer: Color
-        @Composable
-        get() = if (isSystemInDarkTheme()) SuccessColors.Success70 else SuccessColors.Success20
-
-    val warningContainer: Color
-        @Composable
-        get() = if (isSystemInDarkTheme()) WarningColors.Warning70 else WarningColors.Warning20
-
-    val infoContainer: Color
-        @Composable
-        get() = if (isSystemInDarkTheme()) InfoColors.Info70 else InfoColors.Info20
-
-    val onSuccessContainer: Color
-        @Composable
-        get() = if (isSystemInDarkTheme()) SuccessColors.Success10 else SuccessColors.Success90
-
-    val onWarningContainer: Color
-        @Composable
-        get() = if (isSystemInDarkTheme()) WarningColors.Warning10 else WarningColors.Warning90
-
-    val onInfoContainer: Color
-        @Composable
-        get() = if (isSystemInDarkTheme()) InfoColors.Info10 else InfoColors.Info90
-}
 
 @Composable
 fun VotechainTheme(
     content: @Composable () -> Unit
 ) {
-    // Get current theme from ThemeManager
-    val themeState = ThemeManager.currentTheme.collectAsState().value
+    val context = LocalContext.current
+    val currentTheme by ThemeManager.currentTheme.collectAsState()
+    val systemInDarkTheme = isSystemInDarkTheme()
 
-    // Determine whether to use dark theme based on the selected theme
-    val useDarkTheme = when (themeState) {
-        ThemeManager.THEME_LIGHT -> false
+    // Determine if dark theme should be used
+    val darkTheme = when (currentTheme) {
         ThemeManager.THEME_DARK -> true
-        ThemeManager.THEME_SYSTEM -> isSystemInDarkTheme()
+        ThemeManager.THEME_LIGHT -> false
+        ThemeManager.THEME_SYSTEM -> systemInDarkTheme
         else -> false // Default to light theme
     }
 
-    val colorScheme = if (useDarkTheme) {
-        DarkColorScheme
-    } else {
-        LightColorScheme
+    val colorScheme = when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        }
+        darkTheme -> DarkColorScheme
+        else -> LightColorScheme
+    }
+
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            window.statusBarColor = colorScheme.primary.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+        }
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
-        shapes = Shapes,
         content = content
     )
 }
 
-object ThemeExtended {
-    val colors: ExtendedColors
-        @Composable
-        get() = ExtendedColors
+// Extension functions to help with theme-aware colors
+object ThemeColors {
+    @Composable
+    fun backgroundPrimary() = MaterialTheme.colorScheme.background
+
+    @Composable
+    fun backgroundSecondary() = MaterialTheme.colorScheme.surfaceVariant
+
+    @Composable
+    fun textPrimary() = MaterialTheme.colorScheme.onBackground
+
+    @Composable
+    fun textSecondary() = MaterialTheme.colorScheme.onSurfaceVariant
+
+    @Composable
+    fun accent() = MaterialTheme.colorScheme.primary
+
+    @Composable
+    fun surface() = MaterialTheme.colorScheme.surface
+
+    @Composable
+    fun onSurface() = MaterialTheme.colorScheme.onSurface
 }

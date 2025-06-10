@@ -63,6 +63,8 @@ import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.PrimaryColors
+import com.nocturna.votechain.utils.LanguageManager
+import com.nocturna.votechain.utils.LanguageManager.currentLanguage
 import com.nocturna.votechain.utils.ThemeManager
 import com.nocturna.votechain.utils.getLocalizedStrings
 
@@ -73,13 +75,14 @@ fun ProfileScreen(
     onHomeClick: () -> Unit = {},
     onVotesClick: () -> Unit = {}
 ) {
-    var language by remember { mutableStateOf("Indonesia") }
     var showLanguageDropdown by remember { mutableStateOf(false) }
     var showThemeDropdown by remember { mutableStateOf(false) }
     val currentRoute = "profile"
     var showPasswordDialog by remember { mutableStateOf(false) }
 
-    val strings = getLocalizedStrings(language)
+    val currentLanguage by LanguageManager.currentLanguage.collectAsState()
+    val strings = LanguageManager.getLocalizedStrings()
+
     val context = LocalContext.current
     val currentTheme by ThemeManager.currentTheme.collectAsState()
 
@@ -93,7 +96,7 @@ fun ProfileScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
             modifier = Modifier
@@ -121,7 +124,7 @@ fun ProfileScreen(
                     .padding(horizontal = 24.dp)
                     .offset(y = (-50).dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
                 Column(
@@ -139,13 +142,13 @@ fun ProfileScreen(
                             Text(
                                 text = voterData?.full_name ?: "User Name",
                                 style = AppTypography.heading4Bold,
-                                color = PrimaryColors.Primary80
+                                color = MaterialTheme.colorScheme.onSurface
                             )
 
                             // Display voting status with appropriate icon
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(top = 4.dp)
+                                modifier = Modifier.padding(top = 8.dp)
                             ) {
                                 // Display appropriate status image based on has_voted
                                 Image(
@@ -215,7 +218,7 @@ fun ProfileScreen(
                 Text(
                     text = "Settings",
                     style = AppTypography.heading4Bold,
-                    color = PrimaryColors.Primary80,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
@@ -261,7 +264,7 @@ fun ProfileScreen(
 //                    )
 //                }
 //
-//                Divider(color = NeutralColors.Neutral20, thickness = 1.dp)
+//                Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 
                 Row(
                     modifier = Modifier
@@ -274,94 +277,99 @@ fun ProfileScreen(
                     Text(
                         text = "Theme",
                         style = AppTypography.heading5Medium,
-                        color = NeutralColors.Neutral40
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    // Theme selection pill
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .border(1.dp, NeutralColors.Neutral30, RoundedCornerShape(12.dp))
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
+                    Box {// Theme selection pill
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.outline,
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .clickable { showThemeDropdown = true }
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
-                            Text(
-                                text = currentTheme,
-                                style = AppTypography.paragraphRegular,
-                                color = NeutralColors.Neutral40
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = currentTheme,
+                                    style = AppTypography.paragraphRegular,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Icon(
+                                    painter = painterResource(id = R.drawable.down2),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .padding(start = 4.dp)
+                                        .size(14.dp)
+                                )
+                            }
+                        }
+
+                        // Theme dropdown menu
+                        DropdownMenu(
+                            expanded = showThemeDropdown,
+                            onDismissRequest = { showThemeDropdown = false },
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.surface)
+                                .width(200.dp)
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = ThemeManager.THEME_LIGHT,
+                                        style = AppTypography.paragraphRegular,
+                                        color = if (currentTheme == ThemeManager.THEME_LIGHT)
+                                            MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                onClick = {
+                                    ThemeManager.setTheme(context, ThemeManager.THEME_LIGHT)
+                                    showThemeDropdown = false
+                                }
                             )
-                            Icon(
-                                painter = painterResource(id = R.drawable.down2),
-                                contentDescription = null,
-                                tint = NeutralColors.Neutral40,
-                                modifier = Modifier
-                                    .padding(start = 4.dp)
-                                    .size(14.dp)
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = ThemeManager.THEME_DARK,
+                                        style = AppTypography.paragraphRegular,
+                                        color = if (currentTheme == ThemeManager.THEME_DARK)
+                                            MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                onClick = {
+                                    ThemeManager.setTheme(context, ThemeManager.THEME_DARK)
+                                    showThemeDropdown = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = ThemeManager.THEME_SYSTEM,
+                                        style = AppTypography.paragraphRegular,
+                                        color = if (currentTheme == ThemeManager.THEME_SYSTEM)
+                                            MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                onClick = {
+                                    ThemeManager.setTheme(context, ThemeManager.THEME_SYSTEM)
+                                    showThemeDropdown = false
+                                }
                             )
                         }
                     }
-
-                    // Theme dropdown menu
-                    DropdownMenu(
-                        expanded = showThemeDropdown,
-                        onDismissRequest = { showThemeDropdown = false },
-                        modifier = Modifier
-                            .background(Color.White)
-                            .width(200.dp)
-                    ) {
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = ThemeManager.THEME_LIGHT,
-                                    style = AppTypography.paragraphRegular,
-                                    color = if (currentTheme == ThemeManager.THEME_LIGHT)
-                                        MainColors.Primary1 else NeutralColors.Neutral70
-                                )
-                            },
-                            onClick = {
-                                ThemeManager.setTheme(context, ThemeManager.THEME_LIGHT)
-                                showThemeDropdown = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = ThemeManager.THEME_DARK,
-                                    style = AppTypography.paragraphRegular,
-                                    color = if (currentTheme == ThemeManager.THEME_DARK)
-                                        MainColors.Primary1 else NeutralColors.Neutral70
-                                )
-                            },
-                            onClick = {
-                                ThemeManager.setTheme(context, ThemeManager.THEME_DARK)
-                                showThemeDropdown = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = ThemeManager.THEME_SYSTEM,
-                                    style = AppTypography.paragraphRegular,
-                                    color = if (currentTheme == ThemeManager.THEME_SYSTEM)
-                                        MainColors.Primary1 else NeutralColors.Neutral70
-                                )
-                            },
-                            onClick = {
-                                ThemeManager.setTheme(context, ThemeManager.THEME_SYSTEM)
-                                showThemeDropdown = false
-                            }
-                        )
-                    }
                 }
 
-                Divider(color = NeutralColors.Neutral20, thickness = 1.dp)
+                Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { showLanguageDropdown = true }
                         .padding(vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -369,69 +377,82 @@ fun ProfileScreen(
                     Text(
                         text = strings.language,
                         style = AppTypography.heading5Medium,
-                        color = NeutralColors.Neutral40
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-
-                    // Language selection pill
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .border(1.dp, NeutralColors.Neutral30, RoundedCornerShape(12.dp))
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
+                    Box {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { showLanguageDropdown = true }
+                                .border(1.dp, NeutralColors.Neutral30, RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
-                            Text(
-                                text = language,
-                                style = AppTypography.paragraphRegular,
-                                color = NeutralColors.Neutral40
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = currentLanguage,
+                                    style = AppTypography.paragraphRegular,
+                                    color = NeutralColors.Neutral40
+                                )
+                                Icon(
+                                    painter = painterResource(id = R.drawable.down2),
+                                    contentDescription = null,
+                                    tint = NeutralColors.Neutral40,
+                                    modifier = Modifier
+                                        .padding(start = 4.dp)
+                                        .size(14.dp)
+                                )
+                            }
+                        }
+
+                        // Language dropdown menu
+                        DropdownMenu(
+                            expanded = showLanguageDropdown,
+                            onDismissRequest = { showLanguageDropdown = false },
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.surface)
+                                .width(150.dp)
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = LanguageManager.LANGUAGE_ENGLISH,
+                                        style = AppTypography.paragraphRegular,
+                                        color = if (currentLanguage == LanguageManager.LANGUAGE_ENGLISH)
+                                            MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                onClick = {
+                                    LanguageManager.setLanguage(context, LanguageManager.LANGUAGE_ENGLISH)
+                                    showLanguageDropdown = false
+                                }
                             )
-                            Icon(
-                                painter = painterResource(id = R.drawable.down2),
-                                contentDescription = null,
-                                tint = NeutralColors.Neutral40,
-                                modifier = Modifier
-                                    .padding(start = 4.dp)
-                                    .size(14.dp)
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = LanguageManager.LANGUAGE_INDONESIAN,
+                                        style = AppTypography.paragraphRegular,
+                                        color = if (currentLanguage == LanguageManager.LANGUAGE_INDONESIAN)
+                                            MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                onClick = {
+                                    LanguageManager.setLanguage(context, LanguageManager.LANGUAGE_INDONESIAN)
+                                    showLanguageDropdown = false
+                                }
                             )
                         }
                     }
-
-                    // Language dropdown menu
-                    DropdownMenu(
-                        expanded = showLanguageDropdown,
-                        onDismissRequest = { showLanguageDropdown = false },
-                        modifier = Modifier
-                            .background(Color.White)
-                            .width(150.dp)
-                    ) {
-                        // English option
-                        DropdownMenuItem(
-                            text = { Text("English") },
-                            onClick = {
-                                language = "English"
-                                showLanguageDropdown = false
-                            }
-                        )
-                        // Indonesian option
-                        DropdownMenuItem(
-                            text = { Text("Indonesia") },
-                            onClick = {
-                                language = "Indonesia"
-                                showLanguageDropdown = false
-                            }
-                        )
-                    }
                 }
 
-                Divider(color = NeutralColors.Neutral20, thickness = 1.dp)
+                Divider(color =  MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 
                 // About Section
                 Text(
                     text = "About",
                     style = AppTypography.heading4Bold,
-                    color = PrimaryColors.Primary80,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
                 )
 
@@ -447,17 +468,17 @@ fun ProfileScreen(
                     Text(
                         text = "FAQ",
                         style = AppTypography.heading5Medium,
-                        color = NeutralColors.Neutral40,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Icon(
                         painter = painterResource(id = R.drawable.right2),
                         contentDescription = "Navigate to FAQ",
-                        tint = NeutralColors.Neutral30,
+                        tint = MaterialTheme.colorScheme.outline,
                         modifier = Modifier.size(16.dp),
                     )
                 }
 
-                Divider(color = NeutralColors.Neutral20, thickness = 1.dp)
+                Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
             }
         }
 
@@ -467,8 +488,7 @@ fun ProfileScreen(
                 .fillMaxWidth()
                 .height(60.dp)
                 .align(Alignment.BottomCenter),
-            color = Color.White,
-            shadowElevation = 8.dp
+            color = MaterialTheme.colorScheme.surface,
         ) {
             BottomNavigation(
                 currentRoute = currentRoute,
@@ -476,102 +496,10 @@ fun ProfileScreen(
                     when (route) {
                         "home" -> onHomeClick()
                         "votes" -> onVotesClick()
-                        "profile" -> { /* Already on profile */
-                        }
+                        "profile" -> { /* Already on profile */}
                     }
                 }
             )
-        }
-    }
-}
-
-@Composable
-fun BottomNavigation(
-    modifier: Modifier = Modifier,
-    currentRoute: String,
-    onNavigate: (String) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.Top
-    ) {
-        // Home Icon
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top,
-            modifier = Modifier
-                .padding(top = 12.dp) // Uniform top padding for all items
-                .clickable { onNavigate("home") }
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.home),
-                contentDescription = "Home",
-                tint = if (currentRoute == "home") MainColors.Primary1 else NeutralColors.Neutral50,
-                modifier = Modifier.size(24.dp)
-            )
-            if (currentRoute == "home") {
-                Box(
-                    modifier = Modifier
-                        .padding(top = 8.dp)
-                        .width(28.dp)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(MainColors.Primary1)
-                )
-            }
-        }
-
-        // Votes Icon
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top,
-            modifier = Modifier
-                .padding(top = 12.dp) // Uniform top padding for all items
-                .clickable { onNavigate("votes") }
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.voting),
-                contentDescription = "Votes",
-                tint = if (currentRoute == "votes") MainColors.Primary1 else NeutralColors.Neutral50,
-                modifier = Modifier.size(24.dp)
-            )
-            if (currentRoute == "votes") {
-                Box(
-                    modifier = Modifier
-                        .padding(top = 8.dp)
-                        .width(28.dp)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(MainColors.Primary1)
-                )
-            }
-        }
-
-        // Profile Icon
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top,
-            modifier = Modifier
-                .padding(top = 12.dp) // Uniform top padding for all items
-                .clickable { onNavigate("profile") }
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.profile),
-                contentDescription = "Profile",
-                tint = if (currentRoute == "profile") MainColors.Primary1 else NeutralColors.Neutral50,
-                modifier = Modifier.size(24.dp)
-            )
-            if (currentRoute == "profile") {
-                Box(
-                    modifier = Modifier
-                        .padding(top = 8.dp)
-                        .width(28.dp)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(MainColors.Primary1)
-                )
-            }
         }
     }
 }

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -37,8 +38,7 @@ fun BottomNavigation(
         modifier = Modifier
             .fillMaxWidth()
             .height(60.dp),
-        color = NeutralColors.Neutral10,
-        shadowElevation = 8.dp
+        color = MaterialTheme.colorScheme.surface,
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
@@ -89,7 +89,7 @@ private fun BottomNavItem(
         Icon(
             painter = painterResource(id = icon),
             contentDescription = label,
-            tint = if (isSelected) MainColors.Primary1 else NeutralColors.Neutral50,
+            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(24.dp)
         )
 
@@ -100,7 +100,7 @@ private fun BottomNavItem(
                     .width(28.dp)
                     .height(4.dp)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(MainColors.Primary1)
+                    .background(MaterialTheme.colorScheme.primary)
             )
         }
     }

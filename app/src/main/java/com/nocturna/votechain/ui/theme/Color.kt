@@ -108,11 +108,11 @@ object InfoColors {
 
 //Additional
 object AdditionalColors {
-    val strokeColor = Color(0xFFEEEEEE)
+    val strokeColor = Color(0xFF4E4E4E)
 }
 
 // Semantic Colors
-object ThemeColors {
+object ThemeColor {
     val Background = NeutralColors.Neutral10
     val Surface = NeutralColors.Neutral20
     val OnSurface = NeutralColors.Neutral90
