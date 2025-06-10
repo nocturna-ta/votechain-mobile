@@ -1,6 +1,8 @@
 package com.nocturna.votechain.data.network
 
+import com.nocturna.votechain.data.model.AllPartiesResponse
 import com.nocturna.votechain.data.model.ElectionPairsResponse
+import com.nocturna.votechain.data.model.SupportingPartiesResponse
 import com.nocturna.votechain.data.model.VisionMissionDetailResponse
 import retrofit2.Response
 import retrofit2.http.GET
@@ -17,6 +19,24 @@ interface ElectionApiService {
     @GET("v1/election/pairs")
     suspend fun getElectionPairs(): Response<ElectionPairsResponse>
 
+    /**
+     * Get detail for a specific election pair
+     * Endpoint: /v1/election/pairs/{pairId}/detail
+     */
     @GET("v1/election/pairs/{pairId}/detail")
     suspend fun getVisionMissionDetail(@Path("pairId") pairId: String): Response<VisionMissionDetailResponse>
+
+    /**
+     * Get supporting parties for a specific election pair
+     * Endpoint: /v1/election/pairs/{pairID}/supporting-parties
+     */
+    @GET("v1/election/pairs/{pairID}/supporting-parties")
+    suspend fun getSupportingParties(@Path("pairID") pairId: String): Response<SupportingPartiesResponse>
+
+    /**
+     * Get all political parties
+     * Endpoint: /v1/party
+     */
+    @GET("v1/party")
+    suspend fun getAllParties(): Response<AllPartiesResponse>
 }

@@ -1,4 +1,4 @@
-package com.nocturna.votechain.navigation
+package com.nocturna.votechain.ui.screens.register
 
 import android.util.Log
 import androidx.compose.runtime.Composable
@@ -7,13 +7,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.nocturna.votechain.ui.screens.register.RegisterScreen
 import com.nocturna.votechain.viewmodel.register.RegisterViewModel
 
 /**
  * A wrapper component that handles the registration flow based on the persisted state
  * This component determines which screen to show based on the current registration state
- * Updated to handle persistent registration states across app restarts
  */
 @Composable
 fun RegistrationFlowController(
@@ -43,6 +41,12 @@ fun RegistrationFlowController(
             RegisterViewModel.RegisterUiState.Rejected -> {
                 Log.d(TAG, "Navigating to rejected screen")
                 navController.navigate("rejected") {
+                    popUpTo("register") { inclusive = true }
+                }
+            }
+            RegisterViewModel.RegisterUiState.NavigateToLogin -> {
+                Log.d(TAG, "Navigating to login screen")
+                navController.navigate("login") {
                     popUpTo("register") { inclusive = true }
                 }
             }
@@ -103,11 +107,21 @@ fun RegistrationFlowController(
             // Don't render anything here, navigation will handle it
             Log.d(TAG, "Rejected state - navigation should handle this")
         }
+        RegisterViewModel.RegisterUiState.NavigateToLogin -> {
+            // Don't render anything here, navigation will handle it
+            Log.d(TAG, "Navigate to login state - navigation should handle this")
+        }
         else -> {
-            // Render the RegisterScreen for all other states
+            // Render the RegisterScreen with existing interface
             Log.d(TAG, "Rendering RegisterScreen for state: $uiState")
             RegisterScreen(
-                onRegisterClick = { /* Handled by the viewModel */ },
+                onRegisterClick = {
+                    // ✅ Sekarang tanpa parameter, sesuai interface existing
+                    // Logic checking existing registration akan dilakukan di ViewModel
+                    Log.d(TAG, "Register button clicked")
+                    // RegisterScreen akan memanggil viewModel.registerUserWithVoterAddress()
+                    // secara internal dan ViewModel akan handle checking existing registration
+                },
                 onLoginClick = {
                     // When login text is clicked, navigate back to login screen
                     Log.d(TAG, "Login clicked, navigating to login")

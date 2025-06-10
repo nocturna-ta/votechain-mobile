@@ -1,5 +1,10 @@
 package com.nocturna.votechain.ui.screens.register
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -19,18 +24,61 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nocturna.votechain.R
+import com.nocturna.votechain.data.repository.RegistrationStateManager
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.viewmodel.register.RegisterViewModel
 import com.nocturna.votechain.utils.LanguageManager
+import kotlinx.coroutines.delay
 
 @Composable
 fun WaitingScreen(
     onClose: () -> Unit,
+    onStatusUpdated: (String) -> Unit = {},
     viewModel: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(LocalContext.current))
-    ) {
-        val strings = LanguageManager.getLocalizedStrings()
+) {
+    val context = LocalContext.current
+    val strings = LanguageManager.getLocalizedStrings()
+    val uiState by viewModel.uiState.collectAsState()
+    val registrationStateManager = RegistrationStateManager(context)
+
+    // Periodically check verification status
+    LaunchedEffect(Unit) {
+        val email = registrationStateManager.getSavedEmail()
+        if (email.isNotEmpty()) {
+            while (true) {
+                viewModel.checkVerificationStatus(email)
+                delay(10000) // Check every 10 seconds
+            }
+        }
+    }
+
+    // Handle state changes
+    LaunchedEffect(uiState) {
+        when (uiState) {
+            RegisterViewModel.RegisterUiState.Approved -> {
+                onStatusUpdated("approved")
+            }
+            RegisterViewModel.RegisterUiState.Rejected -> {
+                onStatusUpdated("rejected")
+            }
+            else -> {
+                // Continue waiting
+            }
+        }
+    }
+
+    // Loading animation
+    val infiniteTransition = rememberInfiniteTransition()
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000),
+            repeatMode = RepeatMode.Restart
+        )
+    )
 
         Box(
             modifier = Modifier
@@ -82,7 +130,10 @@ fun WaitingScreen(
 
                 // Close button
                 OutlinedButton(
-                    onClick = onClose,
+                    onClick = {
+                        viewModel.onWaitingScreenClose()
+                        onClose()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),

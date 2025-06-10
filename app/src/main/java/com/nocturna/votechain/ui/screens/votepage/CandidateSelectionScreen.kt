@@ -18,12 +18,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.nocturna.votechain.R
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.PrimaryColors
+import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
 import com.nocturna.votechain.viewmodel.vote.VotingViewModel
 
 data class CandidatePair(
@@ -40,8 +42,12 @@ data class CandidatePair(
 fun CandidateSelectionScreen(
     navController: NavController,
     categoryId: String,
-    viewModel: VotingViewModel
+    viewModel: VotingViewModel,
+    electionViewModel: ElectionViewModel = viewModel(factory = ElectionViewModel.Factory())
 ) {
+    val electionPairs by electionViewModel.electionPairs.collectAsState()
+    val isLoading by electionViewModel.isLoading.collectAsState()
+    val error by electionViewModel.error.collectAsState()
     var selectedCandidateNumber by remember { mutableStateOf<Int?>(null) }
     val scrollState = rememberScrollState()
 

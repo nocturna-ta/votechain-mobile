@@ -69,3 +69,15 @@ data class UserLoginData(
     val verification_status: String,
     val expires_at: String
 )
+
+/**
+ * Data class for verification status response data
+ * Used for GET /v1/user/verification-status/{email} endpoint
+ */
+data class VerificationStatusData(
+    val id: String,
+    val email: String,
+    val requested_role: String,
+    val verification_status: String,
+    val created_at: String
+)

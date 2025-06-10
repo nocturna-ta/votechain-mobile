@@ -5,6 +5,7 @@ import com.nocturna.votechain.data.model.LoginRequest
 import com.nocturna.votechain.data.model.RegisterRequest
 import com.nocturna.votechain.data.model.UserLoginData
 import com.nocturna.votechain.data.model.UserRegistrationData
+import com.nocturna.votechain.data.model.VerificationStatusData
 import com.nocturna.votechain.data.model.VoterResponse
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -15,6 +16,7 @@ import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.Path
 
 /**
  * API Service interface for network requests
@@ -53,4 +55,13 @@ interface ApiService {
     suspend fun getVoterData(
         @Header("Authorization") token: String
     ): Response<VoterResponse>
+
+    /**
+     * Get user verification status by email
+     * Endpoint: /v1/user/verification-status/{email}
+     */
+    @GET("v1/user/verification-status/{email}")
+    suspend fun getVerificationStatus(
+        @Path("email") email: String
+    ): Response<ApiResponse<VerificationStatusData>>
 }

@@ -11,6 +11,8 @@ import com.nocturna.votechain.data.model.ApiResponse
 import com.nocturna.votechain.data.model.Province
 import com.nocturna.votechain.data.model.Regency
 import com.nocturna.votechain.data.model.UserRegistrationData
+import com.nocturna.votechain.data.model.VerificationStatusData
+import com.nocturna.votechain.data.network.NetworkClient
 import com.nocturna.votechain.data.network.WilayahApiClient
 import com.nocturna.votechain.data.repository.EnhancedUserRepository
 import com.nocturna.votechain.data.repository.RegistrationStateManager
@@ -25,7 +27,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 /**
- * ViewModel for the Register Screen
+ * ViewModel for the Register Screen with verification status checking
  */
 class RegisterViewModel(
     private val userRepository: UserRepository,
@@ -35,6 +37,9 @@ class RegisterViewModel(
     private val _uiState = MutableStateFlow<RegisterUiState>(RegisterUiState.Initial)
     val uiState: StateFlow<RegisterUiState> = _uiState.asStateFlow()
     private val enhancedUserRepository = EnhancedUserRepository(context)
+
+    // API service for verification status checking
+    private val apiService = NetworkClient.apiService
 
     // Registration state manager
     private val registrationStateManager = RegistrationStateManager(context)
@@ -77,6 +82,11 @@ class RegisterViewModel(
             RegistrationStateManager.STATE_WAITING -> {
                 Log.d(TAG, "Found waiting registration state")
                 _uiState.value = RegisterUiState.Waiting
+                // Auto-check verification status for waiting state
+                val email = registrationStateManager.getSavedEmail()
+                if (email.isNotEmpty()) {
+                    checkVerificationStatus(email)
+                }
             }
             RegistrationStateManager.STATE_APPROVED -> {
                 Log.d(TAG, "Found approved registration state")
@@ -96,24 +106,138 @@ class RegisterViewModel(
     }
 
     /**
-     * Check if user has any pending registration state
-     * This can be called externally to check before allowing registration
+     * Check if user already has a registration and redirect accordingly
+     * Called when user clicks register button or tries to access register screen
      */
-    fun hasActiveRegistrationState(): Boolean {
-        val state = registrationStateManager.getRegistrationState()
-        return state == RegistrationStateManager.STATE_WAITING ||
-                state == RegistrationStateManager.STATE_APPROVED
+    fun checkExistingRegistration(email: String) {
+        val currentState = registrationStateManager.getRegistrationState()
+        val savedEmail = registrationStateManager.getSavedEmail()
+
+        if (currentState != RegistrationStateManager.STATE_NONE && savedEmail == email) {
+            Log.d(TAG, "User already has registration with state: $currentState")
+            when (currentState) {
+                RegistrationStateManager.STATE_WAITING -> {
+                    _uiState.value = RegisterUiState.Waiting
+                    checkVerificationStatus(email)
+                }
+                RegistrationStateManager.STATE_APPROVED -> {
+                    _uiState.value = RegisterUiState.Approved
+                }
+                RegistrationStateManager.STATE_REJECTED -> {
+                    // Allow new registration for rejected state
+                    registrationStateManager.clearRegistrationState()
+                    _uiState.value = RegisterUiState.Initial
+                }
+            }
+        } else {
+            // Check verification status from API for new email
+            checkVerificationStatus(email)
+        }
     }
 
     /**
-     * Get current registration state for external use
+     * Check verification status from API
+     */
+    fun checkVerificationStatus(email: String) {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Checking verification status for email: $email")
+
+                val response = withContext(Dispatchers.IO) {
+                    apiService.getVerificationStatus(email)
+                }
+
+                if (response.isSuccessful && response.body() != null) {
+                    val verificationData = response.body()!!.data
+                    if (verificationData != null) {
+                        handleVerificationStatusResponse(verificationData, email)
+                    } else {
+                        Log.d(TAG, "No verification data found for email: $email")
+                        // Allow new registration if no existing data
+                        if (_uiState.value == RegisterUiState.Waiting) {
+                            // Keep current state if we're checking from waiting screen
+                        } else {
+                            _uiState.value = RegisterUiState.Initial
+                        }
+                    }
+                } else {
+                    Log.d(TAG, "No verification status found for email: $email")
+                    // Allow new registration if no existing data
+                    if (_uiState.value == RegisterUiState.Waiting) {
+                        // Keep current state if we're checking from waiting screen
+                    } else {
+                        _uiState.value = RegisterUiState.Initial
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d(TAG, "Error checking verification status: ${e.message}")
+                // Allow new registration on error
+                if (_uiState.value == RegisterUiState.Waiting) {
+                    // Keep current state if we're checking from waiting screen
+                } else {
+                    _uiState.value = RegisterUiState.Initial
+                }
+            }
+        }
+    }
+
+    /**
+     * Handle verification status response and update states accordingly
+     */
+    private fun handleVerificationStatusResponse(verificationData: VerificationStatusData, email: String) {
+        val status = verificationData.verification_status.lowercase()
+        Log.d(TAG, "Verification status for $email: $status")
+
+        when (status) {
+            "pending", "waiting" -> {
+                registrationStateManager.saveRegistrationState(
+                    RegistrationStateManager.STATE_WAITING,
+                    email,
+                    "" // NIK not available from this response
+                )
+                _uiState.value = RegisterUiState.Waiting
+            }
+            "approved", "accepted" -> {
+                registrationStateManager.saveRegistrationState(
+                    RegistrationStateManager.STATE_APPROVED,
+                    email,
+                    ""
+                )
+                _uiState.value = RegisterUiState.Approved
+            }
+            "denied", "rejected" -> {
+                registrationStateManager.saveRegistrationState(
+                    RegistrationStateManager.STATE_REJECTED,
+                    email,
+                    ""
+                )
+                _uiState.value = RegisterUiState.Rejected
+            }
+            else -> {
+                Log.d(TAG, "Unknown verification status: $status")
+                _uiState.value = RegisterUiState.Initial
+            }
+        }
+    }
+
+    /**
+     * Handle close action from waiting screen
+     */
+    fun onWaitingScreenClose() {
+        Log.d(TAG, "Waiting screen closed, maintaining registration state")
+        // Don't clear the registration state, just set flag for navigation
+        _uiState.value = RegisterUiState.NavigateToLogin
+    }
+
+    /**
+     * Check if user has any pending registration state
      */
     fun getCurrentRegistrationState(): Int {
         return registrationStateManager.getRegistrationState()
     }
 
     /**
-     * Check connection to Ethereum node
+     * Check blockchain node connection
      */
     private fun checkNodeConnection() {
         viewModelScope.launch {
@@ -131,7 +255,7 @@ class RegisterViewModel(
     }
 
     /**
-     * Fetch provinces from wilayah.id API
+     * Fetch provinces data
      */
     fun fetchProvinces() {
         viewModelScope.launch {
@@ -149,7 +273,7 @@ class RegisterViewModel(
     }
 
     /**
-     * Fetch regencies for a specific province from wilayah.id API
+     * Fetch regencies for selected province
      */
     fun fetchRegencies(provinceCode: String) {
         viewModelScope.launch {
@@ -167,46 +291,29 @@ class RegisterViewModel(
     }
 
     /**
-     * Register a new user with automatic voter address generation using BlockchainManager
+     * Register a new user
      */
-    fun registerUserWithVoterAddress(
-        nationalId: String,
-        fullName: String,
+    fun registerUser(
         email: String,
         password: String,
+        nationalId: String,
+        fullName: String,
+        gender: String,
         birthPlace: String,
         birthDate: String,
         address: String,
         region: String,
-        gender: String,
-        ktpFileUri: Uri,
-        role: String = "voter"
+        role: String = "voter",
+        ktpFileUri: Uri?
     ) {
-        // Check if there's already an active registration
-        if (hasActiveRegistrationState()) {
-            Log.w(TAG, "Registration blocked - active registration state exists")
-            _uiState.value = RegisterUiState.Error("You already have an active registration request")
-            return
-        }
-
         _uiState.value = RegisterUiState.Loading
-        Log.d(TAG, "Starting registration process with blockchain voter address generation")
 
-        if (nationalId.isBlank() || fullName.isBlank() || email.isBlank() || password.isBlank()) {
-            _uiState.value = RegisterUiState.Error("Required fields cannot be empty")
-            return
-        }
-
-        if (ktpFileUri == Uri.EMPTY) {
-            _uiState.value = RegisterUiState.Error("KTP file is required")
-            return
-        }
-
+        // Format birth date to YYYY-MM-DD
         val formattedBirthDate = try {
             val inputFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
             val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val date = inputFormat.parse(birthDate)
-            outputFormat.format(date!!)
+            outputFormat.format(date ?: throw Exception("Invalid date"))
         } catch (e: Exception) {
             Log.e(TAG, "Error formatting birth date: ${e.message}", e)
             birthDate // Fallback to original format if parsing fails
@@ -348,6 +455,7 @@ class RegisterViewModel(
         data object Waiting : RegisterUiState()
         data object Approved : RegisterUiState()
         data object Rejected : RegisterUiState()
+        data object NavigateToLogin : RegisterUiState()
     }
 
     /**
@@ -361,6 +469,225 @@ class RegisterViewModel(
                 return RegisterViewModel(userRepository, context) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
+        }
+    }
+
+    /**
+     * Enhanced registerUserWithVoterAddress method that checks existing registration first
+     * This method will be called by RegisterScreen
+     */
+    fun registerUserWithVoterAddress(
+        nationalId: String,
+        fullName: String,
+        email: String,
+        password: String,
+        birthPlace: String,
+        birthDate: String,
+        address: String,
+        region: String,
+        gender: String,
+        ktpFileUri: Uri?,
+        role: String = "voter"
+    ) {
+        // First check if user already has a registration
+        Log.d(TAG, "Starting registration process for email: $email")
+
+        // Check existing registration status first
+        checkExistingRegistrationBeforeRegister(email) { shouldProceed ->
+            if (shouldProceed) {
+                // Proceed with new registration
+                proceedWithNewRegistration(
+                    nationalId = nationalId,
+                    fullName = fullName,
+                    email = email,
+                    password = password,
+                    birthPlace = birthPlace,
+                    birthDate = birthDate,
+                    address = address,
+                    region = region,
+                    gender = gender,
+                    ktpFileUri = ktpFileUri,
+                    role = role
+                )
+            }
+            // If shouldProceed is false, the user will be redirected to appropriate status screen
+            // by the existing registration checking logic
+        }
+    }
+
+    /**
+     * Check existing registration before proceeding with new registration
+     */
+    private fun checkExistingRegistrationBeforeRegister(email: String, onResult: (Boolean) -> Unit) {
+        val currentState = registrationStateManager.getRegistrationState()
+        val savedEmail = registrationStateManager.getSavedEmail()
+
+        if (currentState != RegistrationStateManager.STATE_NONE && savedEmail == email) {
+            Log.d(TAG, "User already has registration with state: $currentState")
+            when (currentState) {
+                RegistrationStateManager.STATE_WAITING -> {
+                    _uiState.value = RegisterUiState.Waiting
+                    checkVerificationStatus(email)
+                    onResult(false) // Don't proceed with new registration
+                }
+                RegistrationStateManager.STATE_APPROVED -> {
+                    _uiState.value = RegisterUiState.Approved
+                    onResult(false) // Don't proceed with new registration
+                }
+                RegistrationStateManager.STATE_REJECTED -> {
+                    // Allow new registration for rejected state
+                    registrationStateManager.clearRegistrationState()
+                    onResult(true) // Proceed with new registration
+                }
+                else -> {
+                    onResult(true) // Proceed with new registration
+                }
+            }
+        } else {
+            // Check verification status from API for potentially different email
+            viewModelScope.launch {
+                try {
+                    Log.d(TAG, "Checking verification status for email: $email")
+
+                    val response = withContext(Dispatchers.IO) {
+                        apiService.getVerificationStatus(email)
+                    }
+
+                    if (response.isSuccessful && response.body() != null) {
+                        val verificationData = response.body()!!.data
+                        if (verificationData != null) {
+                            handleVerificationStatusResponse(verificationData, email)
+                            onResult(false) // Don't proceed with new registration
+                        } else {
+                            Log.d(TAG, "No verification data found for email: $email")
+                            onResult(true) // Proceed with new registration
+                        }
+                    } else {
+                        Log.d(TAG, "No verification status found for email: $email")
+                        onResult(true) // Proceed with new registration
+                    }
+                } catch (e: Exception) {
+                    Log.d(TAG, "Error checking verification status: ${e.message}")
+                    onResult(true) // Proceed with new registration on error
+                }
+            }
+        }
+    }
+
+    /**
+     * Proceed with new registration (existing logic)
+     */
+    private fun proceedWithNewRegistration(
+        nationalId: String,
+        fullName: String,
+        email: String,
+        password: String,
+        birthPlace: String,
+        birthDate: String,
+        address: String,
+        region: String,
+        gender: String,
+        ktpFileUri: Uri?,
+        role: String
+    ) {
+        // This is the existing registration logic
+        // Copy your existing registerUser implementation here
+
+        _uiState.value = RegisterUiState.Loading
+
+        // Format birth date to YYYY-MM-DD
+        val formattedBirthDate = try {
+            val inputFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+            val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val date = inputFormat.parse(birthDate)
+            outputFormat.format(date ?: throw Exception("Invalid date"))
+        } catch (e: Exception) {
+            Log.e(TAG, "Error formatting birth date: ${e.message}", e)
+            birthDate // Fallback to original format if parsing fails
+        }
+
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Using EnhancedUserRepository with new wallet generation")
+
+                // Save registration as waiting state immediately
+                registrationStateManager.saveRegistrationState(
+                    RegistrationStateManager.STATE_WAITING,
+                    email,
+                    nationalId
+                )
+
+                val result = enhancedUserRepository.registerWithVoterAddress(
+                    email = email,
+                    password = password,
+                    nik = nationalId,
+                    fullName = fullName,
+                    gender = gender,
+                    birthPlace = birthPlace,
+                    birthDate = formattedBirthDate,
+                    residentialAddress = address,
+                    region = region,
+                    role = role,
+                    ktpFileUri = ktpFileUri
+                )
+
+                result.fold(
+                    onSuccess = { response ->
+                        Log.d(TAG, "Registration API call successful: ${response.message}")
+
+                        // Parse the verification status and save appropriate state
+                        val verificationStatus = response.data?.verification_status?.lowercase()
+                        Log.d(TAG, "Verification status received: $verificationStatus")
+
+                        when (verificationStatus) {
+                            "pending", "waiting" -> {
+                                registrationStateManager.saveRegistrationState(
+                                    RegistrationStateManager.STATE_WAITING,
+                                    email,
+                                    nationalId
+                                )
+                                _uiState.value = RegisterUiState.Waiting
+                            }
+                            "accepted", "approved" -> {
+                                registrationStateManager.saveRegistrationState(
+                                    RegistrationStateManager.STATE_APPROVED,
+                                    email,
+                                    nationalId
+                                )
+                                _uiState.value = RegisterUiState.Approved
+                            }
+                            "rejected", "denied" -> {
+                                registrationStateManager.saveRegistrationState(
+                                    RegistrationStateManager.STATE_REJECTED,
+                                    email,
+                                    nationalId
+                                )
+                                _uiState.value = RegisterUiState.Rejected
+                            }
+                            else -> {
+                                // Default to waiting if status is unclear
+                                registrationStateManager.saveRegistrationState(
+                                    RegistrationStateManager.STATE_WAITING,
+                                    email,
+                                    nationalId
+                                )
+                                _uiState.value = RegisterUiState.Waiting
+                            }
+                        }
+                    },
+                    onFailure = { exception ->
+                        Log.e(TAG, "Registration failed: ${exception.message}", exception)
+                        // Clear the waiting state since registration failed
+                        registrationStateManager.clearRegistrationState()
+                        _uiState.value = RegisterUiState.Error(exception.message ?: "Unknown error occurred")
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception during registration: ${e.message}", e)
+                // Clear the waiting state since registration failed
+                registrationStateManager.clearRegistrationState()
+                _uiState.value = RegisterUiState.Error(e.message ?: "Unknown error occurred")
+            }
         }
     }
 }

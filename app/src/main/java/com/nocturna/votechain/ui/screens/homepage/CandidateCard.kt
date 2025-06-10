@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -16,16 +17,24 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.nocturna.votechain.R
+import com.nocturna.votechain.data.model.ElectionPair
+import com.nocturna.votechain.data.model.SupportingParty
 import com.nocturna.votechain.ui.theme.AdditionalColors
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.PrimaryColors
+import com.nocturna.votechain.utils.ImageHelper
 import com.nocturna.votechain.utils.LanguageManager
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 
 /**
  * A composable that displays a candidate card with both presidential and vice-presidential candidates
@@ -44,6 +53,7 @@ import com.nocturna.votechain.utils.LanguageManager
 @Composable
 fun CandidateCard(
     number: Int,
+    electionPair: ElectionPair,
     president: String,
     vicePresident: String,
     presidentImageRes: Int,
@@ -54,6 +64,7 @@ fun CandidateCard(
     onVisionMissionClick: () -> Unit
 ) {
     val strings = LanguageManager.getLocalizedStrings()
+    val context = LocalContext.current
 
     Card(
         modifier = Modifier
@@ -288,24 +299,13 @@ fun CandidateCard(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 // Party logos in a row with scrolling if needed
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    parties.forEach { partyImageRes ->
-                        Image(
-                            painter = painterResource(id = partyImageRes),
-                            contentDescription = "Party Logo",
-                            modifier = Modifier
-                                .size(40.dp)
-                                .padding(horizontal = 4.dp)
-                        )
-                    }
-                }
+                SupportingPartiesRow(
+                    supportingParties = electionPair.supporting_parties ?: emptyList(),
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Vision & Mission Button
             Box(
@@ -341,5 +341,84 @@ fun CandidateCard(
                 }
             }
         }
+    }
+}
+
+/**
+ * Composable to display supporting parties in a horizontal row
+ */
+@Composable
+private fun SupportingPartiesRow(
+    supportingParties: List<SupportingParty>,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+
+    if (supportingParties.isEmpty()) {
+        // Show placeholder when no parties available
+        Box(
+            modifier = modifier.height(40.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "No supporting parties data",
+                style = AppTypography.heading6Regular,
+                color = NeutralColors.Neutral40
+            )
+        }
+    } else {
+        LazyRow(
+            modifier = modifier,
+            horizontalArrangement = Arrangement.Center,
+            contentPadding = PaddingValues(horizontal = 8.dp)
+        ) {
+            items(supportingParties) { supportingParty ->
+                PartyLogoItem(
+                    party = supportingParty.party,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Individual party logo item
+ */
+@Composable
+private fun PartyLogoItem(
+    party: com.nocturna.votechain.data.model.Party,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+    ) {
+        AsyncImage(
+            model = ImageRequest.Builder(context)
+                .data(ImageHelper.getFullImageUrl(party.logo_path))
+                .crossfade(true)
+                .build(),
+            contentDescription = "${party.name} Logo",
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape),
+            contentScale = ContentScale.Fit,
+            placeholder = painterResource(id = R.drawable.ic_launcher_background),
+            error = painterResource(id = R.drawable.ic_launcher_background)
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+//        Text(
+//            text = party.name,
+//            style = AppTypography.captionRegular,
+//            color = NeutralColors.Neutral60,
+//            textAlign = TextAlign.Center,
+//            maxLines = 1,
+//            overflow = TextOverflow.Ellipsis
+//        )
     }
 }
