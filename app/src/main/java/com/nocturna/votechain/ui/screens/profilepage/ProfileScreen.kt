@@ -299,12 +299,12 @@ fun ProfileScreen(
                                 Text(
                                     text = currentTheme,
                                     style = AppTypography.paragraphRegular,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = NeutralColors.Neutral40
                                 )
                                 Icon(
                                     painter = painterResource(id = R.drawable.down2),
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    tint = NeutralColors.Neutral40,
                                     modifier = Modifier
                                         .padding(start = 4.dp)
                                         .size(14.dp)
@@ -385,7 +385,7 @@ fun ProfileScreen(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable { showLanguageDropdown = true }
-                                .border(1.dp, NeutralColors.Neutral30, RoundedCornerShape(12.dp))
+                                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Row(

@@ -30,7 +30,7 @@ private val LightColorScheme = lightColorScheme(
     secondaryContainer = PrimaryColors.Primary30,
     onSecondaryContainer = PrimaryColors.Primary80,
 
-    tertiary = PrimaryColors.Primary40,
+    tertiary = NeutralColors.Neutral60,
     onTertiary = NeutralColors.Neutral10,
     tertiaryContainer = PrimaryColors.Primary20,
     onTertiaryContainer = PrimaryColors.Primary90,
@@ -46,7 +46,7 @@ private val LightColorScheme = lightColorScheme(
     surface = NeutralColors.Neutral10,
     onSurface = PrimaryColors.Primary60,
     surfaceVariant = PrimaryColors.Primary80,
-    onSurfaceVariant = NeutralColors.Neutral40,
+    onSurfaceVariant = PrimaryColors.Primary70,
 
     outline = NeutralColors.Neutral30,
     outlineVariant = NeutralColors.Neutral20,
@@ -69,7 +69,7 @@ private val DarkColorScheme = darkColorScheme(
     secondaryContainer = SecondaryColors.Secondary70,
     onSecondaryContainer = NeutralColors.Neutral10,
 
-    tertiary = PrimaryColors.Primary40,
+    tertiary = NeutralColors.Neutral40,
     onTertiary = NeutralColors.Neutral10,
     tertiaryContainer = PrimaryColors.Primary60,
     onTertiaryContainer = NeutralColors.Neutral10,
@@ -80,14 +80,14 @@ private val DarkColorScheme = darkColorScheme(
     onErrorContainer = NeutralColors.Neutral10,
 
     background = NeutralColors.Neutral70,
-    onBackground = NeutralColors.Neutral10,
+    onBackground = NeutralColors.Neutral40,
 
     surface = NeutralColors.Neutral70,
     onSurface = NeutralColors.Neutral10,
     surfaceVariant = NeutralColors.Neutral10,
-    onSurfaceVariant = NeutralColors.Neutral40,
+    onSurfaceVariant = NeutralColors.Neutral20,
 
-    outline = NeutralColors.Neutral30,
+    outline = NeutralColors.Neutral40,
     outlineVariant = AdditionalColors.strokeColor,
 
     inverseSurface = NeutralColors.Neutral10,

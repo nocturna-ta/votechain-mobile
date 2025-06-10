@@ -7,6 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,12 +76,12 @@ fun HomeScreen(
                     Text(
                         text = strings.empoweringDemocracy,
                         style = AppTypography.heading4Regular,
-                        color = PrimaryColors.Primary70
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = strings.oneVoteAtATime,
                         style = AppTypography.heading1Bold,
-                        color = PrimaryColors.Primary80
+                        color = MaterialTheme.colorScheme.surfaceVariant
                     )
                 }
 
@@ -88,7 +89,7 @@ fun HomeScreen(
                     Icon(
                         painter = painterResource(id = R.drawable.notification),
                         contentDescription = strings.notification,
-                        tint = MainColors.Primary1
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -102,7 +103,7 @@ fun HomeScreen(
                 Text(
                     text = strings.latestNews,
                     style = AppTypography.heading4SemiBold,
-                    color = PrimaryColors.Primary80,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier.padding(bottom = 24.dp)
                 )
 
@@ -118,7 +119,7 @@ fun HomeScreen(
             Text(
                 text = strings.activeVotesList,
                 style = AppTypography.heading4SemiBold,
-                color = PrimaryColors.Primary80
+                color = MaterialTheme.colorScheme.surfaceVariant
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -128,7 +129,7 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.surface
                 ),
                 elevation = CardDefaults.cardElevation(
                     defaultElevation = 2.dp
@@ -148,7 +149,7 @@ fun HomeScreen(
                         Text(
                             text = "2024 Presidential Election - Indonesia",
                             style = AppTypography.heading5Bold,
-                            color = PrimaryColors.Primary60
+                            color = MaterialTheme.colorScheme.onSurface
                         )
 
                         Spacer(modifier = Modifier.height(6.dp))
@@ -156,7 +157,7 @@ fun HomeScreen(
                         Text(
                             text = "Choose the leaders you trust to guide Indonesia forward",
                             style = AppTypography.heading6Medium,
-                            color = NeutralColors.Neutral40,
+                            color = MaterialTheme.colorScheme.onBackground,
                             maxLines = 1,
                             modifier = Modifier.width(270.dp),
                             overflow = TextOverflow.Ellipsis
@@ -166,7 +167,7 @@ fun HomeScreen(
                     Icon(
                         painter = painterResource(id = R.drawable.right2),
                         contentDescription = "View Details",
-                        tint = MainColors.Primary1
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }

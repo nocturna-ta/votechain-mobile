@@ -44,7 +44,7 @@ fun NotificationScreen(
                 Icon(
                     painter = painterResource(id = R.drawable.back),
                     contentDescription = strings.back,
-                    tint = MainColors.Primary1,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(20.dp) // Smaller icon size
                 )
             }
@@ -53,7 +53,7 @@ fun NotificationScreen(
             Text(
                 text = strings.notification,
                 style = AppTypography.heading4Regular,
-                color = PrimaryColors.Primary80,
+                color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier.align(Alignment.Center)
             )
         }
@@ -89,7 +89,7 @@ fun NotificationContent(modifier: Modifier = Modifier) {
         items(notifications) { notification ->
             NotificationItemView(notification)
             Divider(
-                color = NeutralColors.Neutral20,
+                color = MaterialTheme.colorScheme.outlineVariant,
                 thickness = 1.dp
             )
         }
@@ -111,13 +111,13 @@ fun NotificationItemView(notification: NotificationItem) {
             Text(
                 text = notification.title,
                 style = AppTypography.heading6Bold,
-                color = PrimaryColors.Primary70
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Text(
                 text = notification.timestamp,
                 style = AppTypography.smallParagraphRegular,
-                color = NeutralColors.Neutral40
+                color = MaterialTheme.colorScheme.onBackground
             )
         }
 
@@ -126,7 +126,7 @@ fun NotificationItemView(notification: NotificationItem) {
         Text(
             text = notification.message,
             style = AppTypography.paragraphRegular,
-            color = NeutralColors.Neutral60
+            color = MaterialTheme.colorScheme.tertiary
         )
     }
 }
