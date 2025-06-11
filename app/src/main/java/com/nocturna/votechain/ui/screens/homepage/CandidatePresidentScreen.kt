@@ -38,6 +38,7 @@ import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.PrimaryColors
 import com.nocturna.votechain.ui.theme.VotechainTheme
 import com.nocturna.votechain.utils.CandidateHelper
+import com.nocturna.votechain.utils.CandidatePhotoHelper
 import com.nocturna.votechain.utils.LanguageManager
 import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
 
@@ -175,12 +176,12 @@ fun CandidatePresidentScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(8.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NeutralColors.Neutral30,
-                            unfocusedBorderColor = NeutralColors.Neutral30,
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                            focusedTextColor = NeutralColors.Neutral40,
-                            unfocusedTextColor = NeutralColors.Neutral40
+                            focusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onBackground
                         ),
                         textStyle = AppTypography.heading5Regular,
                         trailingIcon = {
@@ -199,7 +200,7 @@ fun CandidatePresidentScreen(
                     onDismissRequest = { expandedDropdown = false },
                     modifier = Modifier
                         .fillMaxWidth(0.88f)
-                        .background(Color.White)
+                        .background(MaterialTheme.colorScheme.surface)
                 ) {
                     dropdownOptions.forEach { option ->
                         DropdownMenuItem(
@@ -209,7 +210,7 @@ fun CandidatePresidentScreen(
                                     if (option == selectedFilter)
                                         MainColors.Primary1
                                     else
-                                        Color.White
+                                        MaterialTheme.colorScheme.surface
                                 )
                                 .padding(vertical = 4.dp),
                             text = {
@@ -219,7 +220,7 @@ fun CandidatePresidentScreen(
                                     color = if (option == selectedFilter)
                                         NeutralColors.Neutral10
                                     else
-                                        NeutralColors.Neutral70
+                                        MaterialTheme.colorScheme.inverseSurface
                                 )
                             },
                             onClick = {
@@ -257,7 +258,12 @@ fun CandidatePresidentScreen(
                                 CandidateHelper.CandidateType.PRESIDENT,
                                 pair.id
                             )
-                            Log.d("CandidatePresidentScreen", "President profile clicked, navigating to: $candidateId")
+                            Log.d("CandidatePresidentScreen", "President profile clicked")
+                            Log.d("CandidatePresidentScreen", "- Pair ID: ${pair.id}")
+                            Log.d("CandidatePresidentScreen", "- President Name: ${pair.president.full_name}")
+                            Log.d("CandidatePresidentScreen", "- Generated Candidate ID: $candidateId")
+                            Log.d("CandidatePresidentScreen", "- Navigating to: candidate_detail_api/$candidateId")
+
                             navController?.navigate("candidate_detail_api/$candidateId")
                         },
                         onViewVicePresidentProfile = {
@@ -266,7 +272,12 @@ fun CandidatePresidentScreen(
                                 CandidateHelper.CandidateType.VICE_PRESIDENT,
                                 pair.id
                             )
-                            Log.d("CandidateVicePresidentScreen", "Vice president profile clicked, navigating to: $candidateId")
+                            Log.d("CandidatePresidentScreen", "Vice President profile clicked")
+                            Log.d("CandidatePresidentScreen", "- Pair ID: ${pair.id}")
+                            Log.d("CandidatePresidentScreen", "- Vice President Name: ${pair.vice_president.full_name}")
+                            Log.d("CandidatePresidentScreen", "- Generated Candidate ID: $candidateId")
+                            Log.d("CandidatePresidentScreen", "- Navigating to: candidate_detail_api/$candidateId")
+
                             navController?.navigate("candidate_detail_api/$candidateId")
                         },
                         onVisionMissionClick = { onVisionMissionClick(pair.election_no.toIntOrNull() ?: 1) }
@@ -291,6 +302,14 @@ fun CandidateCardFromApi(
 ) {
     val strings = LanguageManager.getLocalizedStrings()
     val context = LocalContext.current
+
+    // Generate photo URLs untuk debugging
+    val presidentPhotoUrl = CandidatePhotoHelper.getPresidentPhotoUrl(electionPair.id)
+    val vicePresidentPhotoUrl = CandidatePhotoHelper.getVicePresidentPhotoUrl(electionPair.id)
+
+    Log.d("CandidateCardFromApi", "Card created for pair: ${electionPair.id}")
+    Log.d("CandidateCardFromApi", "President photo URL: $presidentPhotoUrl")
+    Log.d("CandidateCardFromApi", "Vice President photo URL: $vicePresidentPhotoUrl")
 
     Card(
         modifier = Modifier
@@ -338,7 +357,7 @@ fun CandidateCardFromApi(
                     Text(
                         text = strings.presidentialCandidate,
                         style = AppTypography.paragraphRegular,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.tertiary
                     )
                 }
 
@@ -347,7 +366,7 @@ fun CandidateCardFromApi(
                         .weight(1f)
                         .border(
                             width = 0.5.dp,
-                            color = NeutralColors.Neutral30
+                            color = MaterialTheme.colorScheme.outline
                         )
                         .padding(vertical = 6.dp),
                     contentAlignment = Alignment.Center
@@ -355,7 +374,7 @@ fun CandidateCardFromApi(
                     Text(
                         text = strings.vicePresidentialCandidate,
                         style = AppTypography.paragraphRegular,
-                        color = NeutralColors.Neutral50
+                        color = MaterialTheme.colorScheme.tertiary
                     )
                 }
             }
@@ -381,9 +400,21 @@ fun CandidateCardFromApi(
                         // Load candidate image from API if available
                         AsyncImage(
                             model = ImageRequest.Builder(context)
-                                .data(electionPair.president.photo_path)
+                                .data(presidentPhotoUrl)
                                 .crossfade(true)
                                 .error(R.drawable.ic_launcher_background)
+                                .placeholder(R.drawable.ic_launcher_background)
+                                .listener(
+                                    onStart = {
+                                        Log.d("CandidateCardFromApi", "Loading president photo: $presidentPhotoUrl")
+                                    },
+                                    onSuccess = { _, _ ->
+                                        Log.d("CandidateCardFromApi", "President photo loaded successfully")
+                                    },
+                                    onError = { _, error ->
+                                        Log.e("CandidateCardFromApi", "President photo loading failed", error.throwable)
+                                    }
+                                )
                                 .build(),
                             contentDescription = "Presidential Candidate ${electionPair.president.full_name}",
                             modifier = Modifier
@@ -396,7 +427,7 @@ fun CandidateCardFromApi(
                         Text(
                             text = electionPair.president.full_name,
                             style = AppTypography.heading6SemiBold,
-                            color = PrimaryColors.Primary70,
+                            color = MaterialTheme.colorScheme.onTertiary,
                             textAlign = TextAlign.Center
                         )
 
@@ -406,7 +437,7 @@ fun CandidateCardFromApi(
                             modifier = Modifier
                                 .border(
                                     width = 1.dp,
-                                    color = NeutralColors.Neutral30,
+                                    color = MaterialTheme.colorScheme.outline,
                                     shape = RoundedCornerShape(12.dp)
                                 )
                                 .height(24.dp)
@@ -421,14 +452,14 @@ fun CandidateCardFromApi(
                                 Text(
                                     text = strings.viewProfile,
                                     style = AppTypography.smallParagraphRegular,
-                                    color = NeutralColors.Neutral60
+                                    color = MaterialTheme.colorScheme.tertiaryContainer
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Icon(
                                     painter = painterResource(id = R.drawable.right2),
                                     contentDescription = null,
                                     modifier = Modifier.size(10.dp),
-                                    tint = NeutralColors.Neutral60
+                                    tint = MaterialTheme.colorScheme.tertiaryContainer
                                 )
                             }
                         }
@@ -452,7 +483,7 @@ fun CandidateCardFromApi(
                         // Load candidate image from API if available
                         AsyncImage(
                             model = ImageRequest.Builder(context)
-                                .data(electionPair.vice_president.photo_path)
+                                .data(CandidatePhotoHelper.getVicePresidentPhotoUrl(electionPair.id))
                                 .crossfade(true)
                                 .error(R.drawable.ic_launcher_background)
                                 .build(),
@@ -467,7 +498,7 @@ fun CandidateCardFromApi(
                         Text(
                             text = electionPair.vice_president.full_name,
                             style = AppTypography.heading6SemiBold,
-                            color = PrimaryColors.Primary70,
+                            color = MaterialTheme.colorScheme.onTertiary,
                             textAlign = TextAlign.Center
                         )
 
@@ -477,7 +508,7 @@ fun CandidateCardFromApi(
                             modifier = Modifier
                                 .border(
                                     width = 1.dp,
-                                    color = NeutralColors.Neutral30,
+                                    color = MaterialTheme.colorScheme.outline,
                                     shape = RoundedCornerShape(12.dp)
                                 )
                                 .height(24.dp)
@@ -492,14 +523,14 @@ fun CandidateCardFromApi(
                                 Text(
                                     text = strings.viewProfile,
                                     style = AppTypography.smallParagraphRegular,
-                                    color = NeutralColors.Neutral60
+                                    color = MaterialTheme.colorScheme.tertiaryContainer
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Icon(
                                     painter = painterResource(id = R.drawable.right2),
                                     contentDescription = null,
                                     modifier = Modifier.size(10.dp),
-                                    tint = NeutralColors.Neutral60
+                                    tint = MaterialTheme.colorScheme.tertiaryContainer
                                 )
                             }
                         }
@@ -512,7 +543,7 @@ fun CandidateCardFromApi(
             Text(
                 text = "Proposing Parties", // You can add this to strings
                 style = AppTypography.paragraphRegular,
-                color = NeutralColors.Neutral50,
+                color = MaterialTheme.colorScheme.tertiary,
                 textAlign = TextAlign.Center
             )
 
@@ -578,7 +609,7 @@ private fun SupportingPartiesRow(
             Text(
                 text = "Data partai tidak tersedia",
                 style = AppTypography.smallParagraphRegular,
-                color = NeutralColors.Neutral40
+                color = MaterialTheme.colorScheme.tertiaryContainer
             )
         }
     } else {

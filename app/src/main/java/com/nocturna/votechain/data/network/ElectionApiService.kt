@@ -22,6 +22,24 @@ interface ElectionApiService {
     suspend fun getElectionPairs(): Response<ElectionPairsResponse>
 
     /**
+     * Get president photo by pair ID
+     * Endpoint: /v1/election/pairs/{id}/photo/president
+     */
+    @GET("v1/election/pairs/{id}/photo/president")
+    suspend fun getPresidentPhoto(
+        @Path("id") pairId: String
+    ): Response<ResponseBody>
+
+    /**
+     * Get vice president photo by pair ID
+     * Endpoint: /v1/election/pairs/{id}/photo/vice-president
+     */
+    @GET("v1/election/pairs/{id}/photo/vice-president")
+    suspend fun getVicePresidentPhoto(
+        @Path("id") pairId: String
+    ): Response<ResponseBody>
+
+    /**
      * Get detail for a specific election pair
      * Endpoint: /v1/election/pairs/{pairId}/detail
      */

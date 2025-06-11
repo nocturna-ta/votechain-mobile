@@ -45,6 +45,7 @@ import com.nocturna.votechain.ui.theme.PrimaryColors
 import com.nocturna.votechain.ui.theme.VotechainTheme
 import com.nocturna.votechain.ui.theme.CandidateDetailStyling
 import com.nocturna.votechain.utils.CandidateHelper
+import com.nocturna.votechain.utils.CandidatePhotoHelper
 import com.nocturna.votechain.utils.DateFormatter
 import com.nocturna.votechain.utils.LanguageManager
 import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
@@ -69,6 +70,9 @@ fun DetailCandidateScreen(
 
     // Parse the candidateId to get type (president/vicePresident) and actual id
     var candidate: Candidate? by remember { mutableStateOf(null) }
+    var candidatePhotoUrl: String? by remember { mutableStateOf(null) }
+    var candidateType: CandidateHelper.CandidateType? by remember { mutableStateOf(null) }
+    var pairId: String? by remember { mutableStateOf(null) }
 
     // Fetch election pairs if not already loaded
     LaunchedEffect(Unit) {
@@ -89,8 +93,46 @@ fun DetailCandidateScreen(
                 Log.d("DetailCandidateScreen", "Pair $index: ID=${pair.id}, President=${pair.president.full_name}, VP=${pair.vice_president.full_name}")
             }
 
+            // Parse candidate ID untuk mendapatkan type dan pair ID
+            val parts = candidateId.split("_", limit = 2)
+            if (parts.size == 2) {
+                val typePrefix = parts[0]
+                pairId = parts[1]
+
+                candidateType = when (typePrefix) {
+                    CandidateHelper.CandidateType.PRESIDENT.prefix -> CandidateHelper.CandidateType.PRESIDENT
+                    CandidateHelper.CandidateType.VICE_PRESIDENT.prefix -> CandidateHelper.CandidateType.VICE_PRESIDENT
+                    else -> null
+                }
+                Log.d("DetailCandidateScreen", "Parsed - Type: $typePrefix, PairId: $pairId, CandidateType: $candidateType")
+            }
+
+            // Get candidate data using helper
             candidate = CandidateHelper.getCandidateFromId(candidateId, electionPairs)
             Log.d("DetailCandidateScreen", "Final candidate: ${candidate?.full_name}")
+            Log.d("DetailCandidateScreen", "Candidate photo_path: ${candidate?.photo_path}")
+
+            // Generate foto URL berdasarkan candidate type
+            if (candidateType != null && pairId != null) {
+                // Prioritas: gunakan endpoint API untuk foto yang spesifik
+                candidatePhotoUrl = when (candidateType) {
+                    CandidateHelper.CandidateType.PRESIDENT -> {
+                        val presidentUrl = CandidatePhotoHelper.getPresidentPhotoUrl(pairId!!)
+                        Log.d("DetailCandidateScreen", "Using president photo URL: $presidentUrl")
+                        presidentUrl
+                    }
+                    CandidateHelper.CandidateType.VICE_PRESIDENT -> {
+                        val vicePresidentUrl = CandidatePhotoHelper.getVicePresidentPhotoUrl(pairId!!)
+                        Log.d("DetailCandidateScreen", "Using vice president photo URL: $vicePresidentUrl")
+                        vicePresidentUrl
+                    }
+                    else -> null
+                }
+
+                Log.d("DetailCandidateScreen", "Final photo URL used: $candidatePhotoUrl")
+            } else {
+                Log.w("DetailCandidateScreen", "Cannot determine candidate type or pair ID")
+            }
         } else {
             Log.w("DetailCandidateScreen", "No election pairs available")
         }
@@ -184,11 +226,22 @@ fun DetailCandidateScreen(
                     // Candidate photo
                     AsyncImage(
                         model = ImageRequest.Builder(context)
-                            .data(candidate?.photo_path)
+                            .data(candidatePhotoUrl)
                             .crossfade(true)
                             .error(R.drawable.ic_launcher_background)
+                            .listener(
+                                onStart = {
+                                    Log.d("DetailCandidateScreen", "Image loading started for: $candidatePhotoUrl")
+                                },
+                                onSuccess = { _, _ ->
+                                    Log.d("DetailCandidateScreen", "Image loaded successfully: $candidatePhotoUrl")
+                                },
+                                onError = { _, error ->
+                                    Log.e("DetailCandidateScreen", "Image loading failed: $candidatePhotoUrl", error.throwable)
+                                }
+                            )
                             .build(),
-                        contentDescription = "Candidate Photo",
+                        contentDescription = "${candidate?.full_name} Photo",
                         modifier = Modifier
                             .size(200.dp)
                             .padding(vertical = 16.dp),
@@ -203,13 +256,17 @@ fun DetailCandidateScreen(
                         textAlign = TextAlign.Center
                     )
 
-                    // Candidate position (job)
+                    // Candidate type indicator
                     Text(
-                        text = candidate?.job ?: "",
-                        style = AppTypography.heading6Regular,
-                        color = NeutralColors.Neutral50,
+                        text = when (candidateType) {
+                            CandidateHelper.CandidateType.PRESIDENT -> strings.presidentialCandidate
+                            CandidateHelper.CandidateType.VICE_PRESIDENT -> strings.vicePresidentialCandidate
+                            else -> ""
+                        },
+                        style = AppTypography.paragraphMedium,
+                        color = NeutralColors.Neutral60,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
+                        modifier = Modifier.padding(bottom = 24.dp)
                     )
 
                     // Personal Information Section

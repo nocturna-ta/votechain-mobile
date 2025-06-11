@@ -30,9 +30,9 @@ private val LightColorScheme = lightColorScheme(
     secondaryContainer = PrimaryColors.Primary30,
     onSecondaryContainer = PrimaryColors.Primary80,
 
-    tertiary = NeutralColors.Neutral60,
-    onTertiary = NeutralColors.Neutral10,
-    tertiaryContainer = PrimaryColors.Primary20,
+    tertiary = NeutralColors.Neutral50,
+    onTertiary = PrimaryColors.Primary70,
+    tertiaryContainer = NeutralColors.Neutral60,
     onTertiaryContainer = PrimaryColors.Primary90,
 
     error = DangerColors.Danger50,
@@ -69,9 +69,9 @@ private val DarkColorScheme = darkColorScheme(
     secondaryContainer = SecondaryColors.Secondary70,
     onSecondaryContainer = NeutralColors.Neutral10,
 
-    tertiary = NeutralColors.Neutral40,
-    onTertiary = NeutralColors.Neutral10,
-    tertiaryContainer = PrimaryColors.Primary60,
+    tertiary = NeutralColors.Neutral30,
+    onTertiary = PrimaryColors.Primary50,
+    tertiaryContainer = NeutralColors.Neutral30,
     onTertiaryContainer = NeutralColors.Neutral10,
 
     error = DangerColors.Danger60,
@@ -90,7 +90,7 @@ private val DarkColorScheme = darkColorScheme(
     outline = NeutralColors.Neutral40,
     outlineVariant = AdditionalColors.strokeColor,
 
-    inverseSurface = NeutralColors.Neutral10,
+    inverseSurface = NeutralColors.Neutral30,
     inverseOnSurface = NeutralColors.Neutral10,
     inversePrimary = PrimaryColors.Primary40,
 )
