@@ -8,15 +8,15 @@ package com.nocturna.votechain.data.model
 data class ElectionPairsResponse(
     val code: Int,
     val message: String,
-    val data: ElectionPairsData?,
+    val data: List<ElectionPair>?,
     val error: ApiError?
 )
 
 // Data containing pairs and total count
-data class ElectionPairsData(
-    val pairs: List<ElectionPair>,
-    val total: Int
-)
+//data class ElectionPairsData(
+//    val pairs: List<ElectionPair>,
+//    val total: Int
+//)
 
 // Error information
 data class ElectionApiError(
@@ -98,6 +98,24 @@ data class AllPartiesResponse(
     val data: List<Party>?,
     val error: ApiError?
 )
+
+data class PartyResponse(
+    val data: PartyData,
+    val code: Int
+)
+
+data class PartyData(
+    val parties: List<PartyElectionPair>,
+    val total: Int
+)
+
+data class PartyElectionPair(
+    val id: String,
+    val election_pair_id: String,
+    val party_id: String,
+    val party: Party
+)
+
 
 // Generic API error
 //data class ApiError(

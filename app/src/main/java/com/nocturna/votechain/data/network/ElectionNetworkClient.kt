@@ -2,6 +2,7 @@ package com.nocturna.votechain.data.network
 
 import android.util.Log
 import com.google.gson.GsonBuilder
+import com.nocturna.votechain.data.model.PartyResponse
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -12,7 +13,7 @@ import java.util.concurrent.TimeUnit
  * Network client for connecting to the Election API
  */
 object ElectionNetworkClient {
-    const val BASE_URL = "https://ea8f-36-69-140-195.ngrok-free.app"
+    const val BASE_URL = "https://1069-36-69-142-76.ngrok-free.app"
     private const val TAG = "ElectionNetworkClient"
 
     /**
@@ -60,5 +61,31 @@ object ElectionNetworkClient {
      */
     val electionApiService: ElectionApiService by lazy {
         retrofit.create(ElectionApiService::class.java)
+    }
+}
+
+class PartyPhotoHelper {
+    companion object {
+        /**
+         * Generate full URL untuk foto partai berdasarkan party ID
+         */
+        fun getPartyPhotoUrl(partyId: String): String {
+            return "${ElectionNetworkClient.BASE_URL}/v1/party/$partyId/photo"
+        }
+
+        /**
+         * Generate URLs untuk semua partai dari response
+         */
+        fun getPartyPhotoUrls(partyResponse: PartyResponse): Map<String, String> {
+            val photoUrls = mutableMapOf<String, String>()
+
+            partyResponse.data.parties.forEach { partyPair ->
+                val partyId = partyPair.party.id
+                val partyName = partyPair.party.name
+                photoUrls[partyName] = getPartyPhotoUrl(partyId)
+            }
+
+            return photoUrls
+        }
     }
 }

@@ -3,8 +3,10 @@ package com.nocturna.votechain.data.repository
 import android.util.Log
 import com.nocturna.votechain.data.model.ElectionPair
 import com.nocturna.votechain.data.model.Party
+import com.nocturna.votechain.data.model.PartyElectionPair
 import com.nocturna.votechain.data.model.SupportingParty
 import com.nocturna.votechain.data.network.ElectionNetworkClient
+import com.nocturna.votechain.data.network.PartyPhotoHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -29,7 +31,7 @@ class ElectionRepository {
             if (response.isSuccessful) {
                 val responseBody = response.body()
                 if (responseBody != null && responseBody.code == 200) {
-                    val pairs = responseBody.data?.pairs ?: emptyList()
+                    val pairs = responseBody.data ?: emptyList()
                     Log.d(TAG, "Successfully fetched ${pairs.size} election pairs")
                     emit(Result.success(pairs))
                 } else {
@@ -82,31 +84,31 @@ class ElectionRepository {
      * Get all political parties
      * @return Flow of all parties result
      */
-    fun getAllParties(): Flow<Result<List<Party>>> = flow {
-        try {
-            Log.d(TAG, "Fetching all parties from API")
-            val response = apiService.getAllParties()
-
-            if (response.isSuccessful) {
-                val responseBody = response.body()
-                if (responseBody != null && responseBody.code == 200) {
-                    val parties = responseBody.data ?: emptyList()
-                    Log.d(TAG, "Successfully fetched ${parties.size} parties")
-                    emit(Result.success(parties))
-                } else {
-                    val errorMsg = responseBody?.error?.error_message ?: "Unknown error occurred"
-                    Log.e(TAG, "API returned error: $errorMsg")
-                    emit(Result.failure(Exception(errorMsg)))
-                }
-            } else {
-                Log.e(TAG, "API call failed with code: ${response.code()}")
-                emit(Result.failure(Exception("Failed to fetch all parties: ${response.message()}")))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Exception while fetching all parties: ${e.message}", e)
-            emit(Result.failure(e))
-        }
-    }.flowOn(Dispatchers.IO)
+//    fun getAllParties(): Flow<Result<List<Party>>> = flow {
+//        try {
+//            Log.d(TAG, "Fetching all parties from API")
+//            val response = apiService.getParties()
+//
+//            if (response.isSuccessful) {
+//                val responseBody = response.body()
+//                if (responseBody != null && responseBody.code == 200) {
+//                    val parties = responseBody.data ?: emptyList()
+//                    Log.d(TAG, "Successfully fetched ${parties.size} parties")
+//                    emit(Result.success(parties))
+//                } else {
+//                    val errorMsg = responseBody?.error?.error_message ?: "Unknown error occurred"
+//                    Log.e(TAG, "API returned error: $errorMsg")
+//                    emit(Result.failure(Exception(errorMsg)))
+//                }
+//            } else {
+//                Log.e(TAG, "API call failed with code: ${response.code()}")
+//                emit(Result.failure(Exception("Failed to fetch all parties: ${response.message()}")))
+//            }
+//        } catch (e: Exception) {
+//            Log.e(TAG, "Exception while fetching all parties: ${e.message}", e)
+//            emit(Result.failure(e))
+//        }
+//    }.flowOn(Dispatchers.IO)
 
     /**
      * Get election pairs with their supporting parties
@@ -123,7 +125,7 @@ class ElectionRepository {
                 return@flow
             }
 
-            val pairs = pairsResponse.body()?.data?.pairs ?: emptyList()
+            val pairs = pairsResponse.body()?.data ?: emptyList()
             val pairsWithParties = mutableListOf<ElectionPair>()
 
             // For each pair, fetch supporting parties
@@ -140,17 +142,27 @@ class ElectionRepository {
                     val updatedPair = pair.copy(supporting_parties = supportingParties)
                     pairsWithParties.add(updatedPair)
                 } catch (e: Exception) {
-                    Log.w(TAG, "Failed to fetch supporting parties for pair ${pair.id}: ${e.message}")
+                    Log.w(
+                        TAG,
+                        "Failed to fetch supporting parties for pair ${pair.id}: ${e.message}"
+                    )
                     // Add pair without supporting parties
                     pairsWithParties.add(pair.copy(supporting_parties = emptyList()))
                 }
             }
 
-            Log.d(TAG, "Successfully fetched ${pairsWithParties.size} election pairs with supporting parties")
+            Log.d(
+                TAG,
+                "Successfully fetched ${pairsWithParties.size} election pairs with supporting parties"
+            )
             emit(Result.success(pairsWithParties))
 
         } catch (e: Exception) {
-            Log.e(TAG, "Exception while fetching election pairs with supporting parties: ${e.message}", e)
+            Log.e(
+                TAG,
+                "Exception while fetching election pairs with supporting parties: ${e.message}",
+                e
+            )
             emit(Result.failure(e))
         }
     }.flowOn(Dispatchers.IO)

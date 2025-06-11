@@ -5,7 +5,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -15,9 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -26,6 +31,7 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.nocturna.votechain.R
+import com.nocturna.votechain.data.network.PartyPhotoHelper
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
@@ -88,7 +94,7 @@ fun CandidatePresidentScreen(
                 Icon(
                     painter = painterResource(id = R.drawable.back),
                     contentDescription = strings.back,
-                    tint = MainColors.Primary1,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -97,7 +103,7 @@ fun CandidatePresidentScreen(
             Text(
                 text = strings.candidatePresident,
                 style = AppTypography.heading4Regular,
-                color = PrimaryColors.Primary80,
+                color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier.align(Alignment.Center)
             )
         }
@@ -292,7 +298,7 @@ fun CandidateCardFromApi(
             .shadow(elevation = 2.dp, shape = RoundedCornerShape(16.dp)),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
         Column(
@@ -305,12 +311,12 @@ fun CandidateCardFromApi(
             Text(
                 text = strings.candidate,
                 style = AppTypography.heading6Medium,
-                color = PrimaryColors.Primary60
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = electionPair.election_no,
                 style = AppTypography.heading5Bold,
-                color = PrimaryColors.Primary60
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -332,7 +338,7 @@ fun CandidateCardFromApi(
                     Text(
                         text = strings.presidentialCandidate,
                         style = AppTypography.paragraphRegular,
-                        color = NeutralColors.Neutral50
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
@@ -448,7 +454,7 @@ fun CandidateCardFromApi(
                             model = ImageRequest.Builder(context)
                                 .data(electionPair.vice_president.photo_path)
                                 .crossfade(true)
-                                .error(R.drawable.pc_imin)
+                                .error(R.drawable.ic_launcher_background)
                                 .build(),
                             contentDescription = "Vice Presidential Candidate ${electionPair.vice_president.full_name}",
                             modifier = Modifier
@@ -501,6 +507,23 @@ fun CandidateCardFromApi(
                 }
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Proposing Parties", // You can add this to strings
+                style = AppTypography.paragraphRegular,
+                color = NeutralColors.Neutral50,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Supporting parties logos
+            SupportingPartiesRow(
+                supportingParties = electionPair.supporting_parties ?: emptyList(),
+                modifier = Modifier.fillMaxWidth()
+            )
+
             // Vision & Mission Button
             Box(
                 modifier = Modifier
@@ -535,6 +558,79 @@ fun CandidateCardFromApi(
         }
     }
 }
+
+/**
+ * Composable to display supporting parties in a horizontal row
+ */
+@Composable
+private fun SupportingPartiesRow(
+    supportingParties: List<com.nocturna.votechain.data.model.SupportingParty>,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+
+    if (supportingParties.isEmpty()) {
+        // Show placeholder when no parties available
+        Box(
+            modifier = modifier.height(40.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Data partai tidak tersedia",
+                style = AppTypography.smallParagraphRegular,
+                color = NeutralColors.Neutral40
+            )
+        }
+    } else {
+        LazyRow(
+            modifier = modifier,
+            horizontalArrangement = Arrangement.Center,
+            contentPadding = PaddingValues(horizontal = 8.dp)
+        ) {
+            items(supportingParties) { supportingParty ->
+                PartyLogoItem(
+                    party = supportingParty.party,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Individual party logo item
+ */
+@Composable
+private fun PartyLogoItem(
+    party: com.nocturna.votechain.data.model.Party,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val photoUrl = PartyPhotoHelper.getPartyPhotoUrl(party.id)
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .size(width = 32.dp, height = 42.dp)
+            .padding(4.dp)
+    ) {
+        AsyncImage(
+            model = ImageRequest.Builder(context)
+                .data(photoUrl)
+                .crossfade(true)
+                .build(),
+            contentDescription = "${party.name} Logo",
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize(),
+
+            placeholder = painterResource(id = R.drawable.ic_launcher_background), // Replace with party placeholder
+            error = painterResource(id = R.drawable.ic_launcher_background) // Replace with party placeholder
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+    }
+}
+
 
 @Preview(showBackground = true)
 @Composable

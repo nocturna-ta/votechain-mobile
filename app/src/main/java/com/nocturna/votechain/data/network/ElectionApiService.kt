@@ -2,8 +2,10 @@ package com.nocturna.votechain.data.network
 
 import com.nocturna.votechain.data.model.AllPartiesResponse
 import com.nocturna.votechain.data.model.ElectionPairsResponse
+import com.nocturna.votechain.data.model.PartyResponse
 import com.nocturna.votechain.data.model.SupportingPartiesResponse
 import com.nocturna.votechain.data.model.VisionMissionDetailResponse
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Path
@@ -38,5 +40,14 @@ interface ElectionApiService {
      * Endpoint: /v1/party
      */
     @GET("v1/party")
-    suspend fun getAllParties(): Response<AllPartiesResponse>
+    suspend fun getParties(): Response<PartyResponse>
+
+    /**
+     * Get party photo by party ID
+     * Endpoint: /v1/party/{id}/photo
+     */
+    @GET("v1/party/{id}/photo")
+    suspend fun getPartyPhoto(
+        @Path("id") partyId: String
+    ): Response<ResponseBody>
 }

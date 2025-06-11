@@ -72,7 +72,7 @@ fun CandidateCard(
             .shadow(elevation = 2.dp, shape = RoundedCornerShape(16.dp)),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
         Column(
@@ -85,12 +85,12 @@ fun CandidateCard(
             Text(
                 text = strings.candidate,
                 style = AppTypography.heading6Medium,
-                color = PrimaryColors.Primary60
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = number.toString(),
                 style = AppTypography.heading5Bold,
-                color = PrimaryColors.Primary60
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -112,7 +112,7 @@ fun CandidateCard(
                     Text(
                         text = strings.presidentialCandidate,
                         style = AppTypography.paragraphRegular,
-                        color = NeutralColors.Neutral50,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -122,7 +122,7 @@ fun CandidateCard(
                         .weight(1f)
                         .border(
                             width = 0.5.dp,
-                            color = AdditionalColors.strokeColor
+                            color = MaterialTheme.colorScheme.outline
                         )
                         .padding(vertical = 6.dp),
                     contentAlignment = Alignment.Center
@@ -130,7 +130,7 @@ fun CandidateCard(
                     Text(
                         text = strings.vicePresidentialCandidate,
                         style = AppTypography.paragraphRegular,
-                        color = NeutralColors.Neutral50,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         textAlign = TextAlign.Center
                     )
                 }

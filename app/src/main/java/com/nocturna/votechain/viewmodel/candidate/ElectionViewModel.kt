@@ -1,12 +1,17 @@
 package com.nocturna.votechain.viewmodel.candidate
 
+import android.util.Log
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.nocturna.votechain.data.model.ElectionPair
 import com.nocturna.votechain.data.model.Party
 import com.nocturna.votechain.data.model.SupportingParty
+import com.nocturna.votechain.data.network.ElectionNetworkClient
+import com.nocturna.votechain.data.network.PartyPhotoHelper
 import com.nocturna.votechain.data.repository.ElectionRepository
+import com.nocturna.votechain.data.repository.PartyRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,9 +45,16 @@ class ElectionViewModel(
     private val _supportingPartiesLoading = MutableStateFlow(false)
     val supportingPartiesLoading: StateFlow<Boolean> = _supportingPartiesLoading.asStateFlow()
 
+    private val electionApiService = ElectionNetworkClient.electionApiService
+    private val partyRepository = PartyRepository()
+
+    // State untuk menyimpan data partai dan URL foto
+    private val _partyPhotoUrls = mutableStateOf<Map<String, String>>(emptyMap())
+
+
     init {
         // Load initial data
-        fetchAllParties()
+//        fetchAllParties()
         fetchElectionPairsWithSupportingParties()
     }
 
@@ -54,7 +66,7 @@ class ElectionViewModel(
             _isLoading.value = true
             _error.value = null
 
-            repository.getElectionPairs().collect { result ->
+            repository.getElectionPairsWithSupportingParties().collect { result ->
                 _isLoading.value = false
                 result.fold(
                     onSuccess = { pairs ->
@@ -122,19 +134,41 @@ class ElectionViewModel(
     /**
      * Fetch all political parties
      */
-    fun fetchAllParties() {
+//    fun fetchAllParties() {
+//        viewModelScope.launch {
+//            repository.getAllParties().collect { result ->
+//                result.fold(
+//                    onSuccess = { parties ->
+//                        _allParties.value = parties
+//                    },
+//                    onFailure = { e ->
+//                        // Log error but don't show it to user as this is not critical
+//                        android.util.Log.e(
+//                            "ElectionViewModel",
+//                            "Failed to fetch all parties: ${e.message}"
+//                        )
+//                    }
+//                )
+//            }
+//        }
+//    }
+
+    /**
+     * Fetch election pairs without supporting parties (for cases where supporting parties are not needed)
+     */
+    fun fetchElectionPairsOnly() {
         viewModelScope.launch {
-            repository.getAllParties().collect { result ->
+            _isLoading.value = true
+            _error.value = null
+
+            repository.getElectionPairs().collect { result ->
+                _isLoading.value = false
                 result.fold(
-                    onSuccess = { parties ->
-                        _allParties.value = parties
+                    onSuccess = { pairs ->
+                        _electionPairs.value = pairs
                     },
                     onFailure = { e ->
-                        // Log error but don't show it to user as this is not critical
-                        android.util.Log.e(
-                            "ElectionViewModel",
-                            "Failed to fetch all parties: ${e.message}"
-                        )
+                        _error.value = e.message ?: "Unknown error occurred"
                     }
                 )
             }
@@ -149,24 +183,37 @@ class ElectionViewModel(
     }
 
     /**
-     * Get party information by ID from cached parties
+     * Fetch election pairs dan party photo URLs sekaligus
      */
-    fun getPartyById(partyId: String): Party? {
-        return _allParties.value.find { it.id == partyId }
+    fun fetchElectionDataWithPartyPhotos() {
+        viewModelScope.launch {
+            try {
+                // Fetch election pairs
+                val electionResponse = electionApiService.getElectionPairs()
+
+                // Fetch parties data
+                val partiesResult = partyRepository.getParties()
+
+                if (partiesResult.isSuccess) {
+                    val partiesData = partiesResult.getOrNull()
+                    partiesData?.let { partyResponse ->
+                        // Generate party photo URLs
+                        val photoUrls = PartyPhotoHelper.getPartyPhotoUrls(partyResponse)
+                        _partyPhotoUrls.value = photoUrls
+                    }
+                }
+
+            } catch (e: Exception) {
+                Log.e("ElectionViewModel", "Error fetching data: ${e.message}")
+            }
+        }
     }
 
     /**
-     * Get supporting parties for a specific election pair
+     * Get party photo URL by party name
      */
-    fun getSupportingPartiesForPair(pairId: String): List<SupportingParty> {
-        return _electionPairs.value.find { it.id == pairId }?.supporting_parties ?: emptyList()
-    }
-
-    /**
-     * Clear error state
-     */
-    fun clearError() {
-        _error.value = null
+    fun getPartyPhotoUrl(partyName: String): String? {
+        return _partyPhotoUrls.value[partyName]
     }
 
     /**
