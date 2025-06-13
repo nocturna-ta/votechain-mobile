@@ -73,8 +73,16 @@ fun CandidatePresidentScreen(
     }
 
     // Define the onVisionMissionClick function that uses the NavController
-    val onVisionMissionClick = { candidateNumber: Int ->
-        navController?.navigate("vision_mission/$candidateNumber/$voteId")
+    val onVisionMissionClick = { pairId: String ->
+        Log.d("CandidatePresidentScreen", "Vision Mission clicked for pair ID: $pairId")
+        navController?.navigate("vision_mission/$pairId")
+    }
+
+    // Determine if we're using fallback data
+    val isUsingFallbackData = electionPairs.any { it.id.startsWith("fallback-") }
+
+    if (isUsingFallbackData) {
+        Log.d("CandidatePresidentScreen", "Using fallback data - API is unavailable")
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -153,6 +161,36 @@ fun CandidatePresidentScreen(
         }
         // Show candidates when data is loaded
         else {
+            // Show API status banner if using fallback data
+            if (isUsingFallbackData) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MainColors.Primary1.copy(alpha = 0.1f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.back), // Replace with info icon
+                            contentDescription = "Info",
+                            tint = MainColors.Primary1,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "API unavailable - showing offline data",
+                            style = AppTypography.smallParagraphRegular,
+                            color = MainColors.Primary1
+                        )
+                    }
+                }
+            }
+
             // Filter dropdown
             Box(
                 modifier = Modifier
@@ -280,7 +318,10 @@ fun CandidatePresidentScreen(
 
                             navController?.navigate("candidate_detail_api/$candidateId")
                         },
-                        onVisionMissionClick = { onVisionMissionClick(pair.election_no.toIntOrNull() ?: 1) }
+                        onVisionMissionClick = {
+                            // Pass the actual pair.id (UUID) instead of election_no
+                            onVisionMissionClick(pair.id)
+                        }
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
@@ -289,6 +330,7 @@ fun CandidatePresidentScreen(
                 // Add bottom padding to ensure the last item is fully visible
                 Spacer(modifier = Modifier.height(80.dp))
             }
+            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }

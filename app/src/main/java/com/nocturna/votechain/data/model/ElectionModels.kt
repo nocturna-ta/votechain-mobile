@@ -12,12 +12,6 @@ data class ElectionPairsResponse(
     val error: ApiError?
 )
 
-// Data containing pairs and total count
-//data class ElectionPairsData(
-//    val pairs: List<ElectionPair>,
-//    val total: Int
-//)
-
 // Error information
 data class ElectionApiError(
     val error_code: Int,
@@ -116,9 +110,22 @@ data class PartyElectionPair(
     val party: Party
 )
 
-
-// Generic API error
-//data class ApiError(
-//    val error_code: Int,
-//    val error_message: String
+//data class WorkProgram(
+//    val program_name: String,
+//    val program_photo: String,
+//    val program_desc: List<String>
 //)
+
+data class ElectionPairDetail(
+    val id: String,
+    val election_pair_id: String,
+    val vision: String,
+    val mission: String,
+    val work_program: List<WorkProgram>,
+    val program_docs: String
+)
+
+data class ElectionPairDetailResponse(
+    val data: ElectionPairDetail,
+    val code: Int
+)

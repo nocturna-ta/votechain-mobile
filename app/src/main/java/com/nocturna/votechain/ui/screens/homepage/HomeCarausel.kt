@@ -136,11 +136,11 @@ fun HomeCarousel(
                     repeat(latestNews.size) { index ->
                         Box(
                             modifier = Modifier
-                                .size(8.dp)
+                                .size(6.dp)
                                 .clip(CircleShape)
                                 .background(
                                     if (pagerState.currentPage == index) MainColors.Primary1
-                                    else NeutralColors.Neutral30.copy(alpha = 0.7f)
+                                    else NeutralColors.Neutral30.copy(alpha = 0.5f)
                                 )
                         )
                     }

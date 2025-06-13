@@ -1,31 +1,187 @@
 package com.nocturna.votechain.data.repository
 
+import android.util.Log
 import com.nocturna.votechain.data.model.VisionMissionModel
 import com.nocturna.votechain.data.model.VisionMissionDetailModel
 import com.nocturna.votechain.data.model.WorkProgram
 import com.nocturna.votechain.data.network.ElectionApiService
+import com.nocturna.votechain.data.network.ElectionNetworkClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
-// Updated Repository interface
+/**
+ * Repository interface for Vision Mission data
+ */
 interface VisionMissionRepository {
     suspend fun getVisionMission(candidateNumber: Int): VisionMissionModel // Keep for backward compatibility
-    suspend fun getVisionMissionFromAPI(pairId: String): VisionMissionDetailModel // New method
+    suspend fun getVisionMissionFromAPI(pairId: String): VisionMissionDetailModel // New method for API integration
 }
 
-// Updated Implementation with API integration
-class VisionMissionRepositoryImpl @Inject constructor(
-    private val apiService: ElectionApiService? = null // Make it optional for backward compatibility
-) : VisionMissionRepository {
+/**
+ * Implementation of Vision Mission Repository
+ */
+class VisionMissionRepositoryImpl : VisionMissionRepository {
 
-    // Keep old method for backward compatibility
-    override suspend fun getVisionMission(candidateNumber: Int): VisionMissionModel {
-        return when(candidateNumber) {
+    private val TAG = "VisionMissionRepository"
+    private val apiService = ElectionNetworkClient.electionApiService
+
+    /**
+     * Get vision mission from API using pair ID
+     * @param pairId The election pair ID
+     * @return VisionMissionDetailModel containing vision, mission, and work programs
+     */
+    override suspend fun getVisionMissionFromAPI(pairId: String): VisionMissionDetailModel = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "Fetching vision mission detail for pair ID: $pairId")
+
+            val response = apiService.getElectionPairDetail(pairId)
+
+            if (response.isSuccessful) {
+                val responseBody = response.body()
+                if (responseBody != null && responseBody.code == 200) {
+                    val data = responseBody.data
+
+                    if (data != null) {
+                        Log.d(TAG, "Successfully fetched vision mission detail")
+
+                        // Convert API work programs to UI work programs
+                        val workPrograms = data.work_program.map { workProgramResponse ->
+                            WorkProgram(
+                                programName = workProgramResponse.program_name,
+                                programPhoto = workProgramResponse.program_photo?.takeIf { it.isNotBlank() }?.let {
+                                    // Build full URL for program photo if available
+                                    if (it.startsWith("http")) it else "${ElectionNetworkClient.BASE_URL}/$it"
+                                },
+                                programDesc = workProgramResponse.program_desc
+                            )
+                        }
+
+                        // Build full URL for program docs if available
+                        val programDocsUrl = data.program_docs?.let { docPath ->
+                            if (docPath.isNotBlank()) {
+                                // Handle Windows-style paths and normalize them
+                                val normalizedPath = docPath.replace("\\", "/")
+                                if (normalizedPath.startsWith("http")) {
+                                    normalizedPath
+                                } else {
+                                    "${ElectionNetworkClient.BASE_URL}/$normalizedPath"
+                                }
+                            } else null
+                        }
+
+                        return@withContext VisionMissionDetailModel(
+                            id = data.id,
+                            electionPairId = data.election_pair_id,
+                            vision = data.vision,
+                            mission = data.mission,
+                            workPrograms = workPrograms,
+                            programDocs = programDocsUrl
+                        )
+                    } else {
+                        Log.e(TAG, "API returned null data")
+                        throw Exception("No data available for this candidate pair")
+                    }
+                } else {
+                    val errorMsg = responseBody?.error?.error_message ?: "Unknown error occurred"
+                    Log.e(TAG, "API returned error: $errorMsg")
+                    throw Exception(errorMsg)
+                }
+            } else {
+                Log.e(TAG, "API call failed with code: ${response.code()}")
+
+                // If API fails, fallback to hardcoded data based on pair ID
+                Log.w(TAG, "API is unavailable, falling back to hardcoded data")
+                return@withContext getFallbackVisionMissionData(pairId)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception while fetching vision mission detail: ${e.message}", e)
+
+            // Fallback to hardcoded data when API is unavailable
+            Log.w(TAG, "Using fallback data due to API exception")
+            return@withContext getFallbackVisionMissionData(pairId)
+        }
+    }
+
+    /**
+     * Fallback method to provide hardcoded data when API is unavailable
+     */
+    private fun getFallbackVisionMissionData(pairId: String): VisionMissionDetailModel {
+        return VisionMissionDetailModel(
+            id = pairId,
+            electionPairId = pairId,
+            vision = "Indonesia Adil Makmur Untuk Semua",
+            mission = "Memastikan Ketersediaan Kebutuhan Pokok dan Biaya Hidup Murah melalui Kemandirian Pangan, Ketahanan Energi, dan Kedaulatan Air. Mengentaskan Kemiskinan dengan Memperluas Kesempatan Berusaha dan Menciptakan Lapangan Kerja.",
+            workPrograms = listOf(
+                WorkProgram(
+                    programName = "Program Kemandirian Pangan",
+                    programPhoto = null,
+                    programDesc = listOf(
+                        "Meningkatkan produktivitas pertanian",
+                        "Mengembangkan teknologi pertanian modern",
+                        "Memperkuat sistem distribusi pangan"
+                    )
+                ),
+                WorkProgram(
+                    programName = "Program Lapangan Kerja",
+                    programPhoto = null,
+                    programDesc = listOf(
+                        "Menciptakan 1 juta lapangan kerja baru",
+                        "Mengembangkan UMKM di seluruh Indonesia",
+                        "Meningkatkan keterampilan tenaga kerja"
+                    )
+                ),
+                WorkProgram(
+                    programName = "Program Pendidikan Berkualitas",
+                    programPhoto = null,
+                    programDesc = listOf(
+                        "Meningkatkan akses pendidikan untuk semua",
+                        "Mengembangkan kurikulum yang relevan",
+                        "Memperkuat fasilitas pendidikan"
+                    )
+                )
+            ),
+            programDocs = null
+        )
+    }
+
+    /**
+     * Legacy method - keep for backward compatibility
+     * @param candidateNumber The candidate number (1, 2, 3)
+     * @return VisionMissionModel with hardcoded data
+     */
+    override suspend fun getVisionMission(candidateNumber: Int): VisionMissionModel = withContext(Dispatchers.IO) {
+        // Simulate network delay
+        kotlinx.coroutines.delay(500)
+
+        return@withContext when(candidateNumber) {
             1 -> VisionMissionModel(
                 candidateNumber = 1,
                 vision = "Indonesia Adil Makmur Untuk Semua",
                 missions = listOf(
                     "Memastikan Ketersediaan Kebutuhan Pokok dan Biaya Hidup Murah melalui Kemandirian Pangan, Ketahanan Energi, dan Kedaulatan Air.",
-                    "Mengentaskan Kemiskinan dengan Memperluas Kesempatan Berusaha dan Menciptakan Lapangan Kerja, Mewujudkan Upah Berkeadilan, Menjamin Kemajuan Ekonomi Berbasis Kemandirian dan Pemerataan, serta Mendukung Korporasi Indonesia Berhasil di Negeri Sendiri dan Bertumbuh di Kancah Global."
+                    "Mengentaskan Kemiskinan dengan Memperluas Kesempatan Berusaha dan Menciptakan Lapangan Kerja, Mewujudkan Upah Berkeadilan, Menjamin Kemajuan Ekonomi Berbasis Kemandirian dan Pemerataan, serta Mendukung Korporasi Indonesia Berhasil di Negeri Sendiri dan Bertumbuh di Kancah Global.",
+                    "Memperkuat Sistem Perlindungan Sosial, Kesehatan, Pendidikan yang Berkualitas, serta Perluasan Akses Ekonomi untuk Kelompok Rentan, Disabilitas, dan Wilayah Terpencil.",
+                    "Melanjutkan Transformasi Digital, Hilirisasi Industri, dan Penciptaan Rantai Nilai (Value Chain) untuk Memperkuat Kedaulatan di Bidang Pangan, Energi, Air, Ekonomi Digital, Ekonomi Hijau, dan Ekonomi Biru.",
+                    "Memperkuat Reformasi Politik, Hukum, dan Birokrasi guna Mewujudkan Pemerintahan Bersih, Efektif, Demokratis, Terpercaya, dan Berorientasi pada Pelayanan Rakyat."
+                )
+            )
+            2 -> VisionMissionModel(
+                candidateNumber = 2,
+                vision = "Bersama Indonesia Maju Menuju Indonesia Emas 2045",
+                missions = listOf(
+                    "Memperkuat Kedaulatan Politik dan Demokrasi Pancasila",
+                    "Memperkuat Sistem Pertahanan-Keamanan Negara dan Mendorong Kemandirian Bangsa melalui Swasembada Pangan, Energi, Air, Ekonomi Syariah, Ekonomi Digital, Ekonomi Hijau dan Ekonomi Biru",
+                    "Meningkatkan SDM yang Unggul dan Pembangunan yang Berkelanjutan"
+                )
+            )
+            3 -> VisionMissionModel(
+                candidateNumber = 3,
+                vision = "Menuju Indonesia yang Adil dan Makmur",
+                missions = listOf(
+                    "Mewujudkan Keadilan Sosial bagi Seluruh Rakyat Indonesia",
+                    "Membangun Ekonomi yang Kuat dan Berkelanjutan",
+                    "Menciptakan Pemerintahan yang Bersih dan Amanah"
                 )
             )
             else -> VisionMissionModel(
@@ -33,35 +189,6 @@ class VisionMissionRepositoryImpl @Inject constructor(
                 vision = "Vision not available",
                 missions = listOf("Mission not available")
             )
-        }
-    }
-
-    // New method for API integration
-    override suspend fun getVisionMissionFromAPI(pairId: String): VisionMissionDetailModel {
-        if (apiService == null) {
-            throw Exception("API service not available")
-        }
-
-        val response = apiService.getVisionMissionDetail(pairId)
-
-        if (response.isSuccessful && response.body()?.code == 0) {
-            val data = response.body()?.data
-            return VisionMissionDetailModel(
-                electionPairId = data?.election_pair_id ?: "",
-                id = data?.id ?: "",
-                vision = data?.vision ?: "",
-                mission = data?.mission ?: "",
-                programDocs = data?.program_docs,
-                workPrograms = data?.work_program?.map { workProgram ->
-                    WorkProgram(
-                        programName = workProgram.program_name,
-                        programDesc = workProgram.program_desc,
-                        programPhoto = workProgram.program_photo
-                    )
-                } ?: emptyList()
-            )
-        } else {
-            throw Exception(response.body()?.error?.error_message ?: "Failed to fetch data")
         }
     }
 }

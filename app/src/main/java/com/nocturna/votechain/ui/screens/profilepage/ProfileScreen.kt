@@ -140,7 +140,7 @@ fun ProfileScreen(
                         Column {
                             // Display voter full name or fallback
                             Text(
-                                text = voterData?.full_name ?: "User Name",
+                                text = voterData?.full_name ?: "Komang",
                                 style = AppTypography.heading4Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )

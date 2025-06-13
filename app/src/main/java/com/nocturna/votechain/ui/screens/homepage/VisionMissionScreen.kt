@@ -41,6 +41,7 @@ fun VisionMissionScreen(
     val strings = LanguageManager.getLocalizedStrings()
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
+    var showDocumentError by remember { mutableStateOf(false) }
 
     // Create and remember the presenter
     val presenter = remember { VisionMissionViewModelImpl() }
@@ -48,7 +49,12 @@ fun VisionMissionScreen(
 
     // Load data when the screen is first composed or when pairId changes
     LaunchedEffect(pairId) {
-        presenter.loadDataFromAPI(pairId) // Updated method call
+        if (pairId.isNotBlank()) {
+            presenter.loadDataFromAPI(pairId) // Load using API with pairId
+        } else {
+            // Fallback to old method if somehow pairId is empty
+            presenter.loadData(1)
+        }
     }
 
     // Main screen content
@@ -173,9 +179,27 @@ fun VisionMissionScreen(
                             }
                         }
                     }
+                    // Add some bottom spacing
+                    item {
+                        Spacer(modifier = Modifier.height(32.dp))
+                    }
                 }
             }
         }
+    }
+
+    // Show error dialog for document opening issues
+    if (showDocumentError) {
+        AlertDialog(
+            onDismissRequest = { showDocumentError = false },
+            title = { Text("Cannot Open Document") },
+            text = { Text("Unable to open the program document. Please check your internet connection and try again.") },
+            confirmButton = {
+                TextButton(onClick = { showDocumentError = false }) {
+                    Text("OK")
+                }
+            }
+        )
     }
 }
 
