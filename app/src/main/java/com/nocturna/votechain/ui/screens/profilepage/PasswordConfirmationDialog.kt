@@ -24,147 +24,148 @@ import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.utils.LanguageManager
 import androidx.compose.ui.platform.LocalContext
+import com.nocturna.votechain.data.repository.UserLoginRepository
 
 @Composable
 fun PasswordConfirmationDialog(
+    isOpen: Boolean,
     onCancel: () -> Unit,
     onSubmit: (String) -> Unit,
-    isOpen: Boolean
+    userLoginRepository: UserLoginRepository
 ) {
-    if (!isOpen) return
-
-    val strings = LanguageManager.getLocalizedStrings()
-    val context = LocalContext.current
-
     var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
+    var showPassword by remember { mutableStateOf(false) }
+    var isError by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
 
-    // Password validation
-    val isPasswordValid = password.length >= 8
-    val passwordError = "Password must be at least 8 characters"
-
-    Dialog(
-        onDismissRequest = onCancel,
-        properties = DialogProperties(
-            dismissOnBackPress = true,
-            dismissOnClickOutside = true
-        )
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .wrapContentHeight(),
-            shape = RoundedCornerShape(16.dp),
-            color = Color.White
-        ) {
-            Column(
+    if (isOpen) {
+        Dialog(onDismissRequest = onCancel) {
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(16.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             ) {
-                // Title
-                Text(
-                    text = "Enter Your Password",
-                    style = AppTypography.heading3Bold,
-                    color = MainColors.Primary1,
-                    textAlign = TextAlign.Center
-                )
-
-                // Description
-                Text(
-                    text = "Please enter your password to proceed. This ensures that your account remain secure",
-                    style = AppTypography.heading6Regular,
-                    color = NeutralColors.Neutral70,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
-                )
-
-                // Password Field
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    placeholder = { Text("Enter your password", style = AppTypography.paragraphRegular) },
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    singleLine = true,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MainColors.Primary1,
-                        unfocusedBorderColor = NeutralColors.Neutral30,
-                        focusedTextColor = NeutralColors.Neutral70,
-                        unfocusedTextColor = NeutralColors.Neutral30,
-                    ),
-                    isError = !isPasswordValid,
-                    supportingText = {
-                        if (!isPasswordValid) {
-                            Text(
-                                text = passwordError,
-                                color = MaterialTheme.colorScheme.error,
-                                style = AppTypography.paragraphRegular
-                            )
-                        }
-                    },
-                    trailingIcon = {
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(
-                                painter = painterResource(
-                                    id = if (passwordVisible) R.drawable.show else R.drawable.hide
-                                ),
-                                contentDescription = if (passwordVisible) "Hide password" else "Show password",
-                                tint = NeutralColors.Neutral30
-                            )
-                        }
-                    }
-                )
-
-                // Buttons row
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Cancel Button
-                    OutlinedButton(
-                        onClick = onCancel,
-                        shape = RoundedCornerShape(24.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = NeutralColors.Neutral60
+                    // Title
+                    Text(
+                        text = "Enter Password",
+                        style = AppTypography.heading4Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    // Subtitle
+                    Text(
+                        text = "Please enter your password to view account details",
+                        style = AppTypography.paragraphRegular,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 24.dp)
+                    )
+
+                    // Password field
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = {
+                            password = it
+                            isError = false
+                        },
+                        label = { Text("Password") },
+                        visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { showPassword = !showPassword }) {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (showPassword) R.drawable.show else R.drawable.hide
+                                    ),
+                                    contentDescription = if (showPassword) "Hide password" else "Show password",
+                                    tint = NeutralColors.Neutral40
+                                )
+                            }
+                        },
+                        isError = isError,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MainColors.Primary1,
+                            unfocusedBorderColor = NeutralColors.Neutral30,
+                            errorBorderColor = MaterialTheme.colorScheme.error
                         ),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(
-                            brush = SolidColor(NeutralColors.Neutral30)
-                        )
-                    ) {
+                        singleLine = true
+                    )
+
+                    if (isError) {
                         Text(
-                            text = "Cancel",
-                            style = AppTypography.heading5Medium
+                            text = errorMessage,
+                            color = MaterialTheme.colorScheme.error,
+                            style = AppTypography.smallParagraphRegular,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp)
                         )
                     }
 
-                    // Submit Button
-                    Button(
-                        onClick = { onSubmit(password) },
-                        enabled = isPasswordValid,
-                        shape = RoundedCornerShape(24.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MainColors.Primary1,
-                            contentColor = Color.White,
-                            disabledContainerColor = NeutralColors.Neutral30,
-                            disabledContentColor = NeutralColors.Neutral50
-                        )
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(
-                            text = "Submit",
-                            style = AppTypography.heading5Medium
-                        )
+                        // Cancel button
+                        OutlinedButton(
+                            onClick = {
+                                password = ""
+                                isError = false
+                                errorMessage = ""
+                                onCancel()
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        ) {
+                            Text("Cancel")
+                        }
+
+                        // Submit button
+                        Button(
+                            onClick = {
+                                if (password.isNotEmpty()) {
+                                    // Verify password against stored hash
+                                    if (userLoginRepository.verifyPassword(password)) {
+                                        // Password is correct
+                                        onSubmit(password)
+                                        password = ""
+                                        isError = false
+                                        errorMessage = ""
+                                    } else {
+                                        // Password is incorrect
+                                        isError = true
+                                        errorMessage = "Incorrect password. Please try again."
+                                    }
+                                } else {
+                                    isError = true
+                                    errorMessage = "Password cannot be empty"
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MainColors.Primary1
+                            )
+                        ) {
+                            Text("Submit")
+                        }
                     }
                 }
             }

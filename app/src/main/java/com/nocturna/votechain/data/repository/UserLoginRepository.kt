@@ -2,6 +2,8 @@ package com.nocturna.votechain.data.repository
 
 import android.content.Context
 import android.util.Log
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import com.google.gson.Gson
 import com.nocturna.votechain.data.model.ApiResponse
 import com.nocturna.votechain.data.model.LoginRequest
@@ -9,6 +11,7 @@ import com.nocturna.votechain.data.model.UserLoginData
 import com.nocturna.votechain.data.network.NetworkClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.security.MessageDigest
 
 /**
  * Repository class to handle user login operations with voter data integration
@@ -19,9 +22,29 @@ class UserLoginRepository(private val context: Context) {
     private val voterRepository = VoterRepository(context)
 
     private val PREFS_NAME = "VoteChainPrefs"
+    private val SECURE_PREFS_NAME = "VoteChainSecurePrefs"
     private val KEY_USER_TOKEN = "user_token"
     private val KEY_USER_EMAIL = "user_email"
     private val KEY_USER_EXPIRES_AT = "expires_at"
+    private val KEY_USER_PASSWORD_HASH = "user_password_hash"
+
+    // Initialize encrypted shared preferences for storing sensitive data
+    private val masterKey = MasterKey.Builder(context)
+        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        .build()
+
+    private val encryptedSharedPreferences = try {
+        EncryptedSharedPreferences.create(
+            context,
+            SECURE_PREFS_NAME,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    } catch (e: Exception) {
+        Log.e(TAG, "Failed to create encrypted preferences, falling back to regular preferences", e)
+        context.getSharedPreferences(SECURE_PREFS_NAME, Context.MODE_PRIVATE)
+    }
 
     /**
      * Login user with email and password, then fetch voter data
@@ -47,6 +70,8 @@ class UserLoginRepository(private val context: Context) {
                     // Store user data if login is successful and there is a token
                     if (loginResponse.code == 200 && loginResponse.data?.token?.isNotEmpty() == true) {
                         saveUserData(loginResponse.data, email)
+                        // Save password hash for profile verification
+                        savePasswordHash(password)
 
                         // Fetch voter data after successful login
                         try {
@@ -79,52 +104,15 @@ class UserLoginRepository(private val context: Context) {
                     if (errorJson.error != null) {
                         Log.e(TAG, "Error details: ${errorJson.error.error_message}")
                     }
-
-                    // Return more specific error messages based on status code
-                    val errorMessage = when (response.code()) {
-                        400 -> "Invalid email or password"
-                        401 -> "Unauthorized: Please check your credentials"
-                        403 -> "Account access forbidden"
-                        404 -> "User not found"
-                        422 -> "Invalid request format"
-                        500 -> "Server error: Please try again later"
-                        else -> errorJson.message
-                    }
-
-                    Result.failure(Exception(errorMessage))
+                    Result.failure(Exception(errorJson.message))
                 } catch (e: Exception) {
                     Log.e(TAG, "Could not parse error JSON: ${e.message}")
-
-                    // Provide user-friendly error messages for common HTTP codes
-                    val errorMessage = when (response.code()) {
-                        400 -> "Invalid email or password"
-                        401 -> "Unauthorized: Please check your credentials"
-                        403 -> "Account access forbidden"
-                        404 -> "User not found"
-                        422 -> "Invalid request format"
-                        500 -> "Server error: Please try again later"
-                        502, 503, 504 -> "Server temporarily unavailable"
-                        else -> "Login failed: ${response.code()}"
-                    }
-
-                    Result.failure(Exception(errorMessage))
+                    Result.failure(Exception("Error: ${response.code()} - $errorBody"))
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Exception during login", e)
-
-            // Provide user-friendly error messages for common exceptions
-            val errorMessage = when {
-                e.message?.contains("timeout", ignoreCase = true) == true ->
-                    "Connection timeout: Please check your internet connection"
-                e.message?.contains("network", ignoreCase = true) == true ->
-                    "Network error: Please check your internet connection"
-                e.message?.contains("connection", ignoreCase = true) == true ->
-                    "Connection failed: Please try again"
-                else -> e.message ?: "An unexpected error occurred"
-            }
-
-            Result.failure(Exception(errorMessage))
+            Result.failure(e)
         }
     }
 
@@ -140,6 +128,54 @@ class UserLoginRepository(private val context: Context) {
             apply()
         }
         Log.d(TAG, "User data saved to SharedPreferences with email: $email")
+    }
+
+    /**
+     * Save password hash to encrypted shared preferences
+     */
+    private fun savePasswordHash(password: String) {
+        try {
+            val passwordHash = hashPassword(password)
+            with(encryptedSharedPreferences.edit()) {
+                putString(KEY_USER_PASSWORD_HASH, passwordHash)
+                apply()
+            }
+            Log.d(TAG, "Password hash saved securely")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save password hash", e)
+        }
+    }
+
+    /**
+     * Verify password against stored hash
+     */
+    fun verifyPassword(password: String): Boolean {
+        return try {
+            val storedHash = encryptedSharedPreferences.getString(KEY_USER_PASSWORD_HASH, null)
+            if (storedHash != null) {
+                val inputHash = hashPassword(password)
+                val isValid = storedHash == inputHash
+                Log.d(TAG, "Password verification: ${if (isValid) "SUCCESS" else "FAILED"}")
+                isValid
+            } else {
+                Log.w(TAG, "No stored password hash found")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during password verification", e)
+            false
+        }
+    }
+
+    /**
+     * Hash password using SHA-256 with salt
+     */
+    private fun hashPassword(password: String): String {
+        val salt = "VoteChain_Salt_2024" // In production, use a unique salt per user
+        val input = "$password$salt"
+        val digest = MessageDigest.getInstance("SHA-256")
+        val hashBytes = digest.digest(input.toByteArray())
+        return hashBytes.joinToString("") { "%02x".format(it) }
     }
 
     /**
@@ -208,6 +244,17 @@ class UserLoginRepository(private val context: Context) {
             remove(KEY_USER_EMAIL)
             remove(KEY_USER_EXPIRES_AT)
             apply()
+        }
+
+        // Clear password hash from encrypted preferences
+        try {
+            with(encryptedSharedPreferences.edit()) {
+                remove(KEY_USER_PASSWORD_HASH)
+                apply()
+            }
+            Log.d(TAG, "Password hash cleared")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to clear password hash", e)
         }
 
         // Clear voter data as well

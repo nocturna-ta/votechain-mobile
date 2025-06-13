@@ -116,21 +116,13 @@ fun ProfileScreen(
 
     // Refresh profile data saat screen dibuka
     LaunchedEffect(Unit) {
-        // Coba ambil data dari API terlebih dahulu
         userProfileRepository.fetchCompleteUserProfile().fold(
             onSuccess = { profile ->
                 completeUserProfile = profile
-                dataLoadError = null
             },
             onFailure = { error ->
-                dataLoadError = error.message
-                // Jika gagal, gunakan saved profile atau fallback ke local voter data
+                // Use saved profile if fetch fails
                 completeUserProfile = userProfileRepository.getSavedCompleteProfile()
-
-                // Jika masih tidak ada, coba ambil dari VoterRepository local
-                if (completeUserProfile?.voterProfile == null) {
-                    fallbackVoterData = voterRepository.getVoterDataLocally()
-                }
             }
         )
     }
@@ -280,7 +272,6 @@ fun ProfileScreen(
                             Button(
                                 onClick = {
                                     showPasswordDialog = true
-                                    navController.navigate("account_details")
                                 },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MainColors.Primary1
@@ -307,12 +298,12 @@ fun ProfileScreen(
             // Password Confirmation Dialog
             PasswordConfirmationDialog(
                 isOpen = showPasswordDialog,
+                userLoginRepository = userLoginRepository,
                 onCancel = { showPasswordDialog = false },
                 onSubmit = { password ->
-                    // Handle password verification here
-                    // For demo purposes, always consider password correct
+                    // Password verification is handled inside the dialog
+                    // If we reach here, password is correct
                     showPasswordDialog = false
-                    // You could navigate to a detailed profile view or perform other actions here
                     navController.navigate("account_details")
                 }
             )
