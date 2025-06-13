@@ -83,18 +83,12 @@ data class VerificationStatusData(
     val created_at: String
 )
 
-/**
- * Data class for user profile response from /v1/user/{email}
- */
 data class UserProfileData(
     val email: String,
     val id: String,
     val role: String
 )
 
-/**
- * Data class for user profile API response
- */
 data class UserProfileResponse(
     val code: Int,
     val data: UserProfileData?,
@@ -102,33 +96,7 @@ data class UserProfileResponse(
     val message: String
 )
 
-/**
- * Data class for voter profile yang akan dicocokkan dengan user_id
- */
-data class VoterProfileData(
-    val user_id: String,
-    val nik: String,
-    val full_name: String,
-    val gender: String,
-    val birth_place: String,
-    val birth_date: String,
-    val residential_address: String,
-    val ktp_photo_path: String,
-    val kpu_name: String,
-    val region: String,
-    val telephone: String,
-    val email: String,
-    val address: String,
-    val is_active: Boolean,
-    val verification_status: String,
-    val created_at: String,
-    val updated_at: String
-)
-
-/**
- * Data class untuk combined profile (user + voter data)
- */
 data class CompleteUserProfile(
     val userProfile: UserProfileData,
-    val voterProfile: VoterProfileData?
+    val voterProfile: VoterData?
 )

@@ -80,11 +80,13 @@ fun VotingScreen(
                 selectedTabIndex = pagerState.currentPage,
                 indicator = { tabPositions ->
                     TabRowDefaults.Indicator(
-                        modifier = Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
+                        modifier = Modifier
+                            .tabIndicatorOffset(tabPositions[pagerState.currentPage])
+                            .padding(horizontal = 24.dp),
                         color = MainColors.Primary1
                     )
                 },
-                divider = { Divider(color = NeutralColors.Neutral20, thickness = 1.dp) }
+               divider = { Divider(color = NeutralColors.Neutral10, thickness = 1.dp) }
             ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
@@ -148,7 +150,7 @@ fun ActiveVotingTab(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 24.dp)
     ) {
         if (isLoading) {
             CircularProgressIndicator(
@@ -176,7 +178,8 @@ fun ActiveVotingTab(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 8.dp)
+                contentPadding = PaddingValues(top = 24.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp) // Add spacing between cards
             ) {
                 items(activeVotings) { votingCategory ->
                     VotingCard(
@@ -195,22 +198,20 @@ fun VotingCard(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp), // Match home screen corner radius
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface // Match home screen background
         ),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = 0.dp
-        )
+            defaultElevation = 2.dp // Match home screen elevation
+        ),
+        onClick = onClick // Use Card's onClick for better touch feedback
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(24.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -219,17 +220,18 @@ fun VotingCard(
             ) {
                 Text(
                     text = votingCategory.title,
-                    style = AppTypography.heading5SemiBold.copy(fontWeight = FontWeight.SemiBold),
-                    color = PrimaryColors.Primary60
+                    style = AppTypography.heading5Bold, // Match home screen text style
+                    color = MaterialTheme.colorScheme.onSurface // Match home screen text color
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
                     text = votingCategory.description,
-                    style = AppTypography.paragraphRegular,
-                    color = NeutralColors.Neutral40,
+                    style = AppTypography.heading6Medium, // Match home screen description style
+                    color = MaterialTheme.colorScheme.onBackground, // Match home screen description color
                     maxLines = 1,
+                    modifier = Modifier.width(270.dp), // Match home screen width constraint
                     overflow = TextOverflow.Ellipsis
                 )
             }

@@ -19,6 +19,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.nocturna.votechain.R
+import com.nocturna.votechain.data.repository.UserProfileRepository
 import com.nocturna.votechain.data.repository.VoterRepository
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
@@ -37,16 +38,44 @@ fun AccountDetailsScreen(
     val scrollState = rememberScrollState()
     val context = LocalContext.current
 
-    // Get voter data from repository
+// Repository instances
+    val userProfileRepository = remember { UserProfileRepository(context) }
     val voterRepository = remember { VoterRepository(context) }
-    val voterData = voterRepository.getVoterDataLocally()
-    val walletInfo = voterRepository.getWalletInfo()
 
-    // Data from voter or default values
-    val balance = walletInfo.balance
+    // State untuk profile data dengan fallback
+    var completeUserProfile by remember { mutableStateOf(userProfileRepository.getSavedCompleteProfile()) }
+    var fallbackVoterData by remember { mutableStateOf(voterRepository.getVoterDataLocally()) }
+    var dataLoadError by remember { mutableStateOf<String?>(null) }
+
+    // Refresh profile data saat screen dibuka
+    LaunchedEffect(Unit) {
+        userProfileRepository.fetchCompleteUserProfile().fold(
+            onSuccess = { profile ->
+                completeUserProfile = profile
+                dataLoadError = null
+            },
+            onFailure = { error ->
+                dataLoadError = error.message
+                // Gunakan saved profile sebagai fallback
+                completeUserProfile = userProfileRepository.getSavedCompleteProfile()
+
+                // Jika masih tidak ada, gunakan local voter data
+                if (completeUserProfile?.voterProfile == null) {
+                    fallbackVoterData = voterRepository.getVoterDataLocally()
+                }
+            }
+        )
+    }
+
+    // Extract data dari complete profile
+    val voterData = completeUserProfile?.voterProfile
+    val userProfile = completeUserProfile?.userProfile
+
+    // Data dari voter atau default values
+    val balance = "0.0000" // Placeholder balance
     val nik = voterData?.nik ?: "No NIK available"
-    val privateKey = if (walletInfo.privateKey.isNotEmpty()) walletInfo.privateKey else "Not available yet"
-    val publicKey = walletInfo.publicKey.ifEmpty { "No public key available" }
+    val privateKey = "Not available yet" // Placeholder private key
+    val publicKey = voterData?.voter_address ?: "No public key available"
 
     var showPrivateKey by remember { mutableStateOf(false) }
 
@@ -126,6 +155,31 @@ fun AccountDetailsScreen(
 
             OutlinedTextField(
                 value = nik,
+                onValueChange = { },
+                readOnly = true,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = NeutralColors.Neutral30,
+                    unfocusedTextColor = NeutralColors.Neutral70,
+                    disabledBorderColor = NeutralColors.Neutral30,
+                    disabledTextColor = NeutralColors.Neutral70,
+                    focusedBorderColor = MainColors.Primary1,
+                    focusedTextColor = NeutralColors.Neutral70,
+                ),
+                textStyle = AppTypography.heading5Regular
+            )
+
+            // Full Name
+            Text(
+                text = "Full Name",
+                style = AppTypography.heading5Regular,
+                color = NeutralColors.Neutral70,
+                modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
+            )
+
+            OutlinedTextField(
+                value = voterData?.full_name ?: "No name available",
                 onValueChange = { },
                 readOnly = true,
                 shape = RoundedCornerShape(8.dp),

@@ -7,13 +7,20 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,10 +28,16 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.nocturna.votechain.R
+import com.nocturna.votechain.ui.theme.AppTypography
+import com.nocturna.votechain.ui.theme.MainColors
+import com.nocturna.votechain.ui.theme.NeutralColors
 
 @Composable
 fun ResultsScreen(
@@ -35,110 +48,111 @@ fun ResultsScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
 
-    if (isLoading) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            CircularProgressIndicator()
-        }
-    } else if (error != null) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Text(
-                text = error ?: "Unknown error occurred",
-                color = MaterialTheme.colorScheme.error,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(16.dp)
-            )
-        }
-    } else if (votingResults.isEmpty()) {
-        EmptyResultsState()
-    } else {
-        LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            items(votingResults) { result ->
-                ResultCard(result = result)
-            }
-        }
-    }
-}
-
-@Composable
-fun ResultCard(result: VotingResult) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp
-        ),
-        modifier = Modifier.padding(vertical = 8.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp) // Match active voting padding
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = result.categoryTitle,
-                style = MaterialTheme.typography.titleMedium
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.Center),
+                color = MainColors.Primary1
             )
-
-            Text(
-                text = "Total Votes: ${result.totalVotes}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-
-            result.options.forEach { option ->
-                VotingResultItem(
-                    name = option.name,
-                    votes = option.votes,
-                    percentage = option.percentage
+        } else if (error != null) {
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Error loading results",
+                    style = AppTypography.heading5Medium,
+                    color = NeutralColors.Neutral70
+                )
+                Text(
+                    text = "error",
+                    style = AppTypography.paragraphRegular,
+                    color = NeutralColors.Neutral50
                 )
             }
+        } else if (votingResults.isEmpty()) {
+            EmptyResultsState()
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = 24.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp) // Match active voting spacing
+            ) {
+                items(votingResults) { result ->
+                    ResultCard(
+                        result = result,
+                        onClick = {
+                            // Navigate to detailed results if needed
+                            navController.navigate("detail_result/${result.categoryId}/${result.categoryTitle}")
+                        }
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-fun VotingResultItem(
-    name: String,
-    votes: Int,
-    percentage: Float
+fun ResultCard(
+    result: VotingResult,
+    onClick: () -> Unit = {}
 ) {
-    Column(
-        modifier = Modifier.padding(top = 12.dp)
+    // Match the exact same card styling as active voting
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp), // Match active voting corner radius
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface // Match active voting background
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 2.dp // Match active voting elevation
+        ),
+        onClick = onClick // Use Card's onClick for consistency
     ) {
-        Text(
-            text = name,
-            style = MaterialTheme.typography.bodyMedium
-        )
-
-        androidx.compose.foundation.layout.Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 4.dp)
+                .fillMaxWidth()
+                .padding(24.dp), // Match active voting padding
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            androidx.compose.foundation.layout.Box(
-                modifier = Modifier
-                    .weight(percentage)
-                    .padding(end = 8.dp)
-                    .background(color = MaterialTheme.colorScheme.primary)
-                    .padding(vertical = 4.dp)
-            )
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = result.categoryTitle,
+                    style = AppTypography.heading5Bold, // Match active voting text style
+                    color = MaterialTheme.colorScheme.onSurface // Match active voting text color
+                )
 
-            Text(
-                text = "$votes votes (${String.format("%.1f", percentage * 100)}%)",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                Spacer(modifier = Modifier.height(6.dp)) // Match active voting spacing
+
+                // Create description showing winner or status
+                val description = if (result.options.isNotEmpty()) {
+                    val winner = result.options.maxByOrNull { it.votes }
+                    "Winner: ${winner?.name} with ${winner?.votes} votes"
+                } else {
+                    "Total votes: ${result.totalVotes}"
+                }
+
+                Text(
+                    text = description,
+                    style = AppTypography.heading6Medium, // Match active voting description style
+                    color = MaterialTheme.colorScheme.onBackground, // Match active voting description color
+                    maxLines = 1,
+                    modifier = Modifier.width(270.dp), // Match active voting width constraint
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Icon(
+                painter = painterResource(id = R.drawable.right2),
+                contentDescription = "View Details",
+                tint = MaterialTheme.colorScheme.onSurface // Match active voting icon color
             )
         }
     }
@@ -155,15 +169,16 @@ fun EmptyResultsState() {
     ) {
         Text(
             text = "No voting results available",
-            style = MaterialTheme.typography.titleMedium,
-            textAlign = TextAlign.Center
+            style = AppTypography.heading5Medium,
+            textAlign = TextAlign.Center,
+            color = NeutralColors.Neutral70
         )
 
         Text(
             text = "Results will appear here after voting periods end.",
-            style = MaterialTheme.typography.bodyMedium,
+            style = AppTypography.paragraphRegular,
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = NeutralColors.Neutral50,
             modifier = Modifier.padding(top = 8.dp)
         )
     }

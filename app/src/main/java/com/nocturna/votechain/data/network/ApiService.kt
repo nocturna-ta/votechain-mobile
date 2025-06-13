@@ -4,6 +4,7 @@ import com.nocturna.votechain.data.model.ApiResponse
 import com.nocturna.votechain.data.model.LoginRequest
 import com.nocturna.votechain.data.model.RegisterRequest
 import com.nocturna.votechain.data.model.UserLoginData
+import com.nocturna.votechain.data.model.UserProfileResponse
 import com.nocturna.votechain.data.model.UserRegistrationData
 import com.nocturna.votechain.data.model.VerificationStatusData
 import com.nocturna.votechain.data.model.VoterResponse
@@ -17,6 +18,7 @@ import retrofit2.http.Part
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 /**
  * API Service interface for network requests
@@ -82,4 +84,24 @@ interface ApiService {
         @Path("email") email: String,
         @Header("Authorization") token: String
     ): Response<ApiResponse<VerificationStatusData>>
+
+    /**
+     * Get user profile by email
+     * Endpoint: /v1/user/{email}
+     */
+    @GET("v1/user/{email}")
+    suspend fun getUserProfile(
+        @Path("email") email: String,
+        @Header("Authorization") token: String
+    ): Response<UserProfileResponse>
+
+    /**
+     * Get voter data by user_id (jika API mendukung filter)
+     * Endpoint: /v1/voter
+     */
+    @GET("v1/voter")
+    suspend fun getVoterByUserId(
+        @Header("Authorization") token: String,
+        @Query("user_id") userId: String? = null
+    ): Response<VoterResponse>
 }

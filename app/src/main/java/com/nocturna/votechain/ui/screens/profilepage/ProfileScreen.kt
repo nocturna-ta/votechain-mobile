@@ -40,6 +40,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +61,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.nocturna.votechain.data.repository.UserLoginRepository
+import com.nocturna.votechain.data.repository.UserProfileRepository
 import com.nocturna.votechain.data.repository.VoterRepository
 import com.nocturna.votechain.ui.screens.BottomNavigation
 import com.nocturna.votechain.ui.theme.AppTypography
@@ -70,6 +73,8 @@ import com.nocturna.votechain.utils.LanguageManager
 import com.nocturna.votechain.utils.LanguageManager.currentLanguage
 import com.nocturna.votechain.utils.ThemeManager
 import com.nocturna.votechain.utils.getLocalizedStrings
+import com.nocturna.votechain.viewmodel.UserProfileViewModel
+import com.nocturna.votechain.viewmodel.UserProfileViewModelFactory
 import com.nocturna.votechain.viewmodel.login.LoginViewModel
 
 @Composable
@@ -95,10 +100,44 @@ fun ProfileScreen(
     // Get LoginViewModel instance
     val loginViewModel: LoginViewModel = viewModel(factory = LoginViewModel.Factory(context))
 
-    // Get voter data from repository
+    // Repository instances
+    val userProfileRepository = remember { UserProfileRepository(context) }
+    val userLoginRepository = remember { UserLoginRepository(context) }
     val voterRepository = remember { VoterRepository(context) }
-    val voterData = voterRepository.getVoterDataLocally()
-    val walletInfo = voterRepository.getWalletInfo()
+
+    // State untuk profile data
+    var completeUserProfile by remember { mutableStateOf(userProfileRepository.getSavedCompleteProfile()) }
+    var fallbackVoterData by remember { mutableStateOf(voterRepository.getVoterDataLocally()) }
+    var dataLoadError by remember { mutableStateOf<String?>(null) }
+
+//    // Get voter data from repository
+//    val voterRepository = remember { VoterRepository(context) }
+//    val walletInfo = voterRepository.getWalletInfo()
+
+    // Refresh profile data saat screen dibuka
+    LaunchedEffect(Unit) {
+        // Coba ambil data dari API terlebih dahulu
+        userProfileRepository.fetchCompleteUserProfile().fold(
+            onSuccess = { profile ->
+                completeUserProfile = profile
+                dataLoadError = null
+            },
+            onFailure = { error ->
+                dataLoadError = error.message
+                // Jika gagal, gunakan saved profile atau fallback ke local voter data
+                completeUserProfile = userProfileRepository.getSavedCompleteProfile()
+
+                // Jika masih tidak ada, coba ambil dari VoterRepository local
+                if (completeUserProfile?.voterProfile == null) {
+                    fallbackVoterData = voterRepository.getVoterDataLocally()
+                }
+            }
+        )
+    }
+
+    // Extract voter data dari complete profile
+    val voterData = completeUserProfile?.voterProfile ?: fallbackVoterData
+    val userEmail = completeUserProfile?.userProfile?.email ?: userLoginRepository.getUserEmail()
 
     val scrollState = rememberScrollState()
 
@@ -193,8 +232,14 @@ fun ProfileScreen(
                     ) {
                         Column {
                             // Display voter full name or fallback
+                            val displayName = when {
+                                voterData?.full_name?.isNotEmpty() == true -> voterData.full_name
+                                userEmail.isNotEmpty() -> userEmail.split("@").firstOrNull() ?: "User"
+                                else -> "User"
+                            }
+
                             Text(
-                                text = voterData?.full_name ?: "Komang",
+                                text = displayName,
                                 style = AppTypography.heading4Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -219,6 +264,15 @@ fun ProfileScreen(
                                         "Vote Incomplete"
                                     },
                                     modifier = Modifier.size(80.dp, 24.dp)
+                                )
+                            }
+
+                            if (dataLoadError != null) {
+                                Text(
+                                    text = "Data may not be current",
+                                    style = AppTypography.smallParagraphRegular,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.padding(top = 4.dp)
                                 )
                             }
                         }
