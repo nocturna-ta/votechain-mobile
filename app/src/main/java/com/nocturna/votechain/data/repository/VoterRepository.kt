@@ -32,7 +32,14 @@ class VoterRepository(private val context: Context) {
         try {
             Log.d(TAG, "Fetching voter data with token")
 
-            val response = apiService.getVoterData("Bearer $userToken")
+            // Format token properly if it doesn't already have Bearer prefix
+            val formattedToken = if (userToken.startsWith("Bearer ")) {
+                userToken
+            } else {
+                "Bearer $userToken"
+            }
+
+            val response = apiService.getVoterDataWithToken(formattedToken)
 
             if (response.isSuccessful) {
                 response.body()?.let { voterResponse ->
@@ -53,7 +60,13 @@ class VoterRepository(private val context: Context) {
                 val errorBody = response.errorBody()?.string()
                 Log.e(TAG, "Failed to fetch voter data: ${response.code()}")
                 Log.e(TAG, "Error body: $errorBody")
-                Result.failure(Exception("Failed to fetch voter data: ${response.code()}"))
+
+                when (response.code()) {
+                    401 -> Result.failure(Exception("Unauthorized: Invalid or expired token"))
+                    403 -> Result.failure(Exception("Forbidden: Access denied"))
+                    404 -> Result.failure(Exception("Voter data not found"))
+                    else -> Result.failure(Exception("Failed to fetch voter data: ${response.code()}"))
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Exception during voter data fetch", e)
@@ -137,4 +150,64 @@ class VoterRepository(private val context: Context) {
         }
         Log.d(TAG, "Voter data cleared from SharedPreferences")
     }
+
+//    /**
+//     * Get stored voter data from local SharedPreferences
+//     */
+//    fun getStoredVoterData(): VoterData? {
+//        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+//
+//        val fullName = sharedPreferences.getString(KEY_VOTER_FULL_NAME, null)
+//        val nik = sharedPreferences.getString(KEY_VOTER_NIK, null)
+//
+//        return if (fullName != null && nik != null) {
+//            val publicKey = sharedPreferences.getString(KEY_VOTER_PUBLIC_KEY, null)
+//            val privateKey = sharedPreferences.getString(KEY_VOTER_PRIVATE_KEY, null)
+//            val hasVoted = sharedPreferences.getBoolean(KEY_VOTER_HAS_VOTED, false)
+//
+//            val walletInfo = if (publicKey != null && privateKey != null) {
+//                WalletInfo(public_key = publicKey, private_key = privateKey)
+//            } else null
+//
+//            VoterData(
+//                full_name = fullName,
+//                nik = nik,
+//                wallet_info = walletInfo,
+//                has_voted = hasVoted
+//            )
+//        } else {
+//            null
+//        }
+//    }
+
+    /**
+     * Check if voter data is available locally
+     */
+    fun hasStoredVoterData(): Boolean {
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val fullName = sharedPreferences.getString(KEY_VOTER_FULL_NAME, null)
+        val nik = sharedPreferences.getString(KEY_VOTER_NIK, null)
+        return fullName != null && nik != null
+    }
+
+    /**
+     * Update voting status locally
+     */
+    fun updateVotingStatus(hasVoted: Boolean) {
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        with(sharedPreferences.edit()) {
+            putBoolean(KEY_VOTER_HAS_VOTED, hasVoted)
+            apply()
+        }
+        Log.d(TAG, "Voting status updated: $hasVoted")
+    }
+
+    /**
+     * Get voting status from local storage
+     */
+    fun getVotingStatus(): Boolean {
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return sharedPreferences.getBoolean(KEY_VOTER_HAS_VOTED, false)
+    }
 }
+

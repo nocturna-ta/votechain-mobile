@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -37,6 +38,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -55,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.nocturna.votechain.data.repository.VoterRepository
@@ -67,16 +70,19 @@ import com.nocturna.votechain.utils.LanguageManager
 import com.nocturna.votechain.utils.LanguageManager.currentLanguage
 import com.nocturna.votechain.utils.ThemeManager
 import com.nocturna.votechain.utils.getLocalizedStrings
+import com.nocturna.votechain.viewmodel.login.LoginViewModel
 
 @Composable
 fun ProfileScreen(
     onNavigateToFAQ: () -> Unit = {},
     navController: NavController,
     onHomeClick: () -> Unit = {},
-    onVotesClick: () -> Unit = {}
+    onVotesClick: () -> Unit = {},
+    onLogout: () -> Unit = {}
 ) {
     var showLanguageDropdown by remember { mutableStateOf(false) }
     var showThemeDropdown by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
     val currentRoute = "profile"
     var showPasswordDialog by remember { mutableStateOf(false) }
 
@@ -86,12 +92,60 @@ fun ProfileScreen(
     val context = LocalContext.current
     val currentTheme by ThemeManager.currentTheme.collectAsState()
 
+    // Get LoginViewModel instance
+    val loginViewModel: LoginViewModel = viewModel(factory = LoginViewModel.Factory(context))
+
     // Get voter data from repository
     val voterRepository = remember { VoterRepository(context) }
     val voterData = voterRepository.getVoterDataLocally()
     val walletInfo = voterRepository.getWalletInfo()
 
     val scrollState = rememberScrollState()
+
+    // Logout Confirmation Dialog
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = {
+                Text(
+                    text = "Logout",
+                    style = AppTypography.heading4Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to logout from your account?",
+                    style = AppTypography.paragraphRegular,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutDialog = false
+                        loginViewModel.logoutUser()
+                        onLogout()
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = NeutralColors.Neutral40
+                    )
+                ) {
+                    Text("Logout")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showLogoutDialog = false },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -448,6 +502,28 @@ fun ProfileScreen(
                 }
 
                 Divider(color =  MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
+
+                // Logout Option
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showLogoutDialog = true }
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Logout",
+                        style = AppTypography.heading5Medium,
+                        color = NeutralColors.Neutral40,
+                    )
+                    Icon(
+                        painter = painterResource(id = R.drawable.down2),
+                        contentDescription = null,
+                        tint = NeutralColors.Neutral40,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
 
                 // About Section
                 Text(

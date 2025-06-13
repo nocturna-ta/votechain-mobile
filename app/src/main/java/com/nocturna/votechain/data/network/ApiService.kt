@@ -27,7 +27,9 @@ interface ApiService {
      * Endpoint: /v1/user/register
      */
     @POST("v1/user/register")
-    suspend fun registerUser(@Body request: RegisterRequest): Response<ApiResponse<UserRegistrationData>>
+    suspend fun registerUser(
+        @Body request: RegisterRequest
+    ): Response<ApiResponse<UserRegistrationData>>
 
     /**
      * Register a new user with form data and file upload
@@ -56,12 +58,28 @@ interface ApiService {
         @Header("Authorization") token: String
     ): Response<VoterResponse>
 
+    @GET("v1/voter")
+    suspend fun getVoterDataWithToken(
+        @Header("Authorization") token: String
+    ): Response<VoterResponse>
+
     /**
      * Get user verification status by email
      * Endpoint: /v1/user/verification-status/{email}
+     * Note: May require authentication depending on API design
      */
     @GET("v1/user/verification-status/{email}")
     suspend fun getVerificationStatus(
         @Path("email") email: String
+    ): Response<ApiResponse<VerificationStatusData>>
+
+    /**
+     * Get user verification status with manual token
+     * Endpoint: /v1/user/verification-status/{email}
+     */
+    @GET("v1/user/verification-status/{email}")
+    suspend fun getVerificationStatusWithToken(
+        @Path("email") email: String,
+        @Header("Authorization") token: String
     ): Response<ApiResponse<VerificationStatusData>>
 }

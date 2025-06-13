@@ -79,15 +79,52 @@ class UserLoginRepository(private val context: Context) {
                     if (errorJson.error != null) {
                         Log.e(TAG, "Error details: ${errorJson.error.error_message}")
                     }
-                    Result.failure(Exception(errorJson.message))
+
+                    // Return more specific error messages based on status code
+                    val errorMessage = when (response.code()) {
+                        400 -> "Invalid email or password"
+                        401 -> "Unauthorized: Please check your credentials"
+                        403 -> "Account access forbidden"
+                        404 -> "User not found"
+                        422 -> "Invalid request format"
+                        500 -> "Server error: Please try again later"
+                        else -> errorJson.message
+                    }
+
+                    Result.failure(Exception(errorMessage))
                 } catch (e: Exception) {
                     Log.e(TAG, "Could not parse error JSON: ${e.message}")
-                    Result.failure(Exception("Error: ${response.code()} - $errorBody"))
+
+                    // Provide user-friendly error messages for common HTTP codes
+                    val errorMessage = when (response.code()) {
+                        400 -> "Invalid email or password"
+                        401 -> "Unauthorized: Please check your credentials"
+                        403 -> "Account access forbidden"
+                        404 -> "User not found"
+                        422 -> "Invalid request format"
+                        500 -> "Server error: Please try again later"
+                        502, 503, 504 -> "Server temporarily unavailable"
+                        else -> "Login failed: ${response.code()}"
+                    }
+
+                    Result.failure(Exception(errorMessage))
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Exception during login", e)
-            Result.failure(e)
+
+            // Provide user-friendly error messages for common exceptions
+            val errorMessage = when {
+                e.message?.contains("timeout", ignoreCase = true) == true ->
+                    "Connection timeout: Please check your internet connection"
+                e.message?.contains("network", ignoreCase = true) == true ->
+                    "Network error: Please check your internet connection"
+                e.message?.contains("connection", ignoreCase = true) == true ->
+                    "Connection failed: Please try again"
+                else -> e.message ?: "An unexpected error occurred"
+            }
+
+            Result.failure(Exception(errorMessage))
         }
     }
 
@@ -177,5 +214,50 @@ class UserLoginRepository(private val context: Context) {
         voterRepository.clearVoterData()
 
         Log.d(TAG, "User logged out, all data cleared")
+    }
+
+    /**
+     * Check if token is expired (enhanced version)
+     * You can implement more sophisticated date parsing here
+     */
+    fun isTokenExpired(): Boolean {
+        val expiresAt = getUserTokenExpiry()
+        if (expiresAt.isEmpty()) return true
+
+        try {
+            // TODO: Implement proper date parsing based on your API's date format
+            // For example, if expires_at is in ISO 8601 format:
+            // val expiryDate = Instant.parse(expiresAt)
+            // return expiryDate.isBefore(Instant.now())
+
+            // For now, we assume token is valid if it exists
+            return false
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing token expiry date: ${e.message}")
+            return true // Assume expired if we can't parse
+        }
+    }
+
+    /**
+     * Clear expired token and related data
+     */
+    fun clearExpiredSession() {
+        if (isTokenExpired()) {
+            logoutUser()
+            Log.d(TAG, "Expired session cleared")
+        }
+    }
+
+    /**
+     * Get user data summary for debugging
+     */
+    fun getUserDataSummary(): Map<String, String> {
+        return mapOf(
+            "hasToken" to getUserToken().isNotEmpty().toString(),
+            "email" to getUserEmail(),
+            "expiresAt" to getUserTokenExpiry(),
+            "isLoggedIn" to isUserLoggedIn().toString(),
+            "isExpired" to isTokenExpired().toString()
+        )
     }
 }

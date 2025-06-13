@@ -292,6 +292,12 @@ fun VotechainNavGraph(
                         popUpTo("profile") { inclusive = true }
                         launchSingleTop = true
                     }
+                },
+                onLogout = {
+                    // Navigate to login screen and clear all previous screens from back stack
+                    navController.navigate("login") {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
             )
         }
