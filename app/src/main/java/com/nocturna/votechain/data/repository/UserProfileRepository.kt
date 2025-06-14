@@ -86,9 +86,25 @@ class UserProfileRepository(private val context: Context) {
 
             if (response.isSuccessful) {
                 response.body()?.let { profileResponse ->
-                    if (profileResponse.code == 0 && profileResponse.data != null) {
+                    if (profileResponse.data != null) {
                         Log.d(TAG, "User profile API call successful")
-                        Result.success(profileResponse.data)
+
+                        // Extract header information
+                        val headers = response.headers()
+                        val publicAddress = headers["x-address"]
+                        val userId = headers["x-user-id"]
+                        val role = headers["x-role"] ?: headers["role"]
+
+                        Log.d(TAG, "Headers extracted - x-address: $publicAddress, x-user-id: $userId, role: $role")
+
+                        // Create enhanced profile data with header information
+                        val enhancedProfileData = profileResponse.data.copy(
+                            publicAddress = publicAddress,
+                            userId = userId,
+                            userRole = role
+                        )
+
+                        Result.success(enhancedProfileData)
                     } else {
                         val errorMsg = profileResponse.error?.error_message ?: profileResponse.message
                         Log.e(TAG, "User profile API returned error: $errorMsg")
@@ -172,6 +188,11 @@ class UserProfileRepository(private val context: Context) {
     private fun findMatchingVoter(voterData: List<VoterData>, userId: String): VoterData? {
         Log.d(TAG, "Attempting to match userId: '$userId' with ${voterData.size} voters")
 
+        // Log all voter data for debugging
+        voterData.forEachIndexed { index, voter ->
+            Log.d(TAG, "Available voter $index: user_id='${voter.user_id}', id='${voter.id}', name='${voter.full_name}'")
+        }
+
         // Strategy 1: Exact string match (case-sensitive)
         voterData.find { it.user_id == userId }?.let { voter ->
             Log.d(TAG, "Found exact match for user_id: $userId")
@@ -179,13 +200,13 @@ class UserProfileRepository(private val context: Context) {
         }
 
         // Strategy 2: Case-insensitive match
-        voterData.find { it.user_id.equals(userId, ignoreCase = true) }?.let { voter ->
+        voterData.find { it.user_id?.equals(userId, ignoreCase = true) == true }?.let { voter ->
             Log.d(TAG, "Found case-insensitive match for user_id: $userId")
             return voter
         }
 
         // Strategy 3: Trimmed comparison (remove whitespace)
-        voterData.find { it.user_id.trim() == userId.trim() }?.let { voter ->
+        voterData.find { it.user_id?.trim() == userId.trim() }?.let { voter ->
             Log.d(TAG, "Found trimmed match for user_id: $userId")
             return voter
         }
@@ -194,7 +215,7 @@ class UserProfileRepository(private val context: Context) {
         try {
             val userIdAsLong = userId.toLongOrNull()
             if (userIdAsLong != null) {
-                voterData.find { it.user_id.toLongOrNull() == userIdAsLong }?.let { voter ->
+                voterData.find { it.user_id?.toLongOrNull() == userIdAsLong }?.let { voter ->
                     Log.d(TAG, "Found numeric match for user_id: $userId")
                     return voter
                 }
@@ -207,6 +228,12 @@ class UserProfileRepository(private val context: Context) {
         voterData.find { it.id == userId }?.let { voter ->
             Log.d(TAG, "Found match using voter.id instead of user_id for: $userId")
             return voter
+        }
+
+        // If nothing matches, take the first voter as a fallback
+        if (voterData.isNotEmpty()) {
+            Log.d(TAG, "Using first voter as fallback since no match was found")
+            return voterData.first()
         }
 
         Log.w(TAG, "No matching voter found using any strategy for user_id: $userId")

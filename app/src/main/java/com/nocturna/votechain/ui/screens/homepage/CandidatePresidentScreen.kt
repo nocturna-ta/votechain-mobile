@@ -43,6 +43,7 @@ import com.nocturna.votechain.utils.CandidateHelper
 import com.nocturna.votechain.utils.CandidatePhotoHelper
 import com.nocturna.votechain.utils.LanguageManager
 import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
+import com.nocturna.votechain.data.network.ElectionNetworkClient
 
 @Composable
 fun CandidatePresidentScreen(
@@ -77,6 +78,10 @@ fun CandidatePresidentScreen(
 
     // Check authentication before fetching data
     LaunchedEffect(Unit) {
+        // Ensure ElectionNetworkClient is properly initialized with the context
+        val isNetworkClientReady = ElectionNetworkClient.ensureInitialized(context)
+        Log.d("CandidatePresidentScreen", "ElectionNetworkClient initialization status: $isNetworkClientReady")
+
         if (userToken.isEmpty()) {
             Log.e("CandidatePresidentScreen", "No authentication token found - redirecting to login")
             // Navigate back to login if no token
@@ -85,6 +90,13 @@ fun CandidatePresidentScreen(
             }
         } else {
             Log.d("CandidatePresidentScreen", "Token found - fetching election pairs")
+
+            // If token exists but not in NetworkClient, store it there
+            if (userToken.isNotEmpty() && !ElectionNetworkClient.hasValidToken()) {
+                Log.d("CandidatePresidentScreen", "Setting token in ElectionNetworkClient")
+                ElectionNetworkClient.saveUserToken(userToken)
+            }
+
             electionViewModel.fetchElectionPairs()
         }
     }

@@ -22,6 +22,7 @@ import com.nocturna.votechain.data.model.NewsItem
 import com.nocturna.votechain.ui.screens.LoadingScreen
 import com.nocturna.votechain.ui.screens.OTPVerificationScreen
 import com.nocturna.votechain.ui.screens.SplashScreen
+import com.nocturna.votechain.ui.screens.auth.EmailVerificationScreen
 import com.nocturna.votechain.ui.screens.homepage.NotificationScreen
 import com.nocturna.votechain.ui.screens.profilepage.AccountDetailsScreen
 import com.nocturna.votechain.ui.screens.profilepage.FAQScreen
@@ -81,14 +82,27 @@ fun VotechainNavGraph(
                     navController.navigate("register")
                 },
                 onForgotPasswordClick = {
-                    // When forgot password is clicked, navigate to OTP screen
-                    navController.navigate("otp_verification")
+                    // When forgot password is clicked, navigate to Email Verification screen
+                    navController.navigate("email_verification")
                 }
             )
         }
 
-        // OTP Verification screen
-        composable("otp_verification") {
+        // Email Verification screen for forgot password
+        composable("email_verification") {
+            EmailVerificationScreen(
+                navController = navController,
+                onBackClick = { navController.popBackStack() },
+                onSubmitEmail = { email ->
+                    // Navigate to OTP verification with the email as parameter
+                    navController.navigate("otp_verification_reset?email=$email")
+                }
+            )
+        }
+
+        // OTP Verification screen for forgot password
+        composable("otp_verification_reset") {
+            val email = navController.currentBackStackEntry?.arguments?.getString("email") ?: ""
             OTPVerificationScreen(
                 navController = navController,
                 onBackClick = { navController.popBackStack() },

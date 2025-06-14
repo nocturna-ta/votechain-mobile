@@ -104,4 +104,31 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Query("user_id") userId: String? = null
     ): Response<VoterResponse>
+
+    /**
+     * Send password reset OTP to email
+     * Endpoint: /v1/user/forgot-password
+     */
+    @POST("v1/user/forgot-password")
+    suspend fun sendPasswordResetOTP(
+        @Body requestBody: RequestBody
+    ): ApiResponse<Any>
+
+    /**
+     * Verify password reset OTP
+     * Endpoint: /v1/user/verify-otp
+     */
+    @POST("v1/user/verify-otp")
+    suspend fun verifyPasswordResetOTP(
+        @Body requestBody: RequestBody
+    ): ApiResponse<Any>
+
+    /**
+     * Reset password with verified OTP
+     * Endpoint: /v1/user/reset-password
+     */
+    @POST("v1/user/reset-password")
+    suspend fun resetPassword(
+        @Body requestBody: RequestBody
+    ): ApiResponse<Any>
 }

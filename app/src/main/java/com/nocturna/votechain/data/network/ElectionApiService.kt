@@ -68,4 +68,14 @@ interface ElectionApiService {
     suspend fun getPartyPhoto(
         @Path("id") partyId: String
     ): Response<ResponseBody>
+
+    /**
+     * Get program docs PDF by pair ID
+     * Endpoint: /v1/election/pairs/{id}/detail/program-docs
+     * Returns PDF document with application/pdf content type
+     */
+    @GET("v1/election/pairs/{id}/detail/program-docs")
+    suspend fun getProgramDocs(
+        @Path("id") pairId: String
+    ): Response<ResponseBody>
 }

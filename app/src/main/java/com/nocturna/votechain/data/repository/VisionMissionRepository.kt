@@ -16,6 +16,7 @@ import javax.inject.Inject
 interface VisionMissionRepository {
     suspend fun getVisionMission(candidateNumber: Int): VisionMissionModel // Keep for backward compatibility
     suspend fun getVisionMissionFromAPI(pairId: String): VisionMissionDetailModel // New method for API integration
+    suspend fun getProgramDocsFromAPI(pairId: String): Result<okhttp3.ResponseBody> // New method for fetching PDF program docs
 }
 
 /**
@@ -189,6 +190,36 @@ class VisionMissionRepositoryImpl : VisionMissionRepository {
                 vision = "Vision not available",
                 missions = listOf("Mission not available")
             )
+        }
+    }
+
+    /**
+     * Get program docs PDF files from API
+     * @param pairId The election pair ID
+     * @return Result containing okhttp3.ResponseBody for the PDF file
+     */
+    override suspend fun getProgramDocsFromAPI(pairId: String): Result<okhttp3.ResponseBody> = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "Fetching program docs for pair ID: $pairId")
+
+            val response = apiService.getProgramDocs(pairId)
+
+            if (response.isSuccessful) {
+                val responseBody = response.body()
+                if (responseBody != null) {
+                    Log.d(TAG, "Successfully fetched program docs")
+                    return@withContext Result.success(responseBody)
+                } else {
+                    Log.e(TAG, "API returned null body for program docs")
+                    return@withContext Result.failure(Exception("No data available for program docs"))
+                }
+            } else {
+                Log.e(TAG, "API call for program docs failed with code: ${response.code()}")
+                return@withContext Result.failure(Exception("Failed to fetch program docs"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception while fetching program docs: ${e.message}", e)
+            return@withContext Result.failure(e)
         }
     }
 }

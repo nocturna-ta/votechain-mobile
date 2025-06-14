@@ -49,6 +49,13 @@ class ElectionViewModel(
     fun fetchElectionPairs() {
         Log.d(TAG, "Starting to fetch election pairs")
 
+        // Check if ElectionNetworkClient is properly initialized
+        if (!ElectionNetworkClient.isInitialized()) {
+            Log.e(TAG, "ElectionNetworkClient is not initialized properly")
+            _error.value = "Network client not initialized"
+            return
+        }
+
         // Check if token is available before making request
         if (!ElectionNetworkClient.hasValidToken()) {
             Log.w(TAG, "No valid authentication token - this may cause API errors")

@@ -164,20 +164,19 @@ fun VisionMissionScreen(
                     }
 
                     // More Information Card (only if programDocs exists)
-                    uiState.programDocs?.let { programDocs ->
-                        if (programDocs.isNotBlank()) {
-                            item {
-                                MoreInformationCard(
-                                    onCardClick = {
-                                        try {
-                                            uriHandler.openUri(programDocs)
-                                        } catch (e: Exception) {
-                                            // Handle error opening link
-                                        }
-                                    }
-                                )
+                    item {
+                        // Build the API URL directly using the pairId
+                        val programDocsUrl = "https://8f7e-36-69-142-17.ngrok-free.app/v1/election/pairs/$pairId/detail/program-docs"
+
+                        MoreInformationCard(
+                            onCardClick = {
+                                try {
+                                    uriHandler.openUri(programDocsUrl)
+                                } catch (e: Exception) {
+                                    showDocumentError = true
+                                }
                             }
-                        }
+                        )
                     }
                     // Add some bottom spacing
                     item {

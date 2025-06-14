@@ -86,7 +86,11 @@ data class VerificationStatusData(
 data class UserProfileData(
     val email: String,
     val id: String,
-    val role: String
+    val role: String,
+    // Add additional fields that may come from response headers
+    val publicAddress: String? = null,  // For x-address
+    val userId: String? = null,         // For x-user-id
+    val userRole: String? = null        // For x-role
 )
 
 data class UserProfileResponse(

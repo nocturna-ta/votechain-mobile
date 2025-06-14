@@ -8,6 +8,7 @@ import com.google.gson.Gson
 import com.nocturna.votechain.data.model.ApiResponse
 import com.nocturna.votechain.data.model.LoginRequest
 import com.nocturna.votechain.data.model.UserLoginData
+import com.nocturna.votechain.data.network.ElectionNetworkClient
 import com.nocturna.votechain.data.network.NetworkClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -187,7 +188,11 @@ class UserLoginRepository(private val context: Context) {
             putString(KEY_USER_TOKEN, token)
             apply()
         }
-        Log.d(TAG, "User token saved to SharedPreferences")
+
+        // Also save token to ElectionNetworkClient to ensure it's available for election API calls
+        ElectionNetworkClient.saveUserToken(token)
+
+        Log.d(TAG, "User token saved to SharedPreferences and ElectionNetworkClient")
     }
 
     /**
@@ -286,7 +291,7 @@ class UserLoginRepository(private val context: Context) {
     }
 
     /**
-     * Clear expired token and related data
+     * Clear expired session
      */
     fun clearExpiredSession() {
         if (isTokenExpired()) {

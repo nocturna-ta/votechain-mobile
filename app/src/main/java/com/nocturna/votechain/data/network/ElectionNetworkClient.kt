@@ -20,13 +20,56 @@ object ElectionNetworkClient {
     private const val PREFS_NAME = "VoteChainPrefs"
     private const val KEY_USER_TOKEN = "user_token"
 
+    // Making this volatile to ensure visibility across threads
+    @Volatile
     private var applicationContext: Context? = null
+
+    // Making this volatile to ensure visibility across threads
+    @Volatile
+    private var isInitialized = false
 
     /**
      * Initialize the ElectionNetworkClient with application context
      */
+    @Synchronized
     fun initialize(context: Context) {
+        if (context.applicationContext == null) {
+            Log.e(TAG, "Cannot initialize with null application context")
+            return
+        }
+
         applicationContext = context.applicationContext
+        isInitialized = true
+        Log.i(TAG, "ElectionNetworkClient successfully initialized with application context")
+
+        // Check if we have a token
+        val token = getUserToken()
+        Log.d(TAG, "Current token status: ${if (token.isNotEmpty()) "Valid token exists" else "No token"}")
+    }
+
+    /**
+     * Check if ElectionNetworkClient is initialized
+     */
+    fun isInitialized(): Boolean {
+        val result = isInitialized && applicationContext != null
+        if (!result) {
+            Log.w(TAG, "ElectionNetworkClient initialization check failed: " +
+                "isInitialized=$isInitialized, applicationContext=${if (applicationContext == null) "null" else "not null"}")
+        }
+        return result
+    }
+
+    /**
+     * Force re-initialization if needed (can be called from activities/fragments if initialization state is lost)
+     */
+    @Synchronized
+    fun ensureInitialized(context: Context): Boolean {
+        if (!isInitialized() && context != null) {
+            Log.w(TAG, "Re-initializing ElectionNetworkClient")
+            initialize(context)
+            return true
+        }
+        return isInitialized()
     }
 
     /**

@@ -33,10 +33,41 @@ class VoteChainApplication : Application() {
 
         // Initialize NetworkClient with application context
         NetworkClient.initialize(this)
-        Log.d("VoteChainApplication", "Application initialized with NetworkClient")
+        Log.d(TAG, "Application initialized with NetworkClient")
 
         // Initialize the ElectionNetworkClient with application context
+        initializeElectionNetworkClient()
+    }
+
+    private fun initializeElectionNetworkClient() {
+        // First initialize with application context
         ElectionNetworkClient.initialize(this)
+
+        // Check if there's a token already stored
+        val hasToken = ElectionNetworkClient.hasValidToken()
+        Log.i(TAG, "ElectionNetworkClient initialized with token status: ${if (hasToken) "Token available" else "No token"}")
+
+        // If there's no token and you have a default/demo token, you can set it here
+        if (!hasToken) {
+            // This is a placeholder for a potential demo token for testing
+            // In a real app, you would typically get this from a login process
+            val demoToken = getDemoTokenIfAvailable()
+            if (demoToken.isNotEmpty()) {
+                Log.i(TAG, "Setting demo token for ElectionNetworkClient")
+                ElectionNetworkClient.saveUserToken(demoToken)
+            }
+        }
+    }
+
+    /**
+     * Get a demo token if available (for testing purposes)
+     * In a real app, this would come from a login process
+     */
+    private fun getDemoTokenIfAvailable(): String {
+        // This is where you could provide a demo/default token for testing
+        // For security reasons, don't hard-code real tokens in production code
+        // This should be replaced with a proper authentication flow
+        return "" // Return empty string for now - replace with actual token if needed
     }
 
     private fun initializeLanguageManager() {
