@@ -1,6 +1,8 @@
 package com.nocturna.votechain.ui.screens.homepage
 
+import android.content.Context
 import android.util.Log
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -47,18 +49,24 @@ fun CandidatePresidentScreen(
     onBackClick: () -> Unit = {},
     onViewProfileClick: (String) -> Unit = {},
     navController: NavController? = null,
-    viewModel: ElectionViewModel = viewModel(factory = ElectionViewModel.Factory())
+    electionViewModel: ElectionViewModel = viewModel(factory = ElectionViewModel.Factory)
 ) {
     val strings = LanguageManager.getLocalizedStrings()
     val scrollState = rememberScrollState()
     val context = LocalContext.current
 
-    val electionPairs by viewModel.electionPairs.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.error.collectAsState()
+    val electionPairs by electionViewModel.electionPairs.collectAsState()
+    val isLoading by electionViewModel.isLoading.collectAsState()
+    val error by electionViewModel.error.collectAsState()
 
     var selectedFilter by remember { mutableStateOf(strings.allCandidates) }
     var expandedDropdown by remember { mutableStateOf(false) }
+
+    // Check if user is logged in
+    val sharedPreferences = context.getSharedPreferences("VoteChainPrefs", Context.MODE_PRIVATE)
+    val userToken = sharedPreferences.getString("user_token", "") ?: ""
+
+    Log.d("CandidatePresidentScreen", "User token status: ${if (userToken.isNotEmpty()) "Available" else "Missing"}")
 
     val currentRoute = navController?.currentBackStackEntry?.destination?.route
     val voteId = if (currentRoute?.contains("candidate_president") == true) {
@@ -67,9 +75,18 @@ fun CandidatePresidentScreen(
         ""
     }
 
-    // Fetch election pairs when screen first loads
+    // Check authentication before fetching data
     LaunchedEffect(Unit) {
-        viewModel.fetchElectionPairs()
+        if (userToken.isEmpty()) {
+            Log.e("CandidatePresidentScreen", "No authentication token found - redirecting to login")
+            // Navigate back to login if no token
+            navController?.navigate("login") {
+                popUpTo(0) { inclusive = true }
+            }
+        } else {
+            Log.d("CandidatePresidentScreen", "Token found - fetching election pairs")
+            electionViewModel.fetchElectionPairs()
+        }
     }
 
     // Define the onVisionMissionClick function that uses the NavController
@@ -83,6 +100,54 @@ fun CandidatePresidentScreen(
 
     if (isUsingFallbackData) {
         Log.d("CandidatePresidentScreen", "Using fallback data - API is unavailable")
+    }
+
+    // Show authentication error if no token
+    if (userToken.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.back),
+                    contentDescription = "Authentication Error",
+                    tint = MainColors.Primary1,
+                    modifier = Modifier.size(48.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Authentication Required",
+                    style = AppTypography.heading4Medium,
+                    color = MainColors.Primary1,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Please login to view candidate information",
+                    style = AppTypography.paragraphRegular,
+                    color = NeutralColors.Neutral70,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        navController?.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MainColors.Primary1
+                    )
+                ) {
+                    Text("Go to Login")
+                }
+            }
+        }
+        return
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -136,25 +201,66 @@ fun CandidatePresidentScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(16.dp)
                 ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.back),
+                        contentDescription = "Error",
+                        tint = PrimaryColors.Primary70,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "Error loading candidates",
                         style = AppTypography.heading5Bold,
                         color = PrimaryColors.Primary70
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = error ?: "Unknown error",
-                        style = AppTypography.paragraphRegular,
-                        color = NeutralColors.Neutral70
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = { viewModel.fetchElectionPairs() },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MainColors.Primary1
+
+                    // Check if it's an authentication error
+                    val isAuthError = error?.contains("401") == true ||
+                            error?.contains("Unauthenticated") == true ||
+                            error?.contains("authorization") == true
+
+                    if (isAuthError) {
+                        Text(
+                            text = "Authentication failed. Please login again.",
+                            style = AppTypography.paragraphRegular,
+                            color = NeutralColors.Neutral70,
+                            textAlign = TextAlign.Center
                         )
-                    ) {
-                        Text("Retry")
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                // Clear token and redirect to login
+                                with(sharedPreferences.edit()) {
+                                    remove("user_token")
+                                    apply()
+                                }
+                                navController?.navigate("login") {
+                                    popUpTo(0) { inclusive = true }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MainColors.Primary1
+                            )
+                        ) {
+                            Text("Login Again")
+                        }
+                    } else {
+                        Text(
+                            text = error ?: "Unknown error",
+                            style = AppTypography.paragraphRegular,
+                            color = NeutralColors.Neutral70,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { electionViewModel.fetchElectionPairs()},
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MainColors.Primary1
+                            )
+                        ) {
+                            Text("Retry")
+                        }
                     }
                 }
             }
@@ -183,7 +289,7 @@ fun CandidatePresidentScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "API unavailable - showing offline data",
+                            text = "Using offline data due to authentication issues",
                             style = AppTypography.smallParagraphRegular,
                             color = MainColors.Primary1
                         )
@@ -383,61 +489,84 @@ fun CandidateCardFromApi(
             Spacer(modifier = Modifier.height(14.dp))
 
             // Headers with dividers
-            Row(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .border(
-                            width = 0.5.dp,
-                            color = NeutralColors.Neutral30
-                        )
-                        .padding(vertical = 6.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = strings.presidentialCandidate,
-                        style = AppTypography.paragraphRegular,
-                        color = MaterialTheme.colorScheme.tertiary
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        color = NeutralColors.Neutral30,
+                        shape = RoundedCornerShape(8.dp)
                     )
+            ) {
+                // Headers row
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Presidential Candidate Header
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(
+                                color = NeutralColors.Neutral20.copy(alpha = 0.3f),
+                                shape = RoundedCornerShape(topStart = 8.dp)
+                            )
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = strings.presidentialCandidate,
+                            style = AppTypography.paragraphRegular,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    // Vertical divider
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(48.dp)
+                            .background(NeutralColors.Neutral30)
+                    )
+
+                    // Vice Presidential Candidate Header
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(
+                                color = NeutralColors.Neutral20.copy(alpha = 0.3f),
+                                shape = RoundedCornerShape(topEnd = 8.dp)
+                            )
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = strings.vicePresidentialCandidate,
+                            style = AppTypography.paragraphRegular,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
 
+                // Horizontal divider
                 Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .border(
-                            width = 0.5.dp,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                        .padding(vertical = 6.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = strings.vicePresidentialCandidate,
-                        style = AppTypography.paragraphRegular,
-                        color = MaterialTheme.colorScheme.tertiary
-                    )
-                }
-            }
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(NeutralColors.Neutral30)
+                )
 
-            // Candidate Photos and Info with vertical divider
-            Row(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // Presidential Candidate
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .border(
-                            width = 0.5.dp,
-                            color = NeutralColors.Neutral30
-                        ),
-                    contentAlignment = Alignment.Center
+                // Candidate content row
+                Row(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
+                    // Presidential Candidate Content
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(vertical = 16.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(16.dp)
                     ) {
                         // Load candidate image from API if available
                         AsyncImage(
@@ -459,129 +588,127 @@ fun CandidateCardFromApi(
                                 )
                                 .build(),
                             contentDescription = "Presidential Candidate ${electionPair.president.full_name}",
+                            contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .size(100.dp)
                                 .clip(RoundedCornerShape(8.dp))
                         )
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
                             text = electionPair.president.full_name,
                             style = AppTypography.heading6SemiBold,
                             color = MaterialTheme.colorScheme.onTertiary,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                        Box(
-                            modifier = Modifier
-                                .border(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline,
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .height(24.dp)
-                                .clickable(onClick = onViewPresidentProfile)
-                                .padding(horizontal = 10.dp, vertical = 3.dp)
+                        // View Profile Button
+                        OutlinedButton(
+                            onClick = onViewPresidentProfile,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = Color.Transparent,
+                                contentColor = MaterialTheme.colorScheme.tertiaryContainer
+                            ),
+                            modifier = Modifier.height(32.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center,
-                                modifier = Modifier.align(Alignment.Center)
-                            ) {
-                                Text(
-                                    text = strings.viewProfile,
-                                    style = AppTypography.smallParagraphRegular,
-                                    color = MaterialTheme.colorScheme.tertiaryContainer
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Icon(
-                                    painter = painterResource(id = R.drawable.right2),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(10.dp),
-                                    tint = MaterialTheme.colorScheme.tertiaryContainer
-                                )
-                            }
+                            Text(
+                                text = strings.viewProfile,
+                                style = AppTypography.smallParagraphRegular,
+                                color = MaterialTheme.colorScheme.tertiaryContainer
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                painter = painterResource(id = R.drawable.right2),
+                                contentDescription = null,
+                                modifier = Modifier.size(10.dp),
+                                tint = MaterialTheme.colorScheme.tertiaryContainer
+                            )
                         }
                     }
-                }
 
-                // Vice Presidential Candidate
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .border(
-                            width = 0.5.dp,
-                            color = NeutralColors.Neutral30
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
+                    // Vertical divider
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .fillMaxHeight()
+                            .background(NeutralColors.Neutral30)
+                    )
+
+                    // Vice Presidential Candidate Content
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(vertical = 16.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(16.dp)
                     ) {
                         // Load candidate image from API if available
                         AsyncImage(
                             model = ImageRequest.Builder(context)
-                                .data(CandidatePhotoHelper.getVicePresidentPhotoUrl(electionPair.id))
+                                .data(vicePresidentPhotoUrl)
                                 .crossfade(true)
                                 .error(R.drawable.ic_launcher_background)
+                                .placeholder(R.drawable.ic_launcher_background)
                                 .build(),
                             contentDescription = "Vice Presidential Candidate ${electionPair.vice_president.full_name}",
+                            contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .size(100.dp)
                                 .clip(RoundedCornerShape(8.dp))
                         )
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
                             text = electionPair.vice_president.full_name,
                             style = AppTypography.heading6SemiBold,
                             color = MaterialTheme.colorScheme.onTertiary,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                        Box(
-                            modifier = Modifier
-                                .border(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline,
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .height(24.dp)
-                                .clickable(onClick = onViewVicePresidentProfile)
-                                .padding(horizontal = 10.dp, vertical = 3.dp)
+                        // View Profile Button
+                        OutlinedButton(
+                            onClick = onViewVicePresidentProfile,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = Color.Transparent,
+                                contentColor = MaterialTheme.colorScheme.tertiaryContainer
+                            ),
+                            modifier = Modifier.height(32.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center,
-                                modifier = Modifier.align(Alignment.Center)
-                            ) {
-                                Text(
-                                    text = strings.viewProfile,
-                                    style = AppTypography.smallParagraphRegular,
-                                    color = MaterialTheme.colorScheme.tertiaryContainer
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Icon(
-                                    painter = painterResource(id = R.drawable.right2),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(10.dp),
-                                    tint = MaterialTheme.colorScheme.tertiaryContainer
-                                )
-                            }
+                            Text(
+                                text = strings.viewProfile,
+                                style = AppTypography.smallParagraphRegular,
+                                color = MaterialTheme.colorScheme.tertiaryContainer
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                painter = painterResource(id = R.drawable.right2),
+                                contentDescription = null,
+                                modifier = Modifier.size(10.dp),
+                                tint = MaterialTheme.colorScheme.tertiaryContainer
+                            )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
+            // Proposing Parties Section
             Text(
                 text = "Proposing Parties", // You can add this to strings
                 style = AppTypography.paragraphRegular,
@@ -589,7 +716,7 @@ fun CandidateCardFromApi(
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Supporting parties logos
             SupportingPartiesRow(
@@ -597,36 +724,32 @@ fun CandidateCardFromApi(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            Spacer(modifier = Modifier.height(20.dp))
+
             // Vision & Mission Button
-            Box(
+            Button(
+                onClick = onVisionMissionClick,
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MainColors.Primary1,
+                    contentColor = NeutralColors.Neutral10
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 18.dp),
-                contentAlignment = Alignment.Center
+                    .height(44.dp)
             ) {
-                Button(
-                    onClick = onVisionMissionClick,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MainColors.Primary1,
-                        contentColor = NeutralColors.Neutral10
-                    ),
-                    modifier = Modifier
-                        .height(34.dp)
-                ) {
-                    Text(
-                        text = strings.visionMission,
-                        style = AppTypography.smallParagraphRegular,
-                        color = NeutralColors.Neutral10
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(
-                        painter = painterResource(id = R.drawable.right2),
-                        contentDescription = null,
-                        modifier = Modifier.size(10.dp),
-                        tint = NeutralColors.Neutral10
-                    )
-                }
+                Text(
+                    text = strings.visionMission,
+                    style = AppTypography.paragraphRegular,
+                    color = NeutralColors.Neutral10
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    painter = painterResource(id = R.drawable.right2),
+                    contentDescription = null,
+                    modifier = Modifier.size(12.dp),
+                    tint = NeutralColors.Neutral10
+                )
             }
         }
     }

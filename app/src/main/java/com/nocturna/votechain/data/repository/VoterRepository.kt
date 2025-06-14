@@ -21,6 +21,7 @@ class VoterRepository(private val context: Context) {
     private val KEY_VOTER_PUBLIC_KEY = "voter_public_key"
     private val KEY_VOTER_PRIVATE_KEY = "voter_private_key"
     private val KEY_VOTER_HAS_VOTED = "voter_has_voted"
+    private val KEY_USER_ID = "user_id"
 
     // Use existing API service from NetworkClient
     private val apiService = NetworkClient.apiService
@@ -44,9 +45,22 @@ class VoterRepository(private val context: Context) {
             if (response.isSuccessful) {
                 response.body()?.let { voterResponse ->
                     if (voterResponse.data.isNotEmpty()) {
-                        val voterData = voterResponse.data[0] // Get first voter data
+                        // Get the user_id from the header to find the right voter data
+                        val userId = getUserIdFromResponse(response.headers().get("x-user-id"))
+                        Log.d(TAG, "Looking for voter data with user_id: $userId")
+
+                        // Find the voter data that matches the user_id
+                        val voterData = if (!userId.isNullOrEmpty()) {
+                            voterResponse.data.find { it.user_id == userId } ?: voterResponse.data[0]
+                        } else {
+                            voterResponse.data[0] // Fallback to first record if user_id not found
+                        }
+
+                        // Save the user_id for future reference
+                        saveUserId(userId)
+
                         saveVoterDataLocally(voterData)
-                        Log.d(TAG, "Voter data fetched and saved successfully")
+                        Log.d(TAG, "Voter data fetched and saved successfully for user: ${voterData.full_name}")
                         Result.success(voterData)
                     } else {
                         Log.e(TAG, "No voter data found in response")
@@ -71,6 +85,29 @@ class VoterRepository(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Exception during voter data fetch", e)
             Result.failure(e)
+        }
+    }
+
+    /**
+     * Extract the user_id from the response header
+     */
+    private fun getUserIdFromResponse(headerValue: String?): String? {
+        return headerValue?.takeIf { it.isNotEmpty() }?.also {
+            Log.d(TAG, "Found user_id in header: $it")
+        }
+    }
+
+    /**
+     * Save user_id to SharedPreferences
+     */
+    private fun saveUserId(userId: String?) {
+        if (userId != null) {
+            val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            with(sharedPreferences.edit()) {
+                putString(KEY_USER_ID, userId)
+                apply()
+            }
+            Log.d(TAG, "User ID saved: $userId")
         }
     }
 
@@ -210,4 +247,3 @@ class VoterRepository(private val context: Context) {
         return sharedPreferences.getBoolean(KEY_VOTER_HAS_VOTED, false)
     }
 }
-

@@ -16,15 +16,20 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.nocturna.votechain.R
+import com.nocturna.votechain.data.repository.UserLoginRepository
 import com.nocturna.votechain.data.repository.UserProfileRepository
 import com.nocturna.votechain.data.repository.VoterRepository
+import com.nocturna.votechain.ui.screens.login.LoginScreen
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.utils.LanguageManager
+import com.nocturna.votechain.viewmodel.login.LoginViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -32,20 +37,28 @@ import kotlinx.coroutines.launch
 @Composable
 fun AccountDetailsScreen(
     navController: NavController,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLogout: () -> Unit = {}
 ) {
     val strings = LanguageManager.getLocalizedStrings()
     val scrollState = rememberScrollState()
     val context = LocalContext.current
 
-// Repository instances
+    // Repository instances
     val userProfileRepository = remember { UserProfileRepository(context) }
+    val userLoginRepository = remember { UserLoginRepository(context) }
     val voterRepository = remember { VoterRepository(context) }
+
+    // Get LoginViewModel instance
+    val loginViewModel: LoginViewModel = viewModel(factory = LoginViewModel.Factory(context))
 
     // State untuk profile data dengan fallback
     var completeUserProfile by remember { mutableStateOf(userProfileRepository.getSavedCompleteProfile()) }
     var fallbackVoterData by remember { mutableStateOf(voterRepository.getVoterDataLocally()) }
     var dataLoadError by remember { mutableStateOf<String?>(null) }
+
+    // State for logout confirmation dialog
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     // Refresh profile data saat screen dibuka
     LaunchedEffect(Unit) {
@@ -84,6 +97,53 @@ fun AccountDetailsScreen(
     var showCopiedMessage by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    // Logout Dialog
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = {
+                Text(
+                    text = "Logout",
+                    style = AppTypography.heading4Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to logout from your account?",
+                    style = AppTypography.paragraphRegular,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutDialog = false
+                        loginViewModel.logoutUser()
+                        onLogout()
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = NeutralColors.Neutral40
+                    )
+                ) {
+                    Text("Logout")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showLogoutDialog = false },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Text("Cancel")
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -286,5 +346,42 @@ fun AccountDetailsScreen(
             // Add spacer at the bottom for better scrolling experience
             Spacer(modifier = Modifier.height(40.dp))
         }
+
+        // Logout Button - Fixed at bottom
+            Button(
+                onClick = { showLogoutDialog = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFE53E3E),
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(8.dp),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 0.dp,
+                    pressedElevation = 2.dp
+                )
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Logout",
+                        style = AppTypography.paragraphRegular,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun AccountDetailsPreview() {
+    MaterialTheme {
+        AccountDetailsScreen(navController = NavController(LocalContext.current), modifier = Modifier, onLogout = {})
     }
 }

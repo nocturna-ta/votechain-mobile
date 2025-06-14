@@ -30,6 +30,15 @@ class ElectionRepository {
     fun getElectionPairs(): Flow<Result<List<ElectionPair>>> = flow {
         try {
             Log.d(TAG, "Fetching election pairs from API")
+
+            // Check if user token is available before making API call
+            val token = ElectionNetworkClient.getUserToken()
+            if (token.isEmpty()) {
+                Log.w(TAG, "No authentication token available - using fallback data")
+                emit(Result.success(getFallbackElectionPairs()))
+                return@flow
+            }
+
             val response = apiService.getElectionPairs()
 
             if (response.isSuccessful) {
@@ -41,15 +50,61 @@ class ElectionRepository {
                 } else {
                     val errorMsg = responseBody?.error?.error_message ?: "Unknown error occurred"
                     Log.e(TAG, "API returned error: $errorMsg")
-                    emit(Result.failure(Exception(errorMsg)))
+
+                    // If it's an authentication error, use fallback data
+                    if (responseBody?.code == 401) {
+                        Log.w(TAG, "Authentication error - using fallback data")
+                        emit(Result.success(getFallbackElectionPairs()))
+                    } else {
+                        emit(Result.failure(Exception(errorMsg)))
+                    }
                 }
             } else {
                 Log.e(TAG, "API call failed with code: ${response.code()}")
-                emit(Result.failure(Exception("Failed to fetch election pairs: ${response.message()}")))
+
+                // Handle different HTTP error codes
+                when (response.code()) {
+                    401 -> {
+                        Log.w(TAG, "401 Unauthorized - token may be invalid or expired, using fallback data")
+                        emit(Result.success(getFallbackElectionPairs()))
+                    }
+                    403 -> {
+                        Log.e(TAG, "403 Forbidden - access denied")
+                        emit(Result.failure(Exception("Access denied. Please check your permissions.")))
+                    }
+                    404 -> {
+                        Log.e(TAG, "404 Not Found - endpoint not available")
+                        emit(Result.failure(Exception("Service not available. Please try again later.")))
+                    }
+                    500, 502, 503, 504 -> {
+                        Log.e(TAG, "Server error: ${response.code()}")
+                        emit(Result.failure(Exception("Server error. Please try again later.")))
+                    }
+                    else -> {
+                        emit(Result.failure(Exception("Failed to fetch election pairs: ${response.message()}")))
+                    }
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Exception while fetching election pairs: ${e.message}", e)
-            emit(Result.failure(e))
+
+            // Check if it's a network-related exception
+            when {
+                e.message?.contains("ConnectException") == true ||
+                        e.message?.contains("UnknownHostException") == true ||
+                        e.message?.contains("SocketTimeoutException") == true -> {
+                    Log.w(TAG, "Network error - using fallback data")
+                    emit(Result.success(getFallbackElectionPairs()))
+                }
+                e.message?.contains("401") == true ||
+                        e.message?.contains("Unauthenticated") == true -> {
+                    Log.w(TAG, "Authentication error - using fallback data")
+                    emit(Result.success(getFallbackElectionPairs()))
+                }
+                else -> {
+                    emit(Result.failure(e))
+                }
+            }
         }
     }.flowOn(Dispatchers.IO)
 
@@ -61,6 +116,15 @@ class ElectionRepository {
     fun getSupportingParties(pairId: String): Flow<Result<List<SupportingParty>>> = flow {
         try {
             Log.d(TAG, "Fetching supporting parties for pair ID: $pairId")
+
+            // Check if user token is available before making API call
+            val token = ElectionNetworkClient.getUserToken()
+            if (token.isEmpty()) {
+                Log.w(TAG, "No authentication token available - using fallback data")
+                emit(Result.success(getFallbackSupportingParties(pairId)))
+                return@flow
+            }
+
             val response = apiService.getSupportingParties(pairId)
 
             if (response.isSuccessful) {
@@ -72,15 +136,43 @@ class ElectionRepository {
                 } else {
                     val errorMsg = responseBody?.error?.error_message ?: "Unknown error occurred"
                     Log.e(TAG, "API returned error: $errorMsg")
-                    emit(Result.failure(Exception(errorMsg)))
+
+                    // If it's an authentication error, use fallback data
+                    if (responseBody?.code == 401) {
+                        Log.w(TAG, "Authentication error - using fallback data")
+                        emit(Result.success(getFallbackSupportingParties(pairId)))
+                    } else {
+                        emit(Result.failure(Exception(errorMsg)))
+                    }
                 }
             } else {
                 Log.e(TAG, "API call failed with code: ${response.code()}")
-                emit(Result.failure(Exception("Failed to fetch supporting parties: ${response.message()}")))
+
+                when (response.code()) {
+                    401 -> {
+                        Log.w(TAG, "401 Unauthorized - using fallback data")
+                        emit(Result.success(getFallbackSupportingParties(pairId)))
+                    }
+                    else -> {
+                        emit(Result.failure(Exception("Failed to fetch supporting parties: ${response.message()}")))
+                    }
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Exception while fetching supporting parties: ${e.message}", e)
-            emit(Result.failure(e))
+
+            // For exceptions, use fallback data instead of failing
+            when {
+                e.message?.contains("401") == true ||
+                        e.message?.contains("Unauthenticated") == true -> {
+                    Log.w(TAG, "Authentication error - using fallback data")
+                    emit(Result.success(getFallbackSupportingParties(pairId)))
+                }
+                else -> {
+                    Log.w(TAG, "Using fallback data due to exception")
+                    emit(Result.success(getFallbackSupportingParties(pairId)))
+                }
+            }
         }
     }.flowOn(Dispatchers.IO)
 
@@ -92,11 +184,28 @@ class ElectionRepository {
         try {
             Log.d(TAG, "Fetching election pairs with supporting parties")
 
+            // Check if user token is available before making API call
+            val token = ElectionNetworkClient.getUserToken()
+            if (token.isEmpty()) {
+                Log.w(TAG, "No authentication token available - using fallback data")
+                emit(Result.success(getFallbackElectionPairs()))
+                return@flow
+            }
+
             // First, get all election pairs
             val pairsResponse = apiService.getElectionPairs()
             if (!pairsResponse.isSuccessful) {
-                emit(Result.failure(Exception("Failed to fetch election pairs")))
-                return@flow
+                when (pairsResponse.code()) {
+                    401 -> {
+                        Log.w(TAG, "Authentication failed - using fallback data")
+                        emit(Result.success(getFallbackElectionPairs()))
+                        return@flow
+                    }
+                    else -> {
+                        emit(Result.failure(Exception("Failed to fetch election pairs")))
+                        return@flow
+                    }
+                }
             }
 
             val pairs = pairsResponse.body()?.data ?: emptyList()
@@ -109,7 +218,8 @@ class ElectionRepository {
                     val supportingParties = if (partiesResponse.isSuccessful) {
                         partiesResponse.body()?.data?.parties ?: emptyList()
                     } else {
-                        emptyList()
+                        // Use fallback data for this specific pair
+                        getFallbackSupportingParties(pair.id)
                     }
 
                     // Create updated pair with supporting parties
@@ -120,8 +230,9 @@ class ElectionRepository {
                         TAG,
                         "Failed to fetch supporting parties for pair ${pair.id}: ${e.message}"
                     )
-                    // Add pair without supporting parties
-                    pairsWithParties.add(pair.copy(supporting_parties = emptyList()))
+                    // Add pair with fallback supporting parties
+                    val fallbackParties = getFallbackSupportingParties(pair.id)
+                    pairsWithParties.add(pair.copy(supporting_parties = fallbackParties))
                 }
             }
 
@@ -137,9 +248,28 @@ class ElectionRepository {
                 "Exception while fetching election pairs with supporting parties: ${e.message}",
                 e
             )
-            emit(Result.failure(e))
+
+            // Use fallback data for any exceptions
+            when {
+                e.message?.contains("401") == true ||
+                        e.message?.contains("Unauthenticated") == true -> {
+                    Log.w(TAG, "Authentication error - using fallback data")
+                    emit(Result.success(getFallbackElectionPairs()))
+                }
+                else -> {
+                    Log.w(TAG, "Using fallback data due to exception")
+                    emit(Result.success(getFallbackElectionPairs()))
+                }
+            }
         }
     }.flowOn(Dispatchers.IO)
+
+    /**
+     * Helper method to get user token
+     */
+    private fun getUserToken(): String {
+        return ElectionNetworkClient.getUserToken()
+    }
 
     /**
      * Fallback election pairs data when API is unavailable

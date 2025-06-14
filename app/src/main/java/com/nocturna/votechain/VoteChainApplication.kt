@@ -3,6 +3,7 @@ package com.nocturna.votechain
 import android.app.Application
 import android.util.Log
 import com.nocturna.votechain.blockchain.BlockchainManager
+import com.nocturna.votechain.data.network.ElectionNetworkClient
 import com.nocturna.votechain.data.network.NetworkClient
 import com.nocturna.votechain.utils.LanguageManager
 import com.nocturna.votechain.utils.ThemeManager
@@ -33,6 +34,9 @@ class VoteChainApplication : Application() {
         // Initialize NetworkClient with application context
         NetworkClient.initialize(this)
         Log.d("VoteChainApplication", "Application initialized with NetworkClient")
+
+        // Initialize the ElectionNetworkClient with application context
+        ElectionNetworkClient.initialize(this)
     }
 
     private fun initializeLanguageManager() {

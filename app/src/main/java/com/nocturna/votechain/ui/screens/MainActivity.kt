@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val navController = rememberNavController()
                     val context = LocalContext.current
-                    val electionViewModel: ElectionViewModel = viewModel(factory = ElectionViewModel.Factory())
+                    val electionViewModel: ElectionViewModel = viewModel(factory = ElectionViewModel.Factory)
 
                     VotechainNavGraph(
                         navController = navController,

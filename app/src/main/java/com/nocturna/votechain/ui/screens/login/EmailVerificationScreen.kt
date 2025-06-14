@@ -90,7 +90,7 @@ fun EmailVerificationScreen() {
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.weight(1f)
         ) {
-            Spacer(modifier = Modifier.height(180.dp))
+            Spacer(modifier = Modifier.height(120.dp))
 
             // Title
             Text(
@@ -100,20 +100,19 @@ fun EmailVerificationScreen() {
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Subtitle
+            // First subtitle
             Text(
-                text = "To proceed, we'll send a verification code to your email.",
+                text = "To proceed, we'll send a verification code to your email. Make sure it's valid and accessible",
                 style = AppTypography.heading5Regular,
                 color = NeutralColors.Neutral70,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(42.dp))
 
             // Email input field
-            // Form section with animations
             Box() {
                 Column {
                     // Email field with enhanced feedback
@@ -123,7 +122,7 @@ fun EmailVerificationScreen() {
                             email = it
                             isEmailValid = validateEmail(it)
                         },
-                        label = { Text(strings.email) },
+                        label = { Text("Email") },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -134,8 +133,8 @@ fun EmailVerificationScreen() {
                             unfocusedBorderColor = NeutralColors.Neutral30,
                             focusedTextColor = NeutralColors.Neutral70,
                             unfocusedTextColor = NeutralColors.Neutral70,
-                            focusedLabelColor = MainColors.Primary1,
-                            unfocusedLabelColor = NeutralColors.Neutral30,
+//                            focusedLabelColor = MainColors.Primary1,
+//                            unfocusedLabelColor = NeutralColors.Neutral30,
                             errorBorderColor = MaterialTheme.colorScheme.error,
                             errorLabelColor = MaterialTheme.colorScheme.error
                         ),
@@ -157,32 +156,31 @@ fun EmailVerificationScreen() {
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(42.dp))
 
             // Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 // Not Now button
                 OutlinedButton(
                     onClick = { /* Handle not now */ },
                     modifier = Modifier
                         .weight(1f)
-                        .height(52.dp),
-                    shape = RoundedCornerShape(26.dp),
+                        .height(46.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color(0xFF718096)
+                        contentColor = NeutralColors.Neutral50
                     ),
                     border = androidx.compose.foundation.BorderStroke(
                         width = 1.dp,
-                        color = Color(0xFFE2E8F0)
+                        color = NeutralColors.Neutral30
                     )
                 ) {
                     Text(
                         text = "Not Now",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
+                        style = AppTypography.heading4SemiBold
                     )
                 }
 
@@ -191,23 +189,21 @@ fun EmailVerificationScreen() {
                     onClick = { /* Handle send OTP */ },
                     modifier = Modifier
                         .weight(1f)
-                        .height(52.dp),
-                    shape = RoundedCornerShape(26.dp),
+                        .height(46.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4A90A4),
-                        contentColor = Color.White
+                        containerColor = MainColors.Primary1,
+                        disabledContainerColor = MainColors.Primary1.copy(alpha = 0.6f),
+                        contentColor = NeutralColors.Neutral10
                     ),
                     enabled = email.isNotEmpty()
                 ) {
                     Text(
                         text = "Send OTP",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
+                        style = AppTypography.heading4SemiBold
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }

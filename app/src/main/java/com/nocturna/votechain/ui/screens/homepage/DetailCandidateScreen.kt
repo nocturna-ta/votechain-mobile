@@ -59,7 +59,7 @@ fun DetailCandidateScreen(
     candidateId: String,
     onBackClick: () -> Unit,
     styling: CandidateDetailStyling = CandidateDetailStyling(),
-    viewModel: ElectionViewModel = viewModel(factory = ElectionViewModel.Factory())
+    viewModel: ElectionViewModel = viewModel(factory = ElectionViewModel.Factory)
 ) {
     val strings = LanguageManager.getLocalizedStrings()
     val context = LocalContext.current

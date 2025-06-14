@@ -43,7 +43,7 @@ fun CandidateSelectionScreen(
     navController: NavController,
     categoryId: String,
     viewModel: VotingViewModel,
-    electionViewModel: ElectionViewModel = viewModel(factory = ElectionViewModel.Factory())
+    electionViewModel: ElectionViewModel = viewModel(factory = ElectionViewModel.Factory)
 ) {
     val electionPairs by electionViewModel.electionPairs.collectAsState()
     val isLoading by electionViewModel.isLoading.collectAsState()

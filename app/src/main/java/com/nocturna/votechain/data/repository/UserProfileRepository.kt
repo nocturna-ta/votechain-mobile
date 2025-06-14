@@ -114,25 +114,42 @@ class UserProfileRepository(private val context: Context) {
      */
     private suspend fun getVoterProfileByUserId(userId: String, token: String): Result<VoterData> {
         return try {
+            Log.d(TAG, "Fetching voter data for user_id: $userId")
+
             // Gunakan endpoint /v1/voter yang sudah ada
             val response = apiService.getVoterData("Bearer $token")
 
             if (response.isSuccessful) {
                 response.body()?.let { voterResponse ->
-                    if (voterResponse.code == 0 && voterResponse.data.isNotEmpty()) {
-                        // Cari voter dengan user_id yang cocok
-                        val matchingVoter = voterResponse.data.find { it.user_id == userId }
+                    Log.d(TAG, "Voter API response code: ${voterResponse.code}, data count: ${voterResponse.data.size}")
 
-                        if (matchingVoter != null) {
-                            Log.d(TAG, "Matching voter profile found for user_id: $userId")
-                            Result.success(matchingVoter)
+                    if (voterResponse.code == 0) {
+                        if (voterResponse.data.isNotEmpty()) {
+                            // Debug: Log all voter data for troubleshooting
+                            voterResponse.data.forEachIndexed { index, voter ->
+                                Log.d(TAG, "Voter $index: user_id='${voter.user_id}', id='${voter.id}', name='${voter.full_name}'")
+                            }
+
+                            // Enhanced matching logic - try multiple approaches
+                            val matchingVoter = findMatchingVoter(voterResponse.data, userId)
+
+                            if (matchingVoter != null) {
+                                Log.d(TAG, "Matching voter profile found: ${matchingVoter.full_name} (user_id: ${matchingVoter.user_id})")
+                                Result.success(matchingVoter)
+                            } else {
+                                Log.w(TAG, "No voter profile found for user_id: $userId")
+                                // Log available user_ids for debugging
+                                val availableUserIds = voterResponse.data.map { it.user_id }
+                                Log.w(TAG, "Available user_ids: $availableUserIds")
+                                Result.failure(Exception("No voter profile found for this user"))
+                            }
                         } else {
-                            Log.w(TAG, "No voter profile found for user_id: $userId")
-                            Result.failure(Exception("No voter profile found for this user"))
+                            Log.w(TAG, "Voter profile API returned empty data array")
+                            Result.failure(Exception("No voter data available"))
                         }
                     } else {
-                        Log.e(TAG, "Voter profile API returned empty data or error")
-                        Result.failure(Exception("No voter data available"))
+                        Log.e(TAG, "Voter profile API returned error code: ${voterResponse.code}")
+                        Result.failure(Exception("API returned error code: ${voterResponse.code}"))
                     }
                 } ?: run {
                     Log.e(TAG, "Empty response body from voter profile API")
@@ -145,6 +162,150 @@ class UserProfileRepository(private val context: Context) {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Exception during voter profile fetch", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Enhanced voter matching function with multiple fallback strategies
+     */
+    private fun findMatchingVoter(voterData: List<VoterData>, userId: String): VoterData? {
+        Log.d(TAG, "Attempting to match userId: '$userId' with ${voterData.size} voters")
+
+        // Strategy 1: Exact string match (case-sensitive)
+        voterData.find { it.user_id == userId }?.let { voter ->
+            Log.d(TAG, "Found exact match for user_id: $userId")
+            return voter
+        }
+
+        // Strategy 2: Case-insensitive match
+        voterData.find { it.user_id.equals(userId, ignoreCase = true) }?.let { voter ->
+            Log.d(TAG, "Found case-insensitive match for user_id: $userId")
+            return voter
+        }
+
+        // Strategy 3: Trimmed comparison (remove whitespace)
+        voterData.find { it.user_id.trim() == userId.trim() }?.let { voter ->
+            Log.d(TAG, "Found trimmed match for user_id: $userId")
+            return voter
+        }
+
+        // Strategy 4: If userId is numeric, try parsing and comparing as numbers
+        try {
+            val userIdAsLong = userId.toLongOrNull()
+            if (userIdAsLong != null) {
+                voterData.find { it.user_id.toLongOrNull() == userIdAsLong }?.let { voter ->
+                    Log.d(TAG, "Found numeric match for user_id: $userId")
+                    return voter
+                }
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "Could not parse user_id as number: $userId")
+        }
+
+        // Strategy 5: Check if voter.id matches userId (sometimes the ID fields get swapped)
+        voterData.find { it.id == userId }?.let { voter ->
+            Log.d(TAG, "Found match using voter.id instead of user_id for: $userId")
+            return voter
+        }
+
+        Log.w(TAG, "No matching voter found using any strategy for user_id: $userId")
+        return null
+    }
+
+    /**
+     * Alternative method: Try fetching voter data using query parameter
+     * This can be used as a fallback if the main method fails
+     */
+    private suspend fun getVoterProfileByUserIdQuery(userId: String, token: String): Result<VoterData> {
+        return try {
+            Log.d(TAG, "Trying alternative voter fetch with query parameter for user_id: $userId")
+
+            val response = apiService.getVoterByUserId("Bearer $token", userId)
+
+            if (response.isSuccessful) {
+                response.body()?.let { voterResponse ->
+                    if (voterResponse.code == 0 && voterResponse.data.isNotEmpty()) {
+                        val voterData = voterResponse.data.first()
+                        Log.d(TAG, "Voter data fetched successfully via query: ${voterData.full_name}")
+                        Result.success(voterData)
+                    } else {
+                        Log.e(TAG, "Query-based voter API returned empty data or error")
+                        Result.failure(Exception("No voter data available via query"))
+                    }
+                } ?: run {
+                    Log.e(TAG, "Empty response body from query-based voter API")
+                    Result.failure(Exception("Empty response body"))
+                }
+            } else {
+                val errorBody = response.errorBody()?.string()
+                Log.e(TAG, "Query-based voter API failed with code: ${response.code()}, body: $errorBody")
+                Result.failure(Exception("API Error: ${response.code()} - $errorBody"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception during query-based voter fetch", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Enhanced fetchCompleteUserProfile with fallback strategies
+     */
+    suspend fun fetchCompleteUserProfileWithFallback(): Result<CompleteUserProfile> = withContext(Dispatchers.IO) {
+        try {
+            val userEmail = userLoginRepository.getUserEmail()
+            val userToken = userLoginRepository.getUserToken()
+
+            if (userEmail.isEmpty() || userToken.isEmpty()) {
+                return@withContext Result.failure(Exception("User not logged in"))
+            }
+
+            Log.d(TAG, "Fetching complete profile with fallback for email: $userEmail")
+
+            // Get user profile first
+            val userProfileResult = getUserProfile(userEmail, userToken)
+
+            return@withContext userProfileResult.fold(
+                onSuccess = { userProfile ->
+                    Log.d(TAG, "User profile fetched successfully for ID: ${userProfile.id}")
+
+                    // Try primary voter matching method
+                    var voterProfileResult = getVoterProfileByUserId(userProfile.id, userToken)
+
+                    // If primary method fails, try query-based method
+                    if (voterProfileResult.isFailure) {
+                        Log.d(TAG, "Primary voter matching failed, trying query-based approach")
+                        voterProfileResult = getVoterProfileByUserIdQuery(userProfile.id, userToken)
+                    }
+
+                    voterProfileResult.fold(
+                        onSuccess = { voterProfile ->
+                            val completeProfile = CompleteUserProfile(
+                                userProfile = userProfile,
+                                voterProfile = voterProfile
+                            )
+                            saveCompleteProfile(completeProfile)
+                            Result.success(completeProfile)
+                        },
+                        onFailure = { voterError ->
+                            Log.w(TAG, "All voter fetch methods failed: ${voterError.message}")
+                            // Still return user profile without voter data
+                            val completeProfile = CompleteUserProfile(
+                                userProfile = userProfile,
+                                voterProfile = null
+                            )
+                            saveCompleteProfile(completeProfile)
+                            Result.success(completeProfile)
+                        }
+                    )
+                },
+                onFailure = { userError ->
+                    Log.e(TAG, "Failed to fetch user profile: ${userError.message}")
+                    Result.failure(userError)
+                }
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception during enhanced profile fetch", e)
             Result.failure(e)
         }
     }
@@ -202,6 +363,57 @@ class UserProfileRepository(private val context: Context) {
      */
     suspend fun refreshProfile(): Result<CompleteUserProfile> {
         clearProfileData()
-        return fetchCompleteUserProfile()
+        return fetchCompleteUserProfileWithFallback()
+    }
+
+    /**
+     * Debug function to help troubleshoot profile matching issues
+     */
+    suspend fun debugProfileMatching(): String = withContext(Dispatchers.IO) {
+        val userEmail = userLoginRepository.getUserEmail()
+        val userToken = userLoginRepository.getUserToken()
+        val debugInfo = StringBuilder()
+
+        debugInfo.appendLine("=== PROFILE DEBUG INFO ===")
+        debugInfo.appendLine("User Email: $userEmail")
+        debugInfo.appendLine("Token Available: ${userToken.isNotEmpty()}")
+
+        if (userEmail.isNotEmpty() && userToken.isNotEmpty()) {
+            try {
+                // Get user profile
+                val userProfileResult = getUserProfile(userEmail, userToken)
+                userProfileResult.fold(
+                    onSuccess = { userProfile ->
+                        debugInfo.appendLine("User Profile ID: ${userProfile.id}")
+                        debugInfo.appendLine("User Email: ${userProfile.email}")
+                        debugInfo.appendLine("User Role: ${userProfile.role}")
+
+                        // Get all voter data
+                        val response = apiService.getVoterData("Bearer $userToken")
+                        if (response.isSuccessful) {
+                            response.body()?.let { voterResponse ->
+                                debugInfo.appendLine("Voter API Code: ${voterResponse.code}")
+                                debugInfo.appendLine("Total Voters: ${voterResponse.data.size}")
+
+                                voterResponse.data.forEachIndexed { index, voter ->
+                                    debugInfo.appendLine("Voter $index:")
+                                    debugInfo.appendLine("  - ID: ${voter.id}")
+                                    debugInfo.appendLine("  - User ID: '${voter.user_id}'")
+                                    debugInfo.appendLine("  - Name: ${voter.full_name}")
+                                    debugInfo.appendLine("  - Matches: ${voter.user_id == userProfile.id}")
+                                }
+                            }
+                        }
+                    },
+                    onFailure = { error ->
+                        debugInfo.appendLine("User Profile Error: ${error.message}")
+                    }
+                )
+            } catch (e: Exception) {
+                debugInfo.appendLine("Debug Exception: ${e.message}")
+            }
+        }
+
+        debugInfo.toString()
     }
 }

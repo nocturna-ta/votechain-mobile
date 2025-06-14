@@ -230,8 +230,8 @@ fun LoginScreen(
                                 unfocusedBorderColor = NeutralColors.Neutral30,
                                 focusedTextColor = NeutralColors.Neutral70,
                                 unfocusedTextColor = NeutralColors.Neutral70,
-                                focusedLabelColor = MainColors.Primary1,
-                                unfocusedLabelColor = NeutralColors.Neutral30,
+//                                focusedLabelColor = MainColors.Primary1,
+//                                unfocusedLabelColor = NeutralColors.Neutral30,
                                 errorBorderColor = MaterialTheme.colorScheme.error,
                                 errorLabelColor = MaterialTheme.colorScheme.error
                             ),
@@ -275,8 +275,8 @@ fun LoginScreen(
                                 unfocusedBorderColor = NeutralColors.Neutral30,
                                 focusedTextColor = NeutralColors.Neutral70,
                                 unfocusedTextColor = NeutralColors.Neutral70,
-                                focusedLabelColor = MainColors.Primary1,
-                                unfocusedLabelColor = NeutralColors.Neutral30,
+//                                focusedLabelColor = MainColors.Primary1,
+//                                unfocusedLabelColor = NeutralColors.Neutral30,
                                 errorBorderColor = MaterialTheme.colorScheme.error,
                                 errorLabelColor = MaterialTheme.colorScheme.error
                             ),

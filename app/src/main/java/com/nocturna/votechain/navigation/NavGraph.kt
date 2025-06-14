@@ -40,7 +40,7 @@ fun VotechainNavGraph(
     startDestination: String = "splash",
     modifier: Modifier = Modifier,
     viewModel: VotingViewModel = viewModel(),
-    electionViewModel: ElectionViewModel = viewModel(factory = ElectionViewModel.Factory()),
+    electionViewModel: ElectionViewModel = viewModel(factory = ElectionViewModel.Factory),
     onNewsClick: (NewsItem) -> Unit = {}
 ) {
     NavHost(

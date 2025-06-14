@@ -5,8 +5,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.nocturna.votechain.data.model.ElectionPair
 import com.nocturna.votechain.data.model.Party
+import com.nocturna.votechain.data.model.PartyElectionPair
 import com.nocturna.votechain.data.model.SupportingParty
 import com.nocturna.votechain.data.network.ElectionNetworkClient
 import com.nocturna.votechain.data.network.PartyPhotoHelper
@@ -15,21 +18,21 @@ import com.nocturna.votechain.data.repository.PartyRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
 /**
  * ViewModel for managing election-related data
  */
 class ElectionViewModel(
-    private val repository: ElectionRepository = ElectionRepository()
+    private val electionRepository: ElectionRepository,
+    private val partyRepository: PartyRepository
 ) : ViewModel() {
 
-    // UI states
+    private val TAG = "ElectionViewModel"
+
     private val _electionPairs = MutableStateFlow<List<ElectionPair>>(emptyList())
     val electionPairs: StateFlow<List<ElectionPair>> = _electionPairs.asStateFlow()
-
-    private val _allParties = MutableStateFlow<List<Party>>(emptyList())
-    val allParties: StateFlow<List<Party>> = _allParties.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -37,195 +40,190 @@ class ElectionViewModel(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    // Selected pair for detail view
-    private val _selectedPair = MutableStateFlow<ElectionPair?>(null)
-    val selectedPair: StateFlow<ElectionPair?> = _selectedPair.asStateFlow()
-
-    // Supporting parties for selected pair
-    private val _supportingPartiesLoading = MutableStateFlow(false)
-    val supportingPartiesLoading: StateFlow<Boolean> = _supportingPartiesLoading.asStateFlow()
-
-    private val electionApiService = ElectionNetworkClient.electionApiService
-    private val partyRepository = PartyRepository()
-
-    // State untuk menyimpan data partai dan URL foto
-    private val _partyPhotoUrls = mutableStateOf<Map<String, String>>(emptyMap())
-
-
-    init {
-        // Load initial data
-//        fetchAllParties()
-        fetchElectionPairsWithSupportingParties()
-    }
+    private val _parties = MutableStateFlow<List<PartyElectionPair>>(emptyList())
+    val parties: StateFlow<List<PartyElectionPair>> = _parties.asStateFlow()
 
     /**
-     * Fetch all election candidate pairs
+     * Fetch election pairs from repository
      */
     fun fetchElectionPairs() {
+        Log.d(TAG, "Starting to fetch election pairs")
+
+        // Check if token is available before making request
+        if (!ElectionNetworkClient.hasValidToken()) {
+            Log.w(TAG, "No valid authentication token - this may cause API errors")
+        }
+
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
 
-            repository.getElectionPairsWithSupportingParties().collect { result ->
-                _isLoading.value = false
-                result.fold(
-                    onSuccess = { pairs ->
-                        _electionPairs.value = pairs
-                    },
-                    onFailure = { e ->
-                        _error.value = e.message ?: "Unknown error occurred"
-                    }
-                )
-            }
-        }
-    }
-
-    /**
-     * Fetch all election candidate pairs with their supporting parties
-     */
-    fun fetchElectionPairsWithSupportingParties() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-
-            repository.getElectionPairsWithSupportingParties().collect { result ->
-                _isLoading.value = false
-                result.fold(
-                    onSuccess = { pairs ->
-                        _electionPairs.value = pairs
-                    },
-                    onFailure = { e ->
-                        _error.value = e.message ?: "Unknown error occurred"
-                    }
-                )
-            }
-        }
-    }
-
-    /**
-     * Fetch supporting parties for a specific election pair
-     */
-    fun fetchSupportingParties(pairId: String) {
-        viewModelScope.launch {
-            _supportingPartiesLoading.value = true
-
-            repository.getSupportingParties(pairId).collect { result ->
-                _supportingPartiesLoading.value = false
-                result.fold(
-                    onSuccess = { supportingParties ->
-                        // Update the specific pair with supporting parties
-                        val updatedPairs = _electionPairs.value.map { pair ->
-                            if (pair.id == pairId) {
-                                pair.copy(supporting_parties = supportingParties)
-                            } else {
-                                pair
-                            }
-                        }
-                        _electionPairs.value = updatedPairs
-                    },
-                    onFailure = { e ->
-                        _error.value = e.message ?: "Failed to fetch supporting parties"
-                    }
-                )
-            }
-        }
-    }
-
-    /**
-     * Fetch all political parties
-     */
-//    fun fetchAllParties() {
-//        viewModelScope.launch {
-//            repository.getAllParties().collect { result ->
-//                result.fold(
-//                    onSuccess = { parties ->
-//                        _allParties.value = parties
-//                    },
-//                    onFailure = { e ->
-//                        // Log error but don't show it to user as this is not critical
-//                        android.util.Log.e(
-//                            "ElectionViewModel",
-//                            "Failed to fetch all parties: ${e.message}"
-//                        )
-//                    }
-//                )
-//            }
-//        }
-//    }
-
-    /**
-     * Fetch election pairs without supporting parties (for cases where supporting parties are not needed)
-     */
-    fun fetchElectionPairsOnly() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-
-            repository.getElectionPairs().collect { result ->
-                _isLoading.value = false
-                result.fold(
-                    onSuccess = { pairs ->
-                        _electionPairs.value = pairs
-                    },
-                    onFailure = { e ->
-                        _error.value = e.message ?: "Unknown error occurred"
-                    }
-                )
-            }
-        }
-    }
-
-    /**
-     * Set the selected election pair by ID
-     */
-    fun selectPair(pairId: String) {
-        _selectedPair.value = _electionPairs.value.find { it.id == pairId }
-    }
-
-    /**
-     * Fetch election pairs dan party photo URLs sekaligus
-     */
-    fun fetchElectionDataWithPartyPhotos() {
-        viewModelScope.launch {
-            try {
-                // Fetch election pairs
-                val electionResponse = electionApiService.getElectionPairs()
-
-                // Fetch parties data
-                val partiesResult = partyRepository.getParties()
-
-                if (partiesResult.isSuccess) {
-                    val partiesData = partiesResult.getOrNull()
-                    partiesData?.let { partyResponse ->
-                        // Generate party photo URLs
-                        val photoUrls = PartyPhotoHelper.getPartyPhotoUrls(partyResponse)
-                        _partyPhotoUrls.value = photoUrls
-                    }
+            electionRepository.getElectionPairsWithSupportingParties()
+                .catch { exception ->
+                    Log.e(TAG, "Flow error: ${exception.message}", exception)
+                    _error.value = handleError(exception)
+                    _isLoading.value = false
                 }
+                .collect { result ->
+                    _isLoading.value = false
+                    result.fold(
+                        onSuccess = { pairs ->
+                            Log.d(TAG, "Successfully loaded ${pairs.size} election pairs")
+                            _electionPairs.value = pairs
+                            _error.value = null
 
+                            // Log whether we're using fallback data
+                            val usingFallback = pairs.any { it.id.startsWith("fallback-") }
+                            if (usingFallback) {
+                                Log.i(TAG, "Using fallback data due to API unavailability")
+                            } else {
+                                Log.i(TAG, "Using live API data")
+                            }
+                        },
+                        onFailure = { exception ->
+                            Log.e(TAG, "Failed to load election pairs: ${exception.message}", exception)
+                            _error.value = handleError(exception)
+                        }
+                    )
+                }
+        }
+    }
+
+    /**
+     * Fetch political parties from repository
+     */
+    fun fetchParties() {
+        Log.d(TAG, "Starting to fetch parties")
+
+        // Check if token is available before making request
+        if (!ElectionNetworkClient.hasValidToken()) {
+            Log.w(TAG, "No valid authentication token for parties request")
+        }
+
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+
+            try {
+                val result = partyRepository.getParties()
+                _isLoading.value = false
+
+                result.fold(
+                    onSuccess = { partyResponse ->
+                        Log.d(TAG, "Successfully loaded ${partyResponse.data.parties.size} parties")
+                        _parties.value = partyResponse.data.parties
+                        _error.value = null
+                    },
+                    onFailure = { exception ->
+                        Log.e(TAG, "Failed to load parties: ${exception.message}", exception)
+                        _error.value = handleError(exception)
+                    }
+                )
             } catch (e: Exception) {
-                Log.e("ElectionViewModel", "Error fetching data: ${e.message}")
+                _isLoading.value = false
+                Log.e(TAG, "Exception while fetching parties: ${e.message}", e)
+                _error.value = handleError(e)
             }
         }
     }
 
     /**
-     * Get party photo URL by party name
+     * Refresh all data
      */
-    fun getPartyPhotoUrl(partyName: String): String? {
-        return _partyPhotoUrls.value[partyName]
+    fun refreshData() {
+        Log.d(TAG, "Refreshing all election data")
+        fetchElectionPairs()
+        fetchParties()
     }
 
     /**
-     * Factory for creating ElectionViewModel
+     * Clear error state
      */
-    class Factory : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            if (modelClass.isAssignableFrom(ElectionViewModel::class.java)) {
-                return ElectionViewModel() as T
+    fun clearError() {
+        _error.value = null
+    }
+
+    /**
+     * Handle different types of errors and provide user-friendly messages
+     */
+    private fun handleError(exception: Throwable): String {
+        return when {
+            // Authentication errors
+            exception.message?.contains("401") == true ||
+                    exception.message?.contains("Unauthenticated") == true ||
+                    exception.message?.contains("authorization") == true -> {
+                Log.w(TAG, "Authentication error detected")
+                "Authentication failed. Please login again."
             }
-            throw IllegalArgumentException("Unknown ViewModel class")
+
+            // Network errors
+            exception.message?.contains("ConnectException") == true ||
+                    exception.message?.contains("UnknownHostException") == true -> {
+                Log.w(TAG, "Network connectivity error")
+                "Unable to connect to server. Please check your internet connection."
+            }
+
+            // Timeout errors
+            exception.message?.contains("SocketTimeoutException") == true ||
+                    exception.message?.contains("timeout") == true -> {
+                Log.w(TAG, "Network timeout error")
+                "Connection timeout. Please try again."
+            }
+
+            // Server errors
+            exception.message?.contains("500") == true ||
+                    exception.message?.contains("502") == true ||
+                    exception.message?.contains("503") == true ||
+                    exception.message?.contains("504") == true -> {
+                Log.w(TAG, "Server error detected")
+                "Server error. Please try again later."
+            }
+
+            // Forbidden/Access denied
+            exception.message?.contains("403") == true -> {
+                Log.w(TAG, "Access denied error")
+                "Access denied. Please check your permissions."
+            }
+
+            // Not found
+            exception.message?.contains("404") == true -> {
+                Log.w(TAG, "Resource not found error")
+                "Service not available. Please try again later."
+            }
+
+            // Generic error
+            else -> {
+                Log.e(TAG, "Generic error: ${exception.message}")
+                exception.message ?: "An unexpected error occurred. Please try again."
+            }
+        }
+    }
+
+    /**
+     * Check if current data is using fallback (offline) data
+     */
+    fun isUsingFallbackData(): Boolean {
+        return _electionPairs.value.any { it.id.startsWith("fallback-") }
+    }
+
+    /**
+     * Get authentication status
+     */
+    fun hasAuthenticationToken(): Boolean {
+        return ElectionNetworkClient.hasValidToken()
+    }
+
+    companion object {
+        /**
+         * Factory for creating ElectionViewModel instances
+         */
+        val Factory: ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                ElectionViewModel(
+                    electionRepository = ElectionRepository(),
+                    partyRepository = PartyRepository()
+                )
+            }
         }
     }
 }

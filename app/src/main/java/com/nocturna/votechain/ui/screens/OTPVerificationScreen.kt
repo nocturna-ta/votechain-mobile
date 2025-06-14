@@ -26,6 +26,8 @@ import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.PrimaryColors
 import kotlinx.coroutines.delay
 import com.nocturna.votechain.R
+import com.nocturna.votechain.ui.screens.login.EmailVerificationScreen
+import com.nocturna.votechain.ui.theme.VotechainTheme
 
 @Composable
 fun OTPVerificationScreen(

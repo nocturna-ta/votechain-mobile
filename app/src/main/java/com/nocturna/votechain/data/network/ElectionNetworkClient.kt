@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
  * Network client for connecting to the Election API
  */
 object ElectionNetworkClient {
-    const val BASE_URL = "https://2e81-36-69-142-17.ngrok-free.app"
+    const val BASE_URL = "https://8f7e-36-69-142-17.ngrok-free.app"
     private const val TAG = "ElectionNetworkClient"
     private const val PREFS_NAME = "VoteChainPrefs"
     private const val KEY_USER_TOKEN = "user_token"
@@ -32,11 +32,56 @@ object ElectionNetworkClient {
     /**
      * Get stored user token from SharedPreferences
      */
-    private fun getUserToken(): String {
+    fun getUserToken(): String {
         return applicationContext?.let { context ->
             val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            sharedPreferences.getString(KEY_USER_TOKEN, "") ?: ""
-        } ?: ""
+            val token = sharedPreferences.getString(KEY_USER_TOKEN, "") ?: ""
+            Log.d(TAG, "Retrieved token: ${if (token.isNotEmpty()) "Available (${token.length} chars)" else "Empty"}")
+            token
+        } ?: run {
+            Log.w(TAG, "Application context not initialized")
+            ""
+        }
+    }
+
+    /**
+     * Save user token to SharedPreferences
+     */
+    fun saveUserToken(token: String) {
+        applicationContext?.let { context ->
+            val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            with(sharedPreferences.edit()) {
+                putString(KEY_USER_TOKEN, token)
+                apply()
+            }
+            Log.d(TAG, "Token saved: ${if (token.isNotEmpty()) "Available (${token.length} chars)" else "Empty"}")
+        } ?: run {
+            Log.w(TAG, "Cannot save token - application context not initialized")
+        }
+    }
+
+    /**
+     * Clear user token from SharedPreferences
+     */
+    fun clearUserToken() {
+        applicationContext?.let { context ->
+            val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            with(sharedPreferences.edit()) {
+                remove(KEY_USER_TOKEN)
+                apply()
+            }
+            Log.d(TAG, "Token cleared")
+        } ?: run {
+            Log.w(TAG, "Cannot clear token - application context not initialized")
+        }
+    }
+
+    /**
+     * Check if user token exists and is not empty
+     */
+    fun hasValidToken(): Boolean {
+        val token = getUserToken()
+        return token.isNotEmpty()
     }
 
     /**
@@ -48,19 +93,29 @@ object ElectionNetworkClient {
             val token = getUserToken()
 
             val newRequest = if (token.isNotEmpty()) {
+                Log.d(TAG, "Adding Bearer token to request: ${originalRequest.url}")
                 originalRequest.newBuilder()
                     .addHeader("Authorization", "Bearer $token")
                     .addHeader("Accept", "application/json")
                     .addHeader("Content-Type", "application/json")
                     .build()
             } else {
+                Log.w(TAG, "No token available for request: ${originalRequest.url}")
                 originalRequest.newBuilder()
                     .addHeader("Accept", "application/json")
                     .addHeader("Content-Type", "application/json")
                     .build()
             }
 
-            chain.proceed(newRequest)
+            val response = chain.proceed(newRequest)
+
+            // Log response for debugging
+            Log.d(TAG, "Response: ${response.code} for ${originalRequest.url}")
+            if (!response.isSuccessful && response.code == 401) {
+                Log.w(TAG, "401 Unauthorized - token may be invalid or expired")
+            }
+
+            response
         }
     }
 

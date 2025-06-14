@@ -116,12 +116,13 @@ fun ProfileScreen(
 
     // Refresh profile data saat screen dibuka
     LaunchedEffect(Unit) {
-        userProfileRepository.fetchCompleteUserProfile().fold(
+        userProfileRepository.fetchCompleteUserProfileWithFallback().fold(
             onSuccess = { profile ->
+                // Handle successful profile load
                 completeUserProfile = profile
             },
             onFailure = { error ->
-                // Use saved profile if fetch fails
+                // Handle error but still try to use cached data
                 completeUserProfile = userProfileRepository.getSavedCompleteProfile()
             }
         )
