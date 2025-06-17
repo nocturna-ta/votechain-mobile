@@ -117,9 +117,16 @@ fun VotingScreen(
                         activeVotings = activeVotings,
                         isLoading = isLoading,
                         error = error,
-                        onVoteItemClick = { categoryId ->
-                            // Navigate to voting detail screen instead of directly to OTP
-                            navController.navigate("voting_detail/$categoryId")
+                        onVoteItemClick = { categoryId, title ->
+                            // Check if it's the 2024 presidential election - Indonesia card
+                            if (title.contains("2024 presidential election", ignoreCase = true) &&
+                                title.contains("Indonesia", ignoreCase = true)) {
+                                // Navigate directly to candidate selection screen
+                                navController.navigate("candidate_selection/$categoryId")
+                            } else {
+                                // Navigate to the general voting detail screen for other elections
+                                navController.navigate("voting_detail/$categoryId")
+                            }
                         }
                     )
                     1 -> ResultsScreen(
@@ -145,7 +152,7 @@ fun ActiveVotingTab(
     activeVotings: List<VotingCategory>,
     isLoading: Boolean,
     error: String?,
-    onVoteItemClick: (String) -> Unit
+    onVoteItemClick: (String, String) -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -184,7 +191,7 @@ fun ActiveVotingTab(
                 items(activeVotings) { votingCategory ->
                     VotingCard(
                         votingCategory = votingCategory,
-                        onClick = { onVoteItemClick(votingCategory.id) }
+                        onClick = { onVoteItemClick(votingCategory.id, votingCategory.title) }
                     )
                 }
             }

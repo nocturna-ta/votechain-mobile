@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
  * Network client for connecting to the Election API
  */
 object ElectionNetworkClient {
-    const val BASE_URL = "https://8f7e-36-69-142-17.ngrok-free.app"
+    const val BASE_URL = "https://3d34-103-233-100-204.ngrok-free.app"
     private const val TAG = "ElectionNetworkClient"
     private const val PREFS_NAME = "VoteChainPrefs"
     private const val KEY_USER_TOKEN = "user_token"
@@ -91,15 +91,25 @@ object ElectionNetworkClient {
      * Save user token to SharedPreferences
      */
     fun saveUserToken(token: String) {
+        // Clean and validate token before saving
+        val cleanToken = if (token.startsWith("Bearer ", ignoreCase = true)) {
+            token.substring(7).trim()
+        } else {
+            token.trim()
+        }
+
+        if (!validateTokenFormat(cleanToken)) {
+            Log.e(TAG, "Refusing to save invalid token format")
+            return
+        }
+
         applicationContext?.let { context ->
             val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             with(sharedPreferences.edit()) {
-                putString(KEY_USER_TOKEN, token)
+                putString(KEY_USER_TOKEN, cleanToken) // Save without Bearer prefix
                 apply()
             }
-            Log.d(TAG, "Token saved: ${if (token.isNotEmpty()) "Available (${token.length} chars)" else "Empty"}")
-        } ?: run {
-            Log.w(TAG, "Cannot save token - application context not initialized")
+            Log.d(TAG, "✅ Valid token saved (${cleanToken.length} chars)")
         }
     }
 
@@ -125,6 +135,54 @@ object ElectionNetworkClient {
     fun hasValidToken(): Boolean {
         val token = getUserToken()
         return token.isNotEmpty()
+    }
+
+    /**
+     * Validate if token format is correct
+     */
+    fun validateTokenFormat(token: String): Boolean {
+        if (token.isEmpty()) return false
+
+        // Remove Bearer prefix if present
+        val cleanToken = if (token.startsWith("Bearer ", ignoreCase = true)) {
+            token.substring(7).trim()
+        } else {
+            token.trim()
+        }
+
+        // JWT should have exactly 3 parts separated by dots
+        val parts = cleanToken.split(".")
+        if (parts.size != 3) {
+            Log.e(TAG, "Invalid JWT format: expected 3 segments, got ${parts.size}")
+            return false
+        }
+
+        // Each part should not be empty
+        if (parts.any { it.isEmpty() }) {
+            Log.e(TAG, "Invalid JWT format: empty segments found")
+            return false
+        }
+
+        return true
+    }
+
+    /**
+     * Get user token with validation
+     */
+    fun getValidatedUserToken(): String {
+        val token = getUserToken()
+        return if (validateTokenFormat(token)) {
+            // Remove Bearer prefix if present for consistency
+            if (token.startsWith("Bearer ", ignoreCase = true)) {
+                token.substring(7).trim()
+            } else {
+                token.trim()
+            }
+        } else {
+            Log.w(TAG, "Invalid token format detected, clearing token")
+            clearUserToken()
+            ""
+        }
     }
 
     /**

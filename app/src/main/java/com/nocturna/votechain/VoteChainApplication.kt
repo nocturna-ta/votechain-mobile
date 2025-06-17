@@ -5,6 +5,7 @@ import android.util.Log
 import com.nocturna.votechain.blockchain.BlockchainManager
 import com.nocturna.votechain.data.network.ElectionNetworkClient
 import com.nocturna.votechain.data.network.NetworkClient
+import com.nocturna.votechain.utils.CoilAuthHelper
 import com.nocturna.votechain.utils.LanguageManager
 import com.nocturna.votechain.utils.ThemeManager
 import kotlinx.coroutines.CoroutineScope
@@ -37,6 +38,9 @@ class VoteChainApplication : Application() {
 
         // Initialize the ElectionNetworkClient with application context
         initializeElectionNetworkClient()
+
+        // Initialize the CoilAuthHelper for authenticated image loading
+//        initializeCoilAuthHelper()
     }
 
     private fun initializeElectionNetworkClient() {
@@ -58,6 +62,11 @@ class VoteChainApplication : Application() {
             }
         }
     }
+//
+//    private fun initializeCoilAuthHelper() {
+//        CoilAuthHelper.initialize(this)
+//        Log.i(TAG, "CoilAuthHelper initialized for authenticated image loading")
+//    }
 
     /**
      * Get a demo token if available (for testing purposes)

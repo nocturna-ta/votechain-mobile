@@ -7,18 +7,6 @@ object DummyData {
             title = "2024 Presidential Election - Indonesia",
             description = "Choose the leaders you trust to guide Indonesia's future",
             isActive = true
-        ),
-        VotingCategory(
-            id = "2",
-            title = "Local Community Council Election",
-            description = "Select representatives for your local community council",
-            isActive = true
-        ),
-        VotingCategory(
-            id = "3",
-            title = "University Student Senate",
-            description = "Vote for your preferred candidate to lead the student senate",
-            isActive = true
         )
     )
 

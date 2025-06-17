@@ -30,6 +30,7 @@ import com.nocturna.votechain.data.model.Candidate
 import com.nocturna.votechain.data.model.CandidatePersonalInfo
 import com.nocturna.votechain.data.model.EducationEntry
 import com.nocturna.votechain.data.model.WorkEntry
+import com.nocturna.votechain.data.network.ElectionNetworkClient
 import com.nocturna.votechain.data.repository.CandidateRepository
 import com.nocturna.votechain.domain.GetCandidateDetail
 import com.nocturna.votechain.ui.components.EducationHistoryTable
@@ -229,6 +230,7 @@ fun DetailCandidateScreen(
                             .data(candidatePhotoUrl)
                             .crossfade(true)
                             .error(R.drawable.ic_launcher_background)
+                            .addHeader("Authorization", "Bearer ${ElectionNetworkClient.getUserToken()}")
                             .listener(
                                 onStart = {
                                     Log.d("DetailCandidateScreen", "Image loading started for: $candidatePhotoUrl")
@@ -243,7 +245,7 @@ fun DetailCandidateScreen(
                             .build(),
                         contentDescription = "${candidate?.full_name} Photo",
                         modifier = Modifier
-                            .size(200.dp)
+                            .size(height = 200.dp, width = 150.dp)
                             .padding(vertical = 16.dp),
                         contentScale = ContentScale.Fit
                     )

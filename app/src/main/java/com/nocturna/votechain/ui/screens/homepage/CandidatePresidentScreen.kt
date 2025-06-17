@@ -44,6 +44,7 @@ import com.nocturna.votechain.utils.CandidatePhotoHelper
 import com.nocturna.votechain.utils.LanguageManager
 import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
 import com.nocturna.votechain.data.network.ElectionNetworkClient
+import com.nocturna.votechain.utils.CoilAuthHelper
 
 @Composable
 fun CandidatePresidentScreen(
@@ -585,24 +586,35 @@ fun CandidateCardFromApi(
                             model = ImageRequest.Builder(context)
                                 .data(presidentPhotoUrl)
                                 .crossfade(true)
-                                .error(R.drawable.ic_launcher_background)
-                                .placeholder(R.drawable.ic_launcher_background)
+                                .error(R.drawable.ic_launcher_background) // Fallback image
+                                .placeholder(R.drawable.ic_launcher_background) // Loading placeholder
                                 .listener(
                                     onStart = {
-                                        Log.d("CandidateCardFromApi", "Loading president photo: $presidentPhotoUrl")
+                                        Log.d("CandidateCard", "🔄 Loading president photo...")
+                                        Log.d("CandidateCard", "📍 URL: $presidentPhotoUrl")
                                     },
-                                    onSuccess = { _, _ ->
-                                        Log.d("CandidateCardFromApi", "President photo loaded successfully")
+                                    onSuccess = { _, result ->
+                                        Log.d("CandidateCard", "✅ President photo loaded successfully")
+                                        Log.d("CandidateCard", "📊 Image size: ${result.drawable.intrinsicWidth}x${result.drawable.intrinsicHeight}")
                                     },
                                     onError = { _, error ->
-                                        Log.e("CandidateCardFromApi", "President photo loading failed", error.throwable)
+                                        Log.e("CandidateCard", "❌ President photo loading failed")
+                                        Log.e("CandidateCard", "📍 URL: $presidentPhotoUrl")
+                                        Log.e("CandidateCard", "🔥 Error: ${error.throwable?.message}")
+                                        error.throwable?.printStackTrace()
+
+                                        // Additional debugging
+                                        if (presidentPhotoUrl.isNotEmpty()) {
+                                            CandidatePhotoHelper.validatePhotoUrl(presidentPhotoUrl)
+                                        }
                                     }
                                 )
                                 .build(),
+                            imageLoader = CoilAuthHelper.getImageLoader(context), // Use authenticated loader
                             contentDescription = "Presidential Candidate ${electionPair.president.full_name}",
-                            contentScale = ContentScale.Crop,
+                            contentScale = ContentScale.Fit,
                             modifier = Modifier
-                                .size(100.dp)
+                                .size(height = 120.dp, width = 90.dp)
                                 .clip(RoundedCornerShape(8.dp))
                         )
 
@@ -668,11 +680,33 @@ fun CandidateCardFromApi(
                                 .crossfade(true)
                                 .error(R.drawable.ic_launcher_background)
                                 .placeholder(R.drawable.ic_launcher_background)
+                                .listener(
+                                    onStart = {
+                                        Log.d("CandidateCard", "🔄 Loading vice president photo...")
+                                        Log.d("CandidateCard", "📍 URL: $vicePresidentPhotoUrl")
+                                    },
+                                    onSuccess = { _, result ->
+                                        Log.d("CandidateCard", "✅ Vice president photo loaded successfully")
+                                        Log.d("CandidateCard", "📊 Image size: ${result.drawable.intrinsicWidth}x${result.drawable.intrinsicHeight}")
+                                    },
+                                    onError = { _, error ->
+                                        Log.e("CandidateCard", "❌ Vice president photo loading failed")
+                                        Log.e("CandidateCard", "📍 URL: $vicePresidentPhotoUrl")
+                                        Log.e("CandidateCard", "🔥 Error: ${error.throwable?.message}")
+                                        error.throwable?.printStackTrace()
+
+                                        // Additional debugging
+                                        if (vicePresidentPhotoUrl.isNotEmpty()) {
+                                            CandidatePhotoHelper.validatePhotoUrl(vicePresidentPhotoUrl)
+                                        }
+                                    }
+                                )
                                 .build(),
+                            imageLoader = CoilAuthHelper.getImageLoader(context),
                             contentDescription = "Vice Presidential Candidate ${electionPair.vice_president.full_name}",
-                            contentScale = ContentScale.Crop,
+                            contentScale = ContentScale.Fit,
                             modifier = Modifier
-                                .size(100.dp)
+                                .size(height = 120.dp, width = 90.dp)
                                 .clip(RoundedCornerShape(8.dp))
                         )
 
@@ -747,7 +781,6 @@ fun CandidateCardFromApi(
                     contentColor = NeutralColors.Neutral10
                 ),
                 modifier = Modifier
-                    .fillMaxWidth()
                     .height(44.dp)
             ) {
                 Text(
@@ -791,14 +824,39 @@ private fun SupportingPartiesRow(
         }
     } else {
         LazyRow(
-            modifier = modifier,
-            horizontalArrangement = Arrangement.Center,
-            contentPadding = PaddingValues(horizontal = 8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp)
         ) {
-            items(supportingParties) { supportingParty ->
-                PartyLogoItem(
-                    party = supportingParty.party,
-                    modifier = Modifier.padding(horizontal = 4.dp)
+            items(supportingParties ?: emptyList()) { party ->
+                val partyPhotoUrl = PartyPhotoHelper.getPartyPhotoUrl(party.party.id)
+
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(partyPhotoUrl)
+                        .crossfade(true)
+                        .error(R.drawable.ic_launcher_background)
+                        .placeholder(R.drawable.ic_launcher_background)
+                        .listener(
+                            onStart = {
+                                Log.d("PartyLogo", "🔄 Loading party logo: ${party.party.name}")
+                                Log.d("PartyLogo", "📍 URL: $partyPhotoUrl")
+                            },
+                            onSuccess = { _, _ ->
+                                Log.d("PartyLogo", "✅ Party logo loaded: ${party.party.name}")
+                            },
+                            onError = { _, error ->
+                                Log.e("PartyLogo", "❌ Party logo failed: ${party.party.name}")
+                                Log.e("PartyLogo", "📍 URL: $partyPhotoUrl")
+                                Log.e("PartyLogo", "🔥 Error: ${error.throwable?.message}")
+                            }
+                        )
+                        .build(),
+                    imageLoader = CoilAuthHelper.getImageLoader(context),
+                    contentDescription = "Logo ${party.party.name}",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(4.dp))
                 )
             }
         }

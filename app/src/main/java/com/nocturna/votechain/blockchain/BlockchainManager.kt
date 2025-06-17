@@ -24,7 +24,7 @@ object BlockchainManager {
     // Connection to local Ganache instance
     // Note: 10.0.2.2 is used instead of localhost when running in Android emulator
     private val web3j: Web3j by lazy {
-        val nodeUrl = "https://856b-36-69-142-17.ngrok-free.app"
+        val nodeUrl = "https://03ae-103-233-100-204.ngrok-free.app"
         Log.d(TAG, "Initializing Web3j connection to $nodeUrl")
         Web3j.build(HttpService(nodeUrl))
     }
