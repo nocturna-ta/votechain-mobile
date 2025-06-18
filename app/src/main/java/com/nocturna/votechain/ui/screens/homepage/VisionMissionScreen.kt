@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -63,7 +64,6 @@ fun VisionMissionScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.White)
                 .padding(vertical = 24.dp)
         ) {
             Box(
@@ -143,12 +143,12 @@ fun VisionMissionScreen(
             else -> {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                    contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(32.dp)
                 ) {
                     // Vision Section
                     item {
-                        VisionSection(vision = uiState.vision)
+                        VisionSection(vision = "\"${uiState.vision}\"")
                     }
 
                     // Mission Section
@@ -202,55 +202,28 @@ fun VisionMissionScreen(
 private fun VisionSection(vision: String) {
     val strings = LanguageManager.getLocalizedStrings()
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(elevation = 2.dp, shape = RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+    Column(
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            horizontalArrangement = Arrangement.Start
-        ) {
-//            // Vision Icon
-//            Box(
-//                modifier = Modifier
-//                    .size(48.dp)
-//                    .background(
-//                        MainColors.Primary1.copy(alpha = 0.1f),
-//                        CircleShape
-//                    ),
-//                contentAlignment = Alignment.Center
-//            ) {
-//                Text(
-//                    text = "V",
-//                    style = AppTypography.heading5Bold,
-//                    color = MainColors.Primary1
-//                )
-//            }
+        // Vision Title
+        Text(
+            text = strings.vision,
+            style = AppTypography.heading5Bold,
+            color = PrimaryColors.Primary70,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center
+        )
 
-            Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = strings.vision,
-                    style = AppTypography.heading6SemiBold,
-                    color = NeutralColors.Neutral80
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = vision.ifBlank { "Vision not available" },
-                    style = AppTypography.paragraphRegular,
-                    color = NeutralColors.Neutral80,
-                    textAlign = TextAlign.Justify
-                )
-            }
-        }
+        // Vision Content
+        Text(
+            text = vision.ifBlank { "Vision not available" },
+            style = AppTypography.paragraphMedium,
+            color = NeutralColors.Neutral80,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
@@ -258,54 +231,58 @@ private fun VisionSection(vision: String) {
 private fun MissionSection(mission: String) {
     val strings = LanguageManager.getLocalizedStrings()
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(elevation = 2.dp, shape = RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+    Column(
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            horizontalArrangement = Arrangement.Start
-        ) {
-//            // Mission Icon
-//            Box(
-//                modifier = Modifier
-//                    .size(48.dp)
-//                    .background(
-//                        PrimaryColors.Primary50.copy(alpha = 0.1f),
-//                        CircleShape
-//                    ),
-//                contentAlignment = Alignment.Center
-//            ) {
-//                Text(
-//                    text = "M",
-//                    style = AppTypography.heading5Bold,
-//                    color = PrimaryColors.Primary50
-//                )
-//            }
+        // Mission Title
+        Text(
+            text = strings.mission,
+            style = AppTypography.heading5Bold,
+            color = PrimaryColors.Primary70,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center
+        )
 
-            Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = strings.mission,
-                    style = AppTypography.heading6SemiBold,
-                    color = NeutralColors.Neutral80
-                )
+        // Mission Content - parse numbered list if it contains mission points
+        val missionText = mission.ifBlank { "Mission not available" }
 
-                Spacer(modifier = Modifier.height(8.dp))
+        // Split mission text by numbered points (1., 2., 3., etc.)
+        val missionPoints = missionText.split(Regex("\\d+\\.\\s*")).filter { it.isNotBlank() }
 
-                Text(
-                    text = mission.ifBlank { "Mission not available" },
-                    style = AppTypography.paragraphRegular,
-                    color = NeutralColors.Neutral80,
-                    textAlign = TextAlign.Justify
-                )
+        if (missionPoints.size > 1) {
+            // Display as numbered list
+            missionPoints.forEachIndexed { index, point ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        text = "${index + 1}. ",
+                        style = AppTypography.paragraphRegular,
+                        color = NeutralColors.Neutral80
+                    )
+                    Text(
+                        text = point.trim(),
+                        style = AppTypography.paragraphRegular,
+                        color = NeutralColors.Neutral80,
+                        textAlign = TextAlign.Justify,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
+        } else {
+            // Display as single text block
+            Text(
+                text = missionText,
+                style = AppTypography.paragraphRegular,
+                color = NeutralColors.Neutral80,
+                textAlign = TextAlign.Justify,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -314,101 +291,85 @@ private fun MissionSection(mission: String) {
 private fun WorkProgramsSection(programs: List<WorkProgram>) {
     val strings = LanguageManager.getLocalizedStrings()
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(elevation = 2.dp, shape = RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+    Column(
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.Start,
-                verticalAlignment = Alignment.Top
-            ) {
-                // Work Programs Icon
-//                Box(
-//                    modifier = Modifier
-//                        .size(48.dp)
-//                        .background(
-//                            PrimaryColors.Primary50.copy(alpha = 0.1f),
-//                            CircleShape
-//                        ),
-//                    contentAlignment = Alignment.Center
-//                ) {
-//                    Text(
-//                        text = "P",
-//                        style = AppTypography.heading5Bold,
-//                        color = PrimaryColors.Primary50
-//                    )
-//                }
-//
-//                Spacer(modifier = Modifier.width(16.dp))
+        // Work Programs Title
+        Text(
+            text = strings.workProgram,
+            style = AppTypography.heading5Bold,
+            color = PrimaryColors.Primary70,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center
+        )
 
-                Text(
-                    text = strings.workProgram,
-                    style = AppTypography.heading6SemiBold,
-                    color = NeutralColors.Neutral80
-                )
-            }
+        Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            programs.forEach { program ->
-                WorkProgramItem(program = program)
-                Spacer(modifier = Modifier.height(12.dp))
+        programs.forEachIndexed { index, program ->
+            WorkProgramItem(program = program, index = index + 1)
+            if (index < programs.size - 1) {
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
 }
 
 @Composable
-private fun WorkProgramItem(program: WorkProgram) {
+private fun WorkProgramItem(program: WorkProgram, index: Int) {
     val context = LocalContext.current
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                NeutralColors.Neutral10,
-                RoundedCornerShape(8.dp)
-            )
-            .padding(12.dp)
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Text(
-            text = program.programName,
-            style = AppTypography.paragraphSemiBold,
-            color = NeutralColors.Neutral80
-        )
+        // Program Name with numbering (like mission items)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Text(
+                text = "$index. ",
+                style = AppTypography.paragraphRegular,
+                color = NeutralColors.Neutral80
+            )
+            Text(
+                text = program.programName,
+                style = AppTypography.paragraphSemiBold,
+                color = NeutralColors.Neutral80,
+                modifier = Modifier.weight(1f)
+            )
+        }
 
+        // Program Description (if available)
         if (program.programDesc.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
             program.programDesc.forEach { desc ->
                 Row(
-                    modifier = Modifier.padding(vertical = 2.dp)
+                    modifier = Modifier
+                        .padding(top = 2.dp, bottom = 2.dp, start = 16.dp),
+                    verticalAlignment = Alignment.Top
                 ) {
                     Text(
                         text = "• ",
                         style = AppTypography.paragraphRegular,
-                        color = NeutralColors.Neutral60
+                        color = NeutralColors.Neutral70
                     )
                     Text(
                         text = desc,
                         style = AppTypography.paragraphRegular,
-                        color = NeutralColors.Neutral60,
+                        color = NeutralColors.Neutral70,
+                        textAlign = TextAlign.Justify,
                         modifier = Modifier.weight(1f)
                     )
                 }
             }
         }
 
+        // Program Photo (if available)
         program.programPhoto?.let { photoUrl ->
             if (photoUrl.isNotBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 AsyncImage(
                     model = ImageRequest.Builder(context)
                         .data(photoUrl)
@@ -418,6 +379,7 @@ private fun WorkProgramItem(program: WorkProgram) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(150.dp)
+                        .padding(start = 16.dp)
                         .clip(RoundedCornerShape(8.dp)),
                     contentScale = ContentScale.Crop
                 )
@@ -437,13 +399,15 @@ private fun MoreInformationCard(onCardClick: () -> Unit) {
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
             // Background Image
             Image(
                 painter = painterResource(id = R.drawable.background),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
             )
 
             // Content
@@ -460,7 +424,7 @@ private fun MoreInformationCard(onCardClick: () -> Unit) {
 
                 Text(
                     text = strings.cardDescription,
-                    style = AppTypography.paragraphRegular,
+                    style = AppTypography.paragraphRegular.copy(lineHeight = 18.sp),
                     color = NeutralColors.Neutral10
                 )
             }

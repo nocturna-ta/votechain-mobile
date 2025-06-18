@@ -559,7 +559,7 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Logout",
+                        text = strings.logout,
                         style = AppTypography.heading5Medium,
                         color = NeutralColors.Neutral40,
                     )
@@ -573,7 +573,7 @@ fun ProfileScreen(
 
                 // About Section
                 Text(
-                    text = "About",
+                    text = strings.about,
                     style = AppTypography.heading4Bold,
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)

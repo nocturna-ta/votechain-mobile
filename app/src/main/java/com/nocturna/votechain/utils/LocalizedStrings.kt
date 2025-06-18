@@ -1,5 +1,7 @@
 package com.nocturna.votechain.utils
 
+import kotlin.math.log
+
 /**
  * Data class containing all localized strings used in the application
  */
@@ -22,6 +24,7 @@ data class LocalizedStrings(
     val language: String,
     val about: String,
     val faq: String,
+    val logout: String,
 
     // Navigation
     val homeNav: String,
@@ -173,6 +176,7 @@ private fun getIndonesianStrings(): LocalizedStrings {
         language = "Bahasa",
         about = "Tentang",
         faq = "Pertanyaan Umum",
+        logout = "Keluar",
 
         // Navigation
         homeNav = "Beranda",
@@ -315,6 +319,7 @@ private fun getEnglishStrings(): LocalizedStrings {
         language = "Language",
         about = "About",
         faq = "FAQ",
+        logout = "Logout",
 
         // Navigation
         homeNav = "Home",

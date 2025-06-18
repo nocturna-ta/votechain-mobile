@@ -158,7 +158,7 @@ fun DetailCandidateScreen(
                     painter = painterResource(id = R.drawable.back),
                     contentDescription = strings.back,
                     tint = MainColors.Primary1,
-                    modifier = Modifier.size(20.dp) // Smaller icon size
+                    modifier = Modifier.size(20.dp)
                 )
             }
 

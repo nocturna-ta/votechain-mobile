@@ -741,7 +741,7 @@ fun CandidateCardFromApi(
                 ) {
                     Text(
                         text = strings.proposingParties,
-                        style = AppTypography.smallParagraphRegular,
+                        style = AppTypography.paragraphRegular,
                         color = NeutralColors.Neutral50
                     )
 

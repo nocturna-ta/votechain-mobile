@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -219,13 +220,13 @@ fun NewsCarouselItemContent(
                 ) {
                     Text(
                         text = newsItem.blog_name,
-                        style = AppTypography.heading5Bold,
+                        style = AppTypography.heading5Bold.copy(lineHeight = 22.sp),
                         color = NeutralColors.Neutral10,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     Row(
                         modifier = Modifier
