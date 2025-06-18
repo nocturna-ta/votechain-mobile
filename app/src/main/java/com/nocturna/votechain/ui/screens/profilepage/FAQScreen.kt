@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.nocturna.votechain.R
+import com.nocturna.votechain.data.model.GetFAQAnswer
 import com.nocturna.votechain.data.model.faqItems
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
@@ -100,8 +101,8 @@ fun FAQScreen(
             // Loop through all FAQ items and display them
             faqItems.forEach { faqItem ->
                 ExpandableFAQItem(
-                    question = faqItem.question,
-                    answer = faqItem.answer
+                    questionKey = faqItem.questionKey,
+                    answerKey = faqItem.answerKey
                 )
             }
 
@@ -113,14 +114,25 @@ fun FAQScreen(
 
 @Composable
 fun ExpandableFAQItem(
-    question: String,
-    answer: @Composable () -> Unit,
+    questionKey: String,
+    answerKey: String,
     modifier: Modifier = Modifier
 ) {
+    val strings = LanguageManager.getLocalizedStrings()
     var expanded by remember { mutableStateOf(false) }
     val animationState = remember { MutableTransitionState(false) }
 
     animationState.targetState = expanded
+
+    // Get localized question text
+    val questionText = when (questionKey) {
+        "faq_question_1" -> strings.faq_question_1
+        "faq_question_2" -> strings.faq_question_2
+        "faq_question_3" -> strings.faq_question_3
+        "faq_question_4" -> strings.faq_question_4
+        "faq_question_5" -> strings.faq_question_5
+        else -> questionKey
+    }
 
     Column(
         modifier = modifier
@@ -135,7 +147,7 @@ fun ExpandableFAQItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = question,
+                text = questionText,
                 style = AppTypography.heading5Medium,
                 color = MaterialTheme.colorScheme.inverseSurface,
                 modifier = Modifier.weight(1f)
@@ -166,7 +178,7 @@ fun ExpandableFAQItem(
             ) {
                 CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.inverseSurface) {
                     ProvideTextStyle(value = AppTypography.heading6Medium) {
-                        answer()
+                        GetFAQAnswer(answerKey)
                     }
                 }
             }

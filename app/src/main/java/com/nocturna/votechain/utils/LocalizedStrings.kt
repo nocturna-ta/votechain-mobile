@@ -1,7 +1,5 @@
 package com.nocturna.votechain.utils
 
-import kotlin.math.log
-
 /**
  * Data class containing all localized strings used in the application
  */
@@ -141,7 +139,63 @@ data class LocalizedStrings(
     //Card
     val cardTitle: String,
     val cardSubtitle: String,
-    val cardDescription: String
+    val cardDescription: String,
+
+    // FAQ Questions
+    val faq_question_1: String,
+    val faq_question_2: String,
+    val faq_question_3: String,
+    val faq_question_4: String,
+    val faq_question_5: String,
+
+    // FAQ Answer 1
+    val faq_answer_1: String,
+
+    // FAQ Answer 2
+    val faq_answer_2_intro: String,
+    val faq_answer_2_step1_title: String,
+    val faq_answer_2_step1_desc: String,
+    val faq_answer_2_step2_title: String,
+    val faq_answer_2_step2_desc: String,
+    val faq_answer_2_step3_title: String,
+    val faq_answer_2_step3_desc: String,
+    val faq_answer_2_step4_title: String,
+    val faq_answer_2_step4_desc: String,
+    val faq_answer_2_step5_title: String,
+    val faq_answer_2_step5_desc: String,
+    val faq_answer_2_step6_title: String,
+    val faq_answer_2_step6_desc: String,
+
+    // FAQ Answer 3
+    val faq_answer_3_intro: String,
+    val faq_answer_3_point1_title: String,
+    val faq_answer_3_point1_desc: String,
+    val faq_answer_3_point2_title: String,
+    val faq_answer_3_point2_desc: String,
+    val faq_answer_3_point3_title: String,
+    val faq_answer_3_point3_desc: String,
+
+    // FAQ Answer 4
+    val faq_answer_4_intro: String,
+    val faq_answer_4_point1_title: String,
+    val faq_answer_4_point1_desc: String,
+    val faq_answer_4_point2_title: String,
+    val faq_answer_4_point2_desc: String,
+
+    // FAQ Answer 5
+    val faq_answer_5_intro: String,
+    val faq_answer_5_point1_title: String,
+    val faq_answer_5_point1_desc: String,
+    val faq_answer_5_point2_title: String,
+    val faq_answer_5_point2_desc: String,
+
+    // Password Confirmation Dialog
+    val passwordConfirmationTitle: String,
+    val passwordConfirmationSubtitle: String,
+    val passwordConfirmationCancel: String,
+    val passwordConfirmationSubmit: String,
+    val passwordIncorrect: String,
+    val passwordEmpty: String,
 )
 
 /**
@@ -294,7 +348,63 @@ private fun getIndonesianStrings(): LocalizedStrings {
         // Card
         cardTitle = "Pemilihan Presiden 2024 - Indonesia",
         cardSubtitle = "Pilihlah pemimpin yang Anda percayai untuk memajukan Indonesia",
-        cardDescription = "Klik di sini untuk mengakses informasi detail tentang visi, misi, dan program kerja lengkap pasangan calon ini"
+        cardDescription = "Klik di sini untuk mengakses informasi detail tentang visi, misi, dan program kerja lengkap pasangan calon ini",
+
+        // FAQ Questions
+        faq_question_1 = "Apa keunggulan VoteChain dibandingkan metode voting tradisional?",
+        faq_question_2 = "Bagaimana cara menggunakan VoteChain?",
+        faq_question_3 = "Apakah vote saya tetap privat di VoteChain?",
+        faq_question_4 = "Apakah saya bisa melakukan vote di luar periode voting yang ditentukan?",
+        faq_question_5 = "Mengapa Public Key dan Private Key penting dalam VoteChain?",
+
+        // FAQ Answer 1
+        faq_answer_1 = "VoteChain menawarkan banyak keunggulan dibandingkan metode voting tradisional. Menggunakan teknologi blockchain, VoteChain memastikan keamanan tinggi dimana data vote tidak dapat diubah, dan identitas pemilih tetap terlindungi. Semua vote tercatat secara transparan, memungkinkan hasil untuk diverifikasi tanpa mengorbankan privasi pemilih.\n\nProsesnya juga lebih cepat dan efisien biaya, karena penghitungan vote dilakukan secara otomatis. Pemilih dapat memberikan suara dari mana saja menggunakan perangkat yang terhubung internet, membuatnya lebih nyaman dan dapat diakses. Selain itu, VoteChain mendukung keberlanjutan lingkungan dengan mengurangi penggunaan kertas dan kebutuhan logistik skala besar. Dengan fitur-fitur ini, VoteChain menyediakan sistem voting yang lebih aman, transparan, dan efisien untuk semua orang.",
+
+        // FAQ Answer 2
+        faq_answer_2_intro = "Berikut adalah langkah-langkah menggunakan aplikasi VoteChain:",
+        faq_answer_2_step1_title = "Daftar Akun",
+        faq_answer_2_step1_desc = "Daftar dengan memasukkan nomor KTP (NIK) dan data diri. Setelah diverifikasi, akun Anda aktif dan dapat mengatur password.",
+        faq_answer_2_step2_title = "Masuk ke Akun Anda",
+        faq_answer_2_step2_desc = "Login dengan NIK dan password, dan Anda akan diarahkan ke Menu Voting.",
+        faq_answer_2_step3_title = "Pilih Kategori Pemilihan",
+        faq_answer_2_step3_desc = "Di tab Vote, pilih kategori pemilihan yang sedang aktif.",
+        faq_answer_2_step4_title = "Verifikasi Identitas Anda",
+        faq_answer_2_step4_desc = "Sistem akan meminta Anda untuk Scan KTP untuk mencocokkan data Anda dengan sistem.",
+        faq_answer_2_step5_title = "Berikan Suara Anda",
+        faq_answer_2_step5_desc = "Setelah verifikasi, pilih kandidat atau opsi yang Anda inginkan dan konfirmasi. Sistem akan memberi tahu Anda setelah vote berhasil tercatat.",
+        faq_answer_2_step6_title = "Cek Status Voting",
+        faq_answer_2_step6_desc = "Anda dapat mengecek status voting di Settings > Account > Voting Status. Jika sudah vote akan muncul Vote Complete, jika belum akan muncul Vote Incomplete.",
+
+        // FAQ Answer 3
+        faq_answer_3_intro = "Ya, vote Anda tetap sepenuhnya privat di VoteChain. Platform ini menggunakan teknologi blockchain dan enkripsi tingkat tinggi untuk memastikan privasi vote Anda.",
+        faq_answer_3_point1_title = "Anonimitas Terjamin",
+        faq_answer_3_point1_desc = "Identitas pemilih dipisahkan dari data voting, sehingga tidak ada yang dapat menghubungkan vote Anda dengan informasi pribadi Anda.",
+        faq_answer_3_point2_title = "Keamanan Data",
+        faq_answer_3_point2_desc = "Semua data voting dienkripsi dan hanya dapat diakses oleh sistem untuk keperluan penghitungan, tanpa melibatkan pihak ketiga.",
+        faq_answer_3_point3_title = "Verifikasi Transparan",
+        faq_answer_3_point3_desc = "Meskipun prosesnya transparan dan dapat diaudit, identitas pemilih tetap sepenuhnya rahasia.",
+
+        // FAQ Answer 4
+        faq_answer_4_intro = "Tidak, VoteChain hanya mengizinkan pengguna untuk memberikan suara selama periode pemilihan yang ditentukan. Sistem secara otomatis mengaktifkan dan menonaktifkan akses voting berdasarkan jadwal resmi yang ditetapkan penyelenggara pemilihan.",
+        faq_answer_4_point1_title = "Jangka Waktu Terbatas",
+        faq_answer_4_point1_desc = "Anda hanya dapat vote selama periode voting aktif. Setelah periode berakhir, sistem tidak akan menerima vote lagi.",
+        faq_answer_4_point2_title = "Notifikasi Pengingat",
+        faq_answer_4_point2_desc = "VoteChain menyediakan notifikasi untuk mengingatkan Anda tentang jadwal pemilihan agar tidak melewatkan kesempatan vote.",
+
+        // FAQ Answer 5
+        faq_answer_5_intro = "Public Key dan Private Key sangat penting dalam VoteChain karena mereka memastikan keamanan, privasi, dan integritas proses voting:",
+        faq_answer_5_point1_title = "Public Key",
+        faq_answer_5_point1_desc = "Berfungsi sebagai identitas digital Anda di jaringan blockchain. Memungkinkan Anda menerima data atau diverifikasi sebagai pemilih tanpa mengungkapkan informasi pribadi.",
+        faq_answer_5_point2_title = "Private Key",
+        faq_answer_5_point2_desc = "Mengamankan akun Anda dan mengotorisasi setiap transaksi yang Anda lakukan. Dengan Private Key, hanya Anda yang dapat mengakses dan memvalidasi vote Anda dalam sistem.",
+
+        // Password Confirmation Dialog
+        passwordConfirmationTitle = "Masukkan Kata Sandi",
+        passwordConfirmationSubtitle = "Masukkan kata sandi Anda untuk melihat detail akun",
+        passwordConfirmationCancel = "Batal",
+        passwordConfirmationSubmit = "Kirim",
+        passwordIncorrect = "Kata sandi salah. Silahkan coba lagi",
+        passwordEmpty = "Kata sandi tidak boleh kosong",
     )
 }
 
@@ -438,6 +548,62 @@ private fun getEnglishStrings(): LocalizedStrings {
         // Card
         cardTitle = "Presidential Election 2024 - Indonesia",
         cardSubtitle = "Choose the leaders you trust to guide Indonesia forward",
-        cardDescription = "Click here to access detailed information about the vision, mission, and complete work program of this candidate pair"
+        cardDescription = "Click here to access detailed information about the vision, mission, and complete work program of this candidate pair",
+
+        // FAQ Questions
+        faq_question_1 = "What are the advantages of VoteChain over traditional voting methods?",
+        faq_question_2 = "How can I use VoteChain?",
+        faq_question_3 = "Does my vote remain private on VoteChain?",
+        faq_question_4 = "Can I vote outside the scheduled voting period?",
+        faq_question_5 = "Why are Public Key and Private Key important in VoteChain?",
+
+        // FAQ Answer 1
+        faq_answer_1 = "VoteChain offers many advantages compared to traditional voting methods. Using blockchain technology, VoteChain ensures high security where vote data cannot be altered, and voter identities remain protected. All votes are transparently recorded, allowing results to be verified without compromising voter privacy.\n\nThe process is also faster and more cost-efficient, as vote counting is automated. Voters can cast their votes from anywhere using an internet-connected device, making it more convenient and accessible. Additionally, VoteChain supports environmental sustainability by reducing paper use and the need for large-scale logistics. With these features, VoteChain provides a safer, more transparent, and efficient voting system for everyone.",
+
+        // FAQ Answer 2
+        faq_answer_2_intro = "Here are the steps to use the VoteChain app:",
+        faq_answer_2_step1_title = "Register an Account",
+        faq_answer_2_step1_desc = "Sign up by entering your ID number (NIK) and personal details. Once verified, your account is activated, and you can set a password.",
+        faq_answer_2_step2_title = "Log In to Your Account",
+        faq_answer_2_step2_desc = "Log in with your NIK and password, and you'll be directed to the Voting Menu.",
+        faq_answer_2_step3_title = "Select an Election Category",
+        faq_answer_2_step3_desc = "In the Vote tab, choose an active election category.",
+        faq_answer_2_step4_title = "Verify Your Identity",
+        faq_answer_2_step4_desc = "The system will ask you to Scan Your ID to match your data with the system.",
+        faq_answer_2_step5_title = "Cast Your Vote",
+        faq_answer_2_step5_desc = "After verification, select your preferred candidate or option and confirm. The system will notify you once your vote is successfully recorded.",
+        faq_answer_2_step6_title = "Check Voting Status",
+        faq_answer_2_step6_desc = "You can check your voting status in Settings > Account > Voting Status. If you've voted, it will show Vote Complete; if not, it will show Vote Incomplete.",
+
+        // FAQ Answer 3
+        faq_answer_3_intro = "Yes, your vote remains completely private on VoteChain. The platform uses blockchain technology and high-level encryption to ensure the privacy of your vote.",
+        faq_answer_3_point1_title = "Guaranteed Anonymity",
+        faq_answer_3_point1_desc = "Voter identities are separated from voting data, so no one can link your vote to your personal information.",
+        faq_answer_3_point2_title = "Data Security",
+        faq_answer_3_point2_desc = "All voting data is encrypted and can only be accessed by the system for tallying purposes, without involving third parties.",
+        faq_answer_3_point3_title = "Transparent Verification",
+        faq_answer_3_point3_desc = "While the process is transparent and auditable, voter identities remain entirely confidential.",
+
+        // FAQ Answer 4
+        faq_answer_4_intro = "No, VoteChain only allows users to cast their votes during the specified election period. The system automatically enables and disables voting access based on the official schedule set by the election organizers.",
+        faq_answer_4_point1_title = "Limited Timeframe",
+        faq_answer_4_point1_desc = "You can only vote while the voting period is active. Once the period ends, the system will no longer accept votes.",
+        faq_answer_4_point2_title = "Reminder Notifications",
+        faq_answer_4_point2_desc = "VoteChain provides notifications to remind you of the election schedule so you don't miss your chance to vote.",
+
+        // FAQ Answer 5
+        faq_answer_5_intro = "Public Key and Private Key are crucial in VoteChain because they ensure the security, privacy, and integrity of the voting process:",
+        faq_answer_5_point1_title = "Public Key",
+        faq_answer_5_point1_desc = "Serves as your digital identity on the blockchain network. It allows you to receive data or be verified as a voter without revealing personal information.",
+        faq_answer_5_point2_title = "Private Key",
+        faq_answer_5_point2_desc = "Secures your account and authorizes every transaction you make. With the Private Key, only you can access and validate your vote within the system.",
+
+        // Password Confirmation Dialog
+        passwordConfirmationTitle = "Enter Password",
+        passwordConfirmationSubtitle = "Enter your password to view account details",
+        passwordConfirmationCancel = "Cancel",
+        passwordConfirmationSubmit = "Submit",
+        passwordIncorrect = "Incorrect password. Please try again",
+        passwordEmpty = "Password cannot be empty",
     )
 }

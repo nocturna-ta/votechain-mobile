@@ -1,5 +1,9 @@
 package com.nocturna.votechain.ui.screens.homepage
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Environment
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,6 +26,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -31,6 +36,9 @@ import com.nocturna.votechain.viewmodel.candidate.VisionMissionViewModelImpl
 import com.nocturna.votechain.ui.screens.LoadingScreen
 import com.nocturna.votechain.ui.theme.*
 import com.nocturna.votechain.utils.LanguageManager
+import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
 
 @Composable
 fun VisionMissionScreen(
@@ -41,8 +49,12 @@ fun VisionMissionScreen(
 ) {
     val strings = LanguageManager.getLocalizedStrings()
     val context = LocalContext.current
+
     val uriHandler = LocalUriHandler.current
     var showDocumentError by remember { mutableStateOf(false) }
+    var showPdfOptions by remember { mutableStateOf(false) }
+    var isDownloading by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     // Create and remember the presenter
     val presenter = remember { VisionMissionViewModelImpl() }
@@ -51,10 +63,71 @@ fun VisionMissionScreen(
     // Load data when the screen is first composed or when pairId changes
     LaunchedEffect(pairId) {
         if (pairId.isNotBlank()) {
-            presenter.loadDataFromAPI(pairId) // Load using API with pairId
+            presenter.loadDataFromAPI(pairId)
         } else {
-            // Fallback to old method if somehow pairId is empty
             presenter.loadData(1)
+        }
+    }
+
+    // Function to download PDF and open with selected app
+    fun downloadAndOpenPdf(openInBrowser: Boolean = false) {
+        coroutineScope.launch {
+            isDownloading = true
+            try {
+                val result = presenter.downloadProgramDocs(pairId)
+                result.fold(
+                    onSuccess = { responseBody ->
+                        // Save PDF to Downloads folder
+                        val fileName = "program_kerja_${pairId}.pdf"
+                        val file = File(
+                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                            fileName
+                        )
+
+                        // Write the PDF data to file
+                        FileOutputStream(file).use { outputStream ->
+                            responseBody.byteStream().use { inputStream ->
+                                inputStream.copyTo(outputStream)
+                            }
+                        }
+
+                        // Show success message
+                        Toast.makeText(context, "PDF berhasil diunduh ke folder Downloads", Toast.LENGTH_SHORT).show()
+
+                        if (openInBrowser) {
+                            // Open directly in browser
+                            val programDocsUrl = "https://8f7e-36-69-142-17.ngrok-free.app/v1/election/pairs/$pairId/detail/program-docs"
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(programDocsUrl))
+                            context.startActivity(intent)
+                        } else {
+                            // Let user choose app to open PDF
+                            val uri = FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.fileprovider",
+                                file
+                            )
+
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(uri, "application/pdf")
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            }
+
+                            val chooserIntent = Intent.createChooser(intent, "Pilih aplikasi untuk membuka PDF")
+                            context.startActivity(chooserIntent)
+                        }
+                    },
+                    onFailure = { error ->
+                        showDocumentError = true
+                        Toast.makeText(context, "Gagal mengunduh dokumen: ${error.message}", Toast.LENGTH_LONG).show()
+                    }
+                )
+            } catch (e: Exception) {
+                showDocumentError = true
+                Toast.makeText(context, "Terjadi kesalahan: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                isDownloading = false
+                showPdfOptions = false
+            }
         }
     }
 
@@ -170,11 +243,7 @@ fun VisionMissionScreen(
 
                         MoreInformationCard(
                             onCardClick = {
-                                try {
-                                    uriHandler.openUri(programDocsUrl)
-                                } catch (e: Exception) {
-                                    showDocumentError = true
-                                }
+                                showPdfOptions = true
                             }
                         )
                     }
@@ -183,12 +252,72 @@ fun VisionMissionScreen(
         }
     }
 
+    // PDF Options Dialog
+    if (showPdfOptions) {
+        AlertDialog(
+            onDismissRequest = { showPdfOptions = false },
+            title = {
+                Text(
+                    text = "Pilih Cara Membuka Dokumen",
+                    style = AppTypography.heading5SemiBold
+                )
+            },
+            text = {
+                Text(
+                    text = "Bagaimana Anda ingin membuka dokumen program kerja?",
+                    style = AppTypography.paragraphRegular
+                )
+            },
+            confirmButton = {
+                Column {
+                    // Option 1: Download and choose app
+                    TextButton(
+                        onClick = {
+                            if (!isDownloading) {
+                                downloadAndOpenPdf(openInBrowser = false)
+                            }
+                        },
+                        enabled = !isDownloading
+                    ) {
+                        if (isDownloading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        Text("Unduh & Pilih Aplikasi")
+                    }
+
+                    // Option 2: Open in browser
+                    TextButton(
+                        onClick = {
+                            if (!isDownloading) {
+                                downloadAndOpenPdf(openInBrowser = true)
+                            }
+                        },
+                        enabled = !isDownloading
+                    ) {
+                        Text("Buka di Browser")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showPdfOptions = false },
+                    enabled = !isDownloading
+                ) {
+                    Text("Batal")
+                }
+            }
+        )
+    }
     // Show error dialog for document opening issues
     if (showDocumentError) {
         AlertDialog(
             onDismissRequest = { showDocumentError = false },
-            title = { Text("Cannot Open Document") },
-            text = { Text("Unable to open the program document. Please check your internet connection and try again.") },
+            title = { Text("Tidak Dapat Membuka Dokumen") },
+            text = { Text("Tidak dapat membuka dokumen program kerja. Silakan periksa koneksi internet Anda dan coba lagi.") },
             confirmButton = {
                 TextButton(onClick = { showDocumentError = false }) {
                     Text("OK")

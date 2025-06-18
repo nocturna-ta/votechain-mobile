@@ -1,30 +1,43 @@
 package com.nocturna.votechain.ui.screens.profilepage
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.nocturna.votechain.R
-import androidx.compose.ui.res.painterResource
+import com.nocturna.votechain.data.repository.UserLoginRepository
 import com.nocturna.votechain.ui.theme.AppTypography
-import com.nocturna.votechain.ui.theme.DangerColors
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.utils.LanguageManager
-import androidx.compose.ui.platform.LocalContext
-import com.nocturna.votechain.data.repository.UserLoginRepository
 
 @Composable
 fun PasswordConfirmationDialog(
@@ -37,6 +50,8 @@ fun PasswordConfirmationDialog(
     var showPassword by remember { mutableStateOf(false) }
     var isError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+
+    val strings = LanguageManager.getLocalizedStrings()
 
     if (isOpen) {
         Dialog(onDismissRequest = onCancel) {
@@ -57,18 +72,18 @@ fun PasswordConfirmationDialog(
                 ) {
                     // Title
                     Text(
-                        text = "Enter Password",
-                        style = AppTypography.heading4Bold,
+                        text = strings.passwordConfirmationTitle,
+                        style = AppTypography.heading4SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(bottom = 16.dp)
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
 
                     // Subtitle
                     Text(
-                        text = "Please enter your password to view account details",
+                        text = strings.passwordConfirmationSubtitle,
                         style = AppTypography.paragraphRegular,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 24.dp)
+                        color = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.padding(bottom = 16.dp)
                     )
 
                     // Password field
@@ -78,7 +93,7 @@ fun PasswordConfirmationDialog(
                             password = it
                             isError = false
                         },
-                        label = { Text("Password") },
+                        label = { Text(strings.password) },
                         visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                         trailingIcon = {
                             IconButton(onClick = { showPassword = !showPassword }) {
@@ -87,17 +102,19 @@ fun PasswordConfirmationDialog(
                                         id = if (showPassword) R.drawable.show else R.drawable.hide
                                     ),
                                     contentDescription = if (showPassword) "Hide password" else "Show password",
-                                    tint = NeutralColors.Neutral40
+                                    tint = MaterialTheme.colorScheme.onBackground
                                 )
                             }
                         },
                         isError = isError,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth(),
                         shape = RoundedCornerShape(8.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MainColors.Primary1,
-                            unfocusedBorderColor = NeutralColors.Neutral30,
-                            errorBorderColor = MaterialTheme.colorScheme.error
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                            errorBorderColor = MaterialTheme.colorScheme.error,
+                            unfocusedLabelColor = NeutralColors.Neutral40
                         ),
                         singleLine = true
                     )
@@ -128,13 +145,17 @@ fun PasswordConfirmationDialog(
                                 errorMessage = ""
                                 onCancel()
                             },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f),
                             shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            border = ButtonDefaults.outlinedButtonBorder.copy(
+                                brush = SolidColor(MaterialTheme.colorScheme.outline)
                             )
                         ) {
-                            Text("Cancel")
+                            Text(
+                                text = strings.passwordConfirmationCancel,
+                                color = MaterialTheme.colorScheme.tertiary
+                            )
                         }
 
                         // Submit button
@@ -151,20 +172,24 @@ fun PasswordConfirmationDialog(
                                     } else {
                                         // Password is incorrect
                                         isError = true
-                                        errorMessage = "Incorrect password. Please try again."
+                                        errorMessage = strings.passwordIncorrect
                                     }
                                 } else {
                                     isError = true
-                                    errorMessage = "Password cannot be empty"
+                                    errorMessage = strings.passwordEmpty
                                 }
                             },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MainColors.Primary1
                             )
                         ) {
-                            Text("Submit")
+                            Text(
+                                text = strings.passwordConfirmationSubmit,
+                                color = NeutralColors.Neutral10
+                            )
                         }
                     }
                 }

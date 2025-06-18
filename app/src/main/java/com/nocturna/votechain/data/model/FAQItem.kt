@@ -11,106 +11,123 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.nocturna.votechain.utils.LanguageManager
 
 data class FAQItem(
     val id: Int,
-    val question: String,
-    val answer: @Composable () -> Unit
+    val questionKey: String,
+    val answerKey: String
 )
 
 // Predefined FAQ data
 val faqItems = listOf(
     FAQItem(
         id = 1,
-        question = "What are the advantages of VoteChain over traditional voting methods?",
-        answer = { Text("VoteChain offers many advantages compared to traditional voting methods. Using blockchain technology, VoteChain ensures high security where vote data cannot be altered, and voter identities remain protected. All votes are transparently recorded, allowing results to be verified without compromising voter privacy.\n\nThe process is also faster and more cost-efficient, as vote counting is automated. Voters can cast their votes from anywhere using an internet-connected device, making it more convenient and accessible. Additionally, VoteChain supports environmental sustainability by reducing paper use and the need for large-scale logistics. With these features, VoteChain provides a safer, more transparent, and efficient voting system for everyone.")}
+        questionKey = "faq_question_1",
+        answerKey = "faq_answer_1"
     ),
     FAQItem(
         id = 2,
-        question = "How can I use VoteChain?",
-        answer = { FAQAnswer2() }
+        questionKey = "faq_question_2",
+        answerKey = "faq_answer_2"
     ),
     FAQItem(
         id = 3,
-        question = "Does my vote remain private on VoteChain?",
-        answer = {
-            Column {
-                Text("Yes, your vote remains completely private on VoteChain. The platform uses blockchain technology and high-level encryption to ensure the privacy of your vote.")
-
-                BulletPointRichText(
-                    boldTitle = "Guaranteed Anonymity: ",
-                    description = "Voter identities are separated from voting data, so no one can link your vote to your personal information."
-                )
-                BulletPointRichText(
-                    boldTitle = "Data Security: ",
-                    description = "All voting data is encrypted and can only be accessed by the system for tallying purposes, without involving third parties."
-                )
-                BulletPointRichText(
-                    boldTitle = "Transparent Verification: ",
-                    description = "While the process is transparent and auditable, voter identities remain entirely confidential."
-                )
-            }
-        }
+        questionKey = "faq_question_3",
+        answerKey = "faq_answer_3"
     ),
     FAQItem(
         id = 4,
-        question = "Can I vote outside the scheduled voting period?",
-        answer = {
-            Column {
-                Text("No, VoteChain only allows users to cast their votes during the specified election period.The system automatically enables and disables voting access based on the official schedule set by the election organizers.")
-                BulletPointRichText(
-                    boldTitle = "Limited Timeframe: ",
-                    description = "You can only vote while the voting period is active. Once the period ends, the system will no longer accept votes."
-                )
-
-                BulletPointRichText(
-                    boldTitle = "Reminder Notifications: ",
-                    description = "VoteChain provides notifications to remind you of the election schedule so you don't miss your chance to vote."
-                )
-            }
-        }
+        questionKey = "faq_question_4",
+        answerKey = "faq_answer_4"
     ),
     FAQItem(
         id = 5,
-        question = "Why are Public Key and Private Key important in VoteChain?",
-        answer = {
-            Column {
-                Text("Public Key and Private Key are crucial in VoteChain because they ensure the security, privacy, and integrity of the voting process:")
-
-                NumberedPointRichText(
-                    number = 1,
-                    boldTitle = "Public Key: ",
-                    description = "Serves as your digital identity on the blockchain network. It allows you to receive data or be verified as a voter without revealing personal information."
-                )
-
-                NumberedPointRichText(
-                    number = 2,
-                    boldTitle = "Private Key: ",
-                    description = "Secures your account and authorizes every transaction you make. With the Private Key, only you can access and validate your vote within the system."
-                )
-            }
-        }
+        questionKey = "faq_question_5",
+        answerKey = "faq_answer_5"
     )
 )
 
 @Composable
+fun GetFAQAnswer(answerKey: String) {
+    val strings = LanguageManager.getLocalizedStrings()
+
+    when (answerKey) {
+        "faq_answer_1" -> {
+            Text(strings.faq_answer_1)
+        }
+        "faq_answer_2" -> {
+            FAQAnswer2()
+        }
+        "faq_answer_3" -> {
+            Column {
+                Text(strings.faq_answer_3_intro)
+
+                BulletPointRichText(
+                    boldTitle = strings.faq_answer_3_point1_title,
+                    description = strings.faq_answer_3_point1_desc
+                )
+                BulletPointRichText(
+                    boldTitle = strings.faq_answer_3_point2_title,
+                    description = strings.faq_answer_3_point2_desc
+                )
+                BulletPointRichText(
+                    boldTitle = strings.faq_answer_3_point3_title,
+                    description = strings.faq_answer_3_point3_desc
+                )
+            }
+        }
+        "faq_answer_4" -> {
+            Column {
+                Text(strings.faq_answer_4_intro)
+
+                BulletPointRichText(
+                    boldTitle = strings.faq_answer_4_point1_title,
+                    description = strings.faq_answer_4_point1_desc
+                )
+
+                BulletPointRichText(
+                    boldTitle = strings.faq_answer_4_point2_title,
+                    description = strings.faq_answer_4_point2_desc
+                )
+            }
+        }
+        "faq_answer_5" -> {
+            Column {
+                Text(strings.faq_answer_5_intro)
+
+                NumberedPointRichText(
+                    number = 1,
+                    boldTitle = strings.faq_answer_5_point1_title,
+                    description = strings.faq_answer_5_point1_desc
+                )
+
+                NumberedPointRichText(
+                    number = 2,
+                    boldTitle = strings.faq_answer_5_point2_title,
+                    description = strings.faq_answer_5_point2_desc
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun FAQAnswer2() {
+    val strings = LanguageManager.getLocalizedStrings()
+
     val steps = listOf(
-        "Register an Account\nSign up by entering your ID number (NIK) and personal details. Once verified, your account is activated, and you can set a password.",
-        "Log In to Your Account\nLog in with your NIK and password, and you'll be directed to the Voting Menu.",
-        "Select an Election Category\nIn the Vote tab, choose an active election category.",
-        "Verify Your Identity\nThe system will ask you to Scan Your ID to match your data with the system.",
-        "Cast Your Vote\nAfter verification, select your preferred candidate or option and confirm. The system will notify you once your vote is successfully recorded.",
-        "Check Voting Status\nYou can check your voting status in Settings > Account > Voting Status. If you've voted, it will show Vote Complete; if not, it will show Vote Incomplete."
+        strings.faq_answer_2_step1_title to strings.faq_answer_2_step1_desc,
+        strings.faq_answer_2_step2_title to strings.faq_answer_2_step2_desc,
+        strings.faq_answer_2_step3_title to strings.faq_answer_2_step3_desc,
+        strings.faq_answer_2_step4_title to strings.faq_answer_2_step4_desc,
+        strings.faq_answer_2_step5_title to strings.faq_answer_2_step5_desc,
+        strings.faq_answer_2_step6_title to strings.faq_answer_2_step6_desc
     )
 
-    Column() {
-        Text(text = "Here are the steps to use the VoteChain app:")
-        steps.forEachIndexed { index, step ->
-            val parts = step.split("\n", limit = 2)
-            val title = parts.getOrNull(0) ?: ""
-            val desc = parts.getOrNull(1) ?: ""
-
+    Column {
+        Text(text = strings.faq_answer_2_intro)
+        steps.forEachIndexed { index, (title, desc) ->
             Text(
                 text = "${index + 1}. $title",
                 fontWeight = FontWeight.Bold,
