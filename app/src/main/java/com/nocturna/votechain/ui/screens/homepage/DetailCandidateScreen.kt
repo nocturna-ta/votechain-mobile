@@ -265,10 +265,10 @@ fun DetailCandidateScreen(
                             CandidateHelper.CandidateType.VICE_PRESIDENT -> strings.vicePresidentialCandidate
                             else -> ""
                         },
-                        style = AppTypography.paragraphMedium,
-                        color = NeutralColors.Neutral60,
+                        style = AppTypography.heading6Regular,
+                        color = NeutralColors.Neutral50,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 24.dp)
+                        modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)
                     )
 
                     // Personal Information Section
@@ -361,7 +361,7 @@ fun CandidatePersonalInfoFromApi(
         val formattedBirthInfo = DateFormatter.formatBirthInfo(
             birthPlace = candidate.birth_place,
             birthDate = candidate.birth_date,
-            language = "Indonesia" // You can get this from LanguageManager if needed
+            language = "Indonesia"
         )
         TableRow(label = strings.birthInfo, value = formattedBirthInfo)
 
@@ -375,42 +375,5 @@ fun CandidatePersonalInfoFromApi(
 
         // Job/Occupation
         TableRow(label = strings.occupation, value = candidate.job)
-    }
-}
-
-/**
- * Preview function for DetailCandidateScreen with default styling
- */
-@Preview(showBackground = true)
-@Composable
-fun DetailCandidateScreenPreview() {
-    VotechainTheme {
-        DetailCandidateScreen(
-            candidateId = "president_test_id",
-            onBackClick = {}
-        )
-    }
-}
-
-/**
- * Preview function for DetailCandidateScreen with custom styling
- */
-@Preview(showBackground = true)
-@Composable
-fun DetailCandidateScreenCustomStylePreview() {
-    // Custom styling for preview
-    val customStyling = CandidateDetailStyling(
-        sectionTitleColor = MainColors.Primary2,
-        tableHeaderBackground = PrimaryColors.Primary20,
-        tableHeaderTextColor = PrimaryColors.Primary90,
-        personalInfoLabelColor = MainColors.Primary1
-    )
-
-    VotechainTheme {
-        DetailCandidateScreen(
-            candidateId = "president_test_id",
-            onBackClick = {},
-            styling = customStyling
-        )
     }
 }

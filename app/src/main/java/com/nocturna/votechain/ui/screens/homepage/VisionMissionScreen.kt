@@ -34,7 +34,7 @@ import com.nocturna.votechain.utils.LanguageManager
 @Composable
 fun VisionMissionScreen(
     navController: NavController,
-    pairId: String, // Changed from candidateNumber to pairId
+    pairId: String,
     onBackClick: () -> Unit = { navController.popBackStack() },
     modifier: Modifier = Modifier
 ) {
@@ -166,7 +166,7 @@ fun VisionMissionScreen(
                     // More Information Card (only if programDocs exists)
                     item {
                         // Build the API URL directly using the pairId
-                        val programDocsUrl = "https://8f7e-36-69-142-17.ngrok-free.app/v1/election/pairs/$pairId/detail/program-docs"
+                        val programDocsUrl = "https://f664-103-233-100-204.ngrok-free.app/v1/election/pairs/$pairId/detail/program-docs"
 
                         MoreInformationCard(
                             onCardClick = {
@@ -177,10 +177,6 @@ fun VisionMissionScreen(
                                 }
                             }
                         )
-                    }
-                    // Add some bottom spacing
-                    item {
-                        Spacer(modifier = Modifier.height(32.dp))
                     }
                 }
             }
@@ -219,22 +215,22 @@ private fun VisionSection(vision: String) {
                 .padding(20.dp),
             horizontalArrangement = Arrangement.Start
         ) {
-            // Vision Icon
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(
-                        MainColors.Primary1.copy(alpha = 0.1f),
-                        CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "V",
-                    style = AppTypography.heading5Bold,
-                    color = MainColors.Primary1
-                )
-            }
+//            // Vision Icon
+//            Box(
+//                modifier = Modifier
+//                    .size(48.dp)
+//                    .background(
+//                        MainColors.Primary1.copy(alpha = 0.1f),
+//                        CircleShape
+//                    ),
+//                contentAlignment = Alignment.Center
+//            ) {
+//                Text(
+//                    text = "V",
+//                    style = AppTypography.heading5Bold,
+//                    color = MainColors.Primary1
+//                )
+//            }
 
             Spacer(modifier = Modifier.width(16.dp))
 
@@ -275,22 +271,22 @@ private fun MissionSection(mission: String) {
                 .padding(20.dp),
             horizontalArrangement = Arrangement.Start
         ) {
-            // Mission Icon
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(
-                        PrimaryColors.Primary50.copy(alpha = 0.1f),
-                        CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "M",
-                    style = AppTypography.heading5Bold,
-                    color = PrimaryColors.Primary50
-                )
-            }
+//            // Mission Icon
+//            Box(
+//                modifier = Modifier
+//                    .size(48.dp)
+//                    .background(
+//                        PrimaryColors.Primary50.copy(alpha = 0.1f),
+//                        CircleShape
+//                    ),
+//                contentAlignment = Alignment.Center
+//            ) {
+//                Text(
+//                    text = "M",
+//                    style = AppTypography.heading5Bold,
+//                    color = PrimaryColors.Primary50
+//                )
+//            }
 
             Spacer(modifier = Modifier.width(16.dp))
 
@@ -316,6 +312,8 @@ private fun MissionSection(mission: String) {
 
 @Composable
 private fun WorkProgramsSection(programs: List<WorkProgram>) {
+    val strings = LanguageManager.getLocalizedStrings()
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -333,26 +331,26 @@ private fun WorkProgramsSection(programs: List<WorkProgram>) {
                 verticalAlignment = Alignment.Top
             ) {
                 // Work Programs Icon
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(
-                            PrimaryColors.Primary50.copy(alpha = 0.1f),
-                            CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "P",
-                        style = AppTypography.heading5Bold,
-                        color = PrimaryColors.Primary50
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
+//                Box(
+//                    modifier = Modifier
+//                        .size(48.dp)
+//                        .background(
+//                            PrimaryColors.Primary50.copy(alpha = 0.1f),
+//                            CircleShape
+//                        ),
+//                    contentAlignment = Alignment.Center
+//                ) {
+//                    Text(
+//                        text = "P",
+//                        style = AppTypography.heading5Bold,
+//                        color = PrimaryColors.Primary50
+//                    )
+//                }
+//
+//                Spacer(modifier = Modifier.width(16.dp))
 
                 Text(
-                    text = "Work Programs:",
+                    text = strings.workProgram,
                     style = AppTypography.heading6SemiBold,
                     color = NeutralColors.Neutral80
                 )
@@ -461,7 +459,7 @@ private fun MoreInformationCard(onCardClick: () -> Unit) {
                 Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
-                    text = "Click here to access detailed information about the vision, mission, and complete work programs of this candidate pair.",
+                    text = strings.cardDescription,
                     style = AppTypography.paragraphRegular,
                     color = NeutralColors.Neutral10
                 )

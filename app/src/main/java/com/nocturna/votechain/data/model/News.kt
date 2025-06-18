@@ -3,7 +3,7 @@ package com.nocturna.votechain.data.model
 data class NewsItem(
     val id: Int,
     val blog_name: String,
-    val file_foto: String,     // Added this field
+    val file_foto: String,
     val foto_thumb: String,
     val post_slug: String,
     val created_at: String

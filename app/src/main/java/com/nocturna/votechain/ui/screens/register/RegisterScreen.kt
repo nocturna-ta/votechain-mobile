@@ -399,8 +399,6 @@ fun RegisterScreen(
                         unfocusedBorderColor = if (nationalIdValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                         focusedTextColor = NeutralColors.Neutral70,
                         unfocusedTextColor = NeutralColors.Neutral70,
-                        focusedLabelColor = if (nationalIdValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                        unfocusedLabelColor = if (nationalIdValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                     ),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,
@@ -613,8 +611,6 @@ fun RegisterScreen(
                         unfocusedBorderColor = if (addressValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                         focusedTextColor = NeutralColors.Neutral70,
                         unfocusedTextColor = NeutralColors.Neutral70,
-                        focusedLabelColor = if (addressValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                        unfocusedLabelColor = if (addressValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                     ),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
@@ -661,8 +657,6 @@ fun RegisterScreen(
                             unfocusedBorderColor = if (provinceValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                             focusedTextColor = if (selectedProvince.isEmpty()) NeutralColors.Neutral30 else NeutralColors.Neutral70,
                             unfocusedTextColor = if (selectedProvince.isEmpty()) NeutralColors.Neutral30 else NeutralColors.Neutral70,
-                            focusedLabelColor = if (provinceValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                            unfocusedLabelColor = if (provinceValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                         ),
                         supportingText = {
                             if (provinceValidation.hasError) {
@@ -766,8 +760,6 @@ fun RegisterScreen(
                             unfocusedBorderColor = if (regionValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                             focusedTextColor = if (selectedRegion.isEmpty()) NeutralColors.Neutral30 else NeutralColors.Neutral70,
                             unfocusedTextColor = if (selectedRegion.isEmpty()) NeutralColors.Neutral30 else NeutralColors.Neutral70,
-                            focusedLabelColor = if (regionValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                            unfocusedLabelColor = if (regionValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                         ),
                         supportingText = {
                             if (regionValidation.hasError) {
@@ -853,8 +845,6 @@ fun RegisterScreen(
                             unfocusedBorderColor = if (genderValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                             focusedTextColor = if (selectedGender.isEmpty()) NeutralColors.Neutral30 else NeutralColors.Neutral70,
                             unfocusedTextColor = if (selectedGender.isEmpty()) NeutralColors.Neutral30 else NeutralColors.Neutral70,
-                            focusedLabelColor = if (genderValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                            unfocusedLabelColor = if (genderValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                         ),
                         trailingIcon = {
                             IconButton(onClick = { expandedGender = !expandedGender }) {
@@ -914,8 +904,6 @@ fun RegisterScreen(
                         unfocusedBorderColor = if (passwordValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                         focusedTextColor = NeutralColors.Neutral70,
                         unfocusedTextColor = NeutralColors.Neutral70,
-                        focusedLabelColor = if (passwordValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                        unfocusedLabelColor = if (passwordValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                     ),
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(

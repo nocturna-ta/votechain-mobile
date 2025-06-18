@@ -39,8 +39,6 @@ class VoteChainApplication : Application() {
         // Initialize the ElectionNetworkClient with application context
         initializeElectionNetworkClient()
 
-        // Initialize the CoilAuthHelper for authenticated image loading
-//        initializeCoilAuthHelper()
     }
 
     private fun initializeElectionNetworkClient() {
@@ -62,11 +60,6 @@ class VoteChainApplication : Application() {
             }
         }
     }
-//
-//    private fun initializeCoilAuthHelper() {
-//        CoilAuthHelper.initialize(this)
-//        Log.i(TAG, "CoilAuthHelper initialized for authenticated image loading")
-//    }
 
     /**
      * Get a demo token if available (for testing purposes)

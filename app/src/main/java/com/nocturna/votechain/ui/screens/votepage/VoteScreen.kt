@@ -32,7 +32,9 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import com.nocturna.votechain.R
+import com.nocturna.votechain.ui.screens.LoadingScreen
 import com.nocturna.votechain.ui.screens.votepage.ResultsScreen
+import com.nocturna.votechain.utils.LanguageManager
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -44,6 +46,8 @@ fun VotingScreen(
     onVotesClick: () -> Unit = { /* Already on votes */ },
     onProfileClick: () -> Unit = { navController.navigate("profile") }
 ) {
+    val strings = LanguageManager.getLocalizedStrings()
+
     val activeVotings by viewModel.activeVotings.collectAsState()
     val votingResults by viewModel.votingResults.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -54,7 +58,7 @@ fun VotingScreen(
     val pagerState = rememberPagerState(pageCount = { 2 })
     val coroutineScope = rememberCoroutineScope()
 
-    val tabs = listOf("Active Voting", "Results")
+    val tabs = listOf(strings.activeVotesList, strings.results)
 
     Scaffold(
         bottomBar = {
@@ -160,10 +164,7 @@ fun ActiveVotingTab(
             .padding(horizontal = 24.dp)
     ) {
         if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.align(Alignment.Center),
-                color = MainColors.Primary1
-            )
+            LoadingScreen()
         } else if (error != null) {
             Column(
                 modifier = Modifier.align(Alignment.Center),

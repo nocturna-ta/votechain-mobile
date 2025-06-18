@@ -11,7 +11,7 @@ data class Regency(
 )
 
 data class ProvinceResponse(
-    val data: List<com.nocturna.votechain.data.model.Province>
+    val data: List<Province>
 )
 
 data class RegencyResponse(

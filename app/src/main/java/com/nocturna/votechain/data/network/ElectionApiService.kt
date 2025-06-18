@@ -1,7 +1,5 @@
 package com.nocturna.votechain.data.network
 
-import com.nocturna.votechain.data.model.AllPartiesResponse
-import com.nocturna.votechain.data.model.ElectionPairDetailResponse
 import com.nocturna.votechain.data.model.ElectionPairsResponse
 import com.nocturna.votechain.data.model.PartyResponse
 import com.nocturna.votechain.data.model.SupportingPartiesResponse

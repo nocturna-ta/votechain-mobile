@@ -12,12 +12,6 @@ data class ElectionPairsResponse(
     val error: ApiError?
 )
 
-// Error information
-data class ElectionApiError(
-    val error_code: Int,
-    val error_message: String
-)
-
 // Single election pair (president and vice president)
 data class ElectionPair(
     val id: String,
@@ -85,14 +79,6 @@ data class SupportingPartiesData(
     val parties: List<SupportingParty>
 )
 
-// All parties response wrapper
-data class AllPartiesResponse(
-    val code: Int,
-    val message: String,
-    val data: List<Party>?,
-    val error: ApiError?
-)
-
 data class PartyResponse(
     val data: PartyData,
     val code: Int
@@ -110,12 +96,6 @@ data class PartyElectionPair(
     val party: Party
 )
 
-//data class WorkProgram(
-//    val program_name: String,
-//    val program_photo: String,
-//    val program_desc: List<String>
-//)
-
 data class ElectionPairDetail(
     val id: String,
     val election_pair_id: String,
@@ -123,9 +103,4 @@ data class ElectionPairDetail(
     val mission: String,
     val work_program: List<WorkProgram>,
     val program_docs: String
-)
-
-data class ElectionPairDetailResponse(
-    val data: ElectionPairDetail,
-    val code: Int
 )

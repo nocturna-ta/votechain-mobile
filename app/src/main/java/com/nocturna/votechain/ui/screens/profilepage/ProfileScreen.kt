@@ -317,7 +317,7 @@ fun ProfileScreen(
             ) {
                 // Settings Section
                 Text(
-                    text = "Settings",
+                    text = strings.settings,
                     style = AppTypography.heading4Bold,
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -376,12 +376,12 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Theme",
+                        text = strings.theme,
                         style = AppTypography.heading5Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    Box {// Theme selection pill
+                    Box {
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))

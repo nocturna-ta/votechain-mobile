@@ -8,15 +8,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.nocturna.votechain.data.model.EducationEntry
 import com.nocturna.votechain.data.model.WorkEntry
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.NeutralColors
-
-/**
- * Reusable components for candidate-related UI
- */
+import com.nocturna.votechain.utils.LanguageManager
+import com.nocturna.votechain.utils.LocalizedStrings
 
 /**
  * Displays a table row with label and value
@@ -30,7 +29,7 @@ fun TableRow(label: String, value: String) {
     ) {
         Text(
             text = label,
-            style = AppTypography.heading5Regular,
+            style = AppTypography.paragraphRegular,
             color = NeutralColors.Neutral70,
             modifier = Modifier
                 .weight(1f)
@@ -40,7 +39,7 @@ fun TableRow(label: String, value: String) {
 
         Text(
             text = value,
-            style = AppTypography.heading5Regular,
+            style = AppTypography.paragraphRegular,
             color = NeutralColors.Neutral90,
             modifier = Modifier
                 .weight(1f)
@@ -60,6 +59,8 @@ fun TableRow(label: String, value: String) {
  */
 @Composable
 fun EducationHistoryTable(educationHistory: List<EducationEntry>) {
+    val strings = LanguageManager.getLocalizedStrings()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -74,18 +75,20 @@ fun EducationHistoryTable(educationHistory: List<EducationEntry>) {
                 .padding(vertical = 8.dp)
         ) {
             Text(
-                text = "Nama Institusi",
-                style = AppTypography.heading5SemiBold,
+                text = strings.institution,
+                style = AppTypography.paragraphSemiBold,
                 color = NeutralColors.Neutral80,
+                textAlign = TextAlign.Center,
                 modifier = Modifier
                     .weight(1.5f)
                     .padding(horizontal = 8.dp)
             )
 
             Text(
-                text = "Tahun",
-                style = AppTypography.heading5SemiBold,
+                text = strings.year,
+                style = AppTypography.paragraphSemiBold,
                 color = NeutralColors.Neutral80,
+                textAlign = TextAlign.Center,
                 modifier = Modifier
                     .weight(0.8f)
                     .padding(horizontal = 8.dp)
@@ -112,7 +115,7 @@ fun EducationRow(institution: String, years: String) {
     ) {
         Text(
             text = institution,
-            style = AppTypography.heading6Regular,
+            style = AppTypography.paragraphRegular,
             color = NeutralColors.Neutral90,
             modifier = Modifier
                 .weight(1.5f)
@@ -121,8 +124,9 @@ fun EducationRow(institution: String, years: String) {
 
         Text(
             text = years,
-            style = AppTypography.heading6Regular,
+            style = AppTypography.paragraphRegular,
             color = NeutralColors.Neutral90,
+            textAlign = TextAlign.Center,
             modifier = Modifier
                 .weight(0.8f)
                 .padding(horizontal = 8.dp)
@@ -140,6 +144,8 @@ fun EducationRow(institution: String, years: String) {
  */
 @Composable
 fun WorkHistoryTable(workHistory: List<WorkEntry>) {
+    val strings = LanguageManager.getLocalizedStrings()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -154,27 +160,30 @@ fun WorkHistoryTable(workHistory: List<WorkEntry>) {
                 .padding(vertical = 8.dp)
         ) {
             Text(
-                text = "Nama Institusi",
-                style = AppTypography.heading5SemiBold,
+                text = strings.institution,
+                style = AppTypography.paragraphSemiBold,
                 color = NeutralColors.Neutral80,
+                textAlign = TextAlign.Center,
                 modifier = Modifier
                     .weight(1.5f)
                     .padding(horizontal = 8.dp)
             )
 
             Text(
-                text = "Jabatan",
-                style = AppTypography.heading5SemiBold,
+                text = strings.position,
+                style = AppTypography.paragraphSemiBold,
                 color = NeutralColors.Neutral80,
+                textAlign = TextAlign.Center,
                 modifier = Modifier
                     .weight(1f)
                     .padding(horizontal = 8.dp)
             )
 
             Text(
-                text = "Tahun",
-                style = AppTypography.heading5SemiBold,
+                text = strings.year,
+                style = AppTypography.paragraphSemiBold,
                 color = NeutralColors.Neutral80,
+                textAlign = TextAlign.Center,
                 modifier = Modifier
                     .weight(0.8f)
                     .padding(horizontal = 8.dp)
@@ -201,7 +210,7 @@ fun WorkRow(institution: String, position: String, years: String) {
     ) {
         Text(
             text = institution,
-            style = AppTypography.heading6Regular,
+            style = AppTypography.paragraphRegular,
             color = NeutralColors.Neutral90,
             modifier = Modifier
                 .weight(1.5f)
@@ -210,8 +219,9 @@ fun WorkRow(institution: String, position: String, years: String) {
 
         Text(
             text = position,
-            style = AppTypography.heading6Regular,
+            style = AppTypography.paragraphRegular,
             color = NeutralColors.Neutral90,
+            textAlign = TextAlign.Center,
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 8.dp)
@@ -219,8 +229,9 @@ fun WorkRow(institution: String, position: String, years: String) {
 
         Text(
             text = years,
-            style = AppTypography.heading6Regular,
+            style = AppTypography.paragraphRegular,
             color = NeutralColors.Neutral90,
+            textAlign = TextAlign.Center,
             modifier = Modifier
                 .weight(0.8f)
                 .padding(horizontal = 8.dp)

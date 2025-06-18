@@ -21,18 +21,10 @@ import java.security.SecureRandom
 object BlockchainManager {
     private const val TAG = "BlockchainManager"
 
-    // Connection to local Ganache instance
-    // Note: 10.0.2.2 is used instead of localhost when running in Android emulator
     private val web3j: Web3j by lazy {
-        val nodeUrl = "https://03ae-103-233-100-204.ngrok-free.app"
+        val nodeUrl = "https://d4bb-103-233-100-204.ngrok-free.app"
         Log.d(TAG, "Initializing Web3j connection to $nodeUrl")
         Web3j.build(HttpService(nodeUrl))
-    }
-    /**
-     * Get the Web3j instance
-     */
-    fun getWeb3jInstance(): Web3j {
-        return web3j
     }
 
     /**
@@ -133,13 +125,5 @@ object BlockchainManager {
             Log.e(TAG, "Exception funding address: ${e.message}", e)
             return@withContext ""
         }
-    }
-
-    /**
-     * Shutdown Web3j client
-     */
-    fun shutdown() {
-        web3j.shutdown()
-        Log.d(TAG, "Web3j connection shut down")
     }
 }

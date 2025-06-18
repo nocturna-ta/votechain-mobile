@@ -33,6 +33,7 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.nocturna.votechain.R
+import com.nocturna.votechain.data.model.ElectionPair
 import com.nocturna.votechain.data.network.PartyPhotoHelper
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
@@ -44,6 +45,8 @@ import com.nocturna.votechain.utils.CandidatePhotoHelper
 import com.nocturna.votechain.utils.LanguageManager
 import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
 import com.nocturna.votechain.data.network.ElectionNetworkClient
+import com.nocturna.votechain.ui.screens.LoadingScreen
+import com.nocturna.votechain.ui.theme.AdditionalColors
 import com.nocturna.votechain.utils.CoilAuthHelper
 
 @Composable
@@ -197,12 +200,7 @@ fun CandidatePresidentScreen(
 
         // Show loading indicator when loading
         if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = MainColors.Primary1)
-            }
+            LoadingScreen()
         }
         // Show error message when there's an error
         else if (error != null) {
@@ -214,13 +212,6 @@ fun CandidatePresidentScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(16.dp)
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.back),
-                        contentDescription = "Error",
-                        tint = PrimaryColors.Primary70,
-                        modifier = Modifier.size(48.dp)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "Error loading candidates",
                         style = AppTypography.heading5Bold,
@@ -442,21 +433,16 @@ fun CandidatePresidentScreen(
                             onVisionMissionClick(pair.id)
                         }
                     )
-
                     Spacer(modifier = Modifier.height(14.dp))
                 }
-
-                // Add bottom padding to ensure the last item is fully visible
-                Spacer(modifier = Modifier.height(80.dp))
             }
-            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }
 
 @Composable
 fun CandidateCardFromApi(
-    electionPair: com.nocturna.votechain.data.model.ElectionPair,
+    electionPair: ElectionPair,
     onViewPresidentProfile: () -> Unit,
     onViewVicePresidentProfile: () -> Unit,
     onVisionMissionClick: () -> Unit
@@ -464,7 +450,7 @@ fun CandidateCardFromApi(
     val strings = LanguageManager.getLocalizedStrings()
     val context = LocalContext.current
 
-    // Generate photo URLs untuk debugging
+    // Generate photo URLs for debugging
     val presidentPhotoUrl = CandidatePhotoHelper.getPresidentPhotoUrl(electionPair.id)
     val vicePresidentPhotoUrl = CandidatePhotoHelper.getVicePresidentPhotoUrl(electionPair.id)
 
@@ -499,127 +485,107 @@ fun CandidateCardFromApi(
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Headers with dividers
+            // Table structure with 2 columns
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(
-                        width = 1.dp,
-                        color = NeutralColors.Neutral30,
-                        shape = RoundedCornerShape(8.dp)
-                    )
+                modifier = Modifier.fillMaxWidth()
             ) {
-                // Headers row
+                // Row 1: Candidate Titles
                 Row(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    // Presidential Candidate Header
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .background(
-                                color = NeutralColors.Neutral20.copy(alpha = 0.3f),
-                                shape = RoundedCornerShape(topStart = 8.dp)
-                            )
-                            .padding(vertical = 12.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    // Presidential Column Header
+                    Box(modifier = Modifier.weight(1f)) {
                         Text(
                             text = strings.presidentialCandidate,
                             style = AppTypography.paragraphRegular,
                             color = MaterialTheme.colorScheme.tertiary,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
 
-                    // Vertical divider
-                    Box(
-                        modifier = Modifier
-                            .width(1.dp)
-                            .height(48.dp)
-                            .background(NeutralColors.Neutral30)
-                    )
-
-                    // Vice Presidential Candidate Header
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .background(
-                                color = NeutralColors.Neutral20.copy(alpha = 0.3f),
-                                shape = RoundedCornerShape(topEnd = 8.dp)
-                            )
-                            .padding(vertical = 12.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    // Vice Presidential Column Header
+                    Box(modifier = Modifier.weight(1f)) {
                         Text(
                             text = strings.vicePresidentialCandidate,
                             style = AppTypography.paragraphRegular,
                             color = MaterialTheme.colorScheme.tertiary,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
 
-                // Horizontal divider
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(NeutralColors.Neutral30)
-                )
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Candidate content row
+                // Row 2: Candidate Photos and Names
                 Row(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    // Presidential Candidate Content
+                    // Presidential Column
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(16.dp)
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Load candidate image from API if available
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(presidentPhotoUrl)
-                                .crossfade(true)
-                                .error(R.drawable.ic_launcher_background) // Fallback image
-                                .placeholder(R.drawable.ic_launcher_background) // Loading placeholder
-                                .listener(
-                                    onStart = {
-                                        Log.d("CandidateCard", "🔄 Loading president photo...")
-                                        Log.d("CandidateCard", "📍 URL: $presidentPhotoUrl")
-                                    },
-                                    onSuccess = { _, result ->
-                                        Log.d("CandidateCard", "✅ President photo loaded successfully")
-                                        Log.d("CandidateCard", "📊 Image size: ${result.drawable.intrinsicWidth}x${result.drawable.intrinsicHeight}")
-                                    },
-                                    onError = { _, error ->
-                                        Log.e("CandidateCard", "❌ President photo loading failed")
-                                        Log.e("CandidateCard", "📍 URL: $presidentPhotoUrl")
-                                        Log.e("CandidateCard", "🔥 Error: ${error.throwable?.message}")
-                                        error.throwable?.printStackTrace()
-
-                                        // Additional debugging
-                                        if (presidentPhotoUrl.isNotEmpty()) {
-                                            CandidatePhotoHelper.validatePhotoUrl(presidentPhotoUrl)
-                                        }
-                                    }
-                                )
-                                .build(),
-                            imageLoader = CoilAuthHelper.getImageLoader(context), // Use authenticated loader
-                            contentDescription = "Presidential Candidate ${electionPair.president.full_name}",
-                            contentScale = ContentScale.Fit,
+                        // President Photo
+                        Box(
                             modifier = Modifier
                                 .size(height = 120.dp, width = 90.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                        )
+                        ) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(presidentPhotoUrl)
+                                    .crossfade(true)
+                                    .error(R.drawable.ic_launcher_background)
+                                    .placeholder(R.drawable.ic_launcher_background)
+                                    .listener(
+                                        onStart = {
+                                            Log.d("CandidateCard", "🔄 Loading president photo...")
+                                            Log.d("CandidateCard", "📍 URL: $presidentPhotoUrl")
+                                        },
+                                        onSuccess = { _, result ->
+                                            Log.d(
+                                                "CandidateCard",
+                                                "✅ President photo loaded successfully"
+                                            )
+                                            Log.d(
+                                                "CandidateCard",
+                                                "📊 Image size: ${result.drawable.intrinsicWidth}x${result.drawable.intrinsicHeight}"
+                                            )
+                                        },
+                                        onError = { _, error ->
+                                            Log.e(
+                                                "CandidateCard",
+                                                "❌ President photo loading failed"
+                                            )
+                                            Log.e("CandidateCard", "📍 URL: $presidentPhotoUrl")
+                                            Log.e(
+                                                "CandidateCard",
+                                                "🔥 Error: ${error.throwable?.message}"
+                                            )
+                                            error.throwable?.printStackTrace()
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                                            if (presidentPhotoUrl.isNotEmpty()) {
+                                                CandidatePhotoHelper.validatePhotoUrl(
+                                                    presidentPhotoUrl
+                                                )
+                                            }
+                                        }
+                                    )
+                                    .build(),
+                                imageLoader = CoilAuthHelper.getImageLoader(context),
+                                contentDescription = "Presidential Candidate ${electionPair.president.full_name}",
+                                contentScale = ContentScale.FillHeight
+                            )
+                        }
 
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // President Name
                         Text(
                             text = electionPair.president.full_name,
                             style = AppTypography.heading6SemiBold,
@@ -629,89 +595,98 @@ fun CandidateCardFromApi(
                             overflow = TextOverflow.Ellipsis
                         )
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                        // View Profile Button
+                        // President View Profile Button
                         OutlinedButton(
                             onClick = onViewPresidentProfile,
                             shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 containerColor = Color.Transparent,
-                                contentColor = MaterialTheme.colorScheme.tertiaryContainer
+                                contentColor = MaterialTheme.colorScheme.onPrimary
                             ),
-                            modifier = Modifier.height(32.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                            modifier = Modifier.height(24.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
                                 text = strings.viewProfile,
                                 style = AppTypography.smallParagraphRegular,
-                                color = MaterialTheme.colorScheme.tertiaryContainer
+                                color = MaterialTheme.colorScheme.onPrimary
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
                                 painter = painterResource(id = R.drawable.right2),
                                 contentDescription = null,
                                 modifier = Modifier.size(10.dp),
-                                tint = MaterialTheme.colorScheme.tertiaryContainer
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
 
-                    // Vertical divider
-                    Box(
-                        modifier = Modifier
-                            .width(1.dp)
-                            .fillMaxHeight()
-                            .background(NeutralColors.Neutral30)
-                    )
-
-                    // Vice Presidential Candidate Content
+                    // Vice Presidential Column
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(16.dp)
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Load candidate image from API if available
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(vicePresidentPhotoUrl)
-                                .crossfade(true)
-                                .error(R.drawable.ic_launcher_background)
-                                .placeholder(R.drawable.ic_launcher_background)
-                                .listener(
-                                    onStart = {
-                                        Log.d("CandidateCard", "🔄 Loading vice president photo...")
-                                        Log.d("CandidateCard", "📍 URL: $vicePresidentPhotoUrl")
-                                    },
-                                    onSuccess = { _, result ->
-                                        Log.d("CandidateCard", "✅ Vice president photo loaded successfully")
-                                        Log.d("CandidateCard", "📊 Image size: ${result.drawable.intrinsicWidth}x${result.drawable.intrinsicHeight}")
-                                    },
-                                    onError = { _, error ->
-                                        Log.e("CandidateCard", "❌ Vice president photo loading failed")
-                                        Log.e("CandidateCard", "📍 URL: $vicePresidentPhotoUrl")
-                                        Log.e("CandidateCard", "🔥 Error: ${error.throwable?.message}")
-                                        error.throwable?.printStackTrace()
-
-                                        // Additional debugging
-                                        if (vicePresidentPhotoUrl.isNotEmpty()) {
-                                            CandidatePhotoHelper.validatePhotoUrl(vicePresidentPhotoUrl)
-                                        }
-                                    }
-                                )
-                                .build(),
-                            imageLoader = CoilAuthHelper.getImageLoader(context),
-                            contentDescription = "Vice Presidential Candidate ${electionPair.vice_president.full_name}",
-                            contentScale = ContentScale.Fit,
+                        // Vice President Photo
+                        Box(
                             modifier = Modifier
                                 .size(height = 120.dp, width = 90.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                        )
+                        ) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(vicePresidentPhotoUrl)
+                                    .crossfade(true)
+                                    .error(R.drawable.ic_launcher_background)
+                                    .placeholder(R.drawable.ic_launcher_background)
+                                    .listener(
+                                        onStart = {
+                                            Log.d(
+                                                "CandidateCard",
+                                                "🔄 Loading vice president photo..."
+                                            )
+                                            Log.d("CandidateCard", "📍 URL: $vicePresidentPhotoUrl")
+                                        },
+                                        onSuccess = { _, result ->
+                                            Log.d(
+                                                "CandidateCard",
+                                                "✅ Vice president photo loaded successfully"
+                                            )
+                                            Log.d(
+                                                "CandidateCard",
+                                                "📊 Image size: ${result.drawable.intrinsicWidth}x${result.drawable.intrinsicHeight}"
+                                            )
+                                        },
+                                        onError = { _, error ->
+                                            Log.e(
+                                                "CandidateCard",
+                                                "❌ Vice president photo loading failed"
+                                            )
+                                            Log.e("CandidateCard", "📍 URL: $vicePresidentPhotoUrl")
+                                            Log.e(
+                                                "CandidateCard",
+                                                "🔥 Error: ${error.throwable?.message}"
+                                            )
+                                            error.throwable?.printStackTrace()
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                                            if (vicePresidentPhotoUrl.isNotEmpty()) {
+                                                CandidatePhotoHelper.validatePhotoUrl(
+                                                    vicePresidentPhotoUrl
+                                                )
+                                            }
+                                        }
+                                    )
+                                    .build(),
+                                imageLoader = CoilAuthHelper.getImageLoader(context),
+                                contentDescription = "Vice Presidential Candidate ${electionPair.vice_president.full_name}",
+                                contentScale = ContentScale.FillHeight,
+                            )
+                        }
 
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Vice President Name
                         Text(
                             text = electionPair.vice_president.full_name,
                             style = AppTypography.heading6SemiBold,
@@ -721,80 +696,95 @@ fun CandidateCardFromApi(
                             overflow = TextOverflow.Ellipsis
                         )
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                        // View Profile Button
+                        // Vice President View Profile Button
                         OutlinedButton(
                             onClick = onViewVicePresidentProfile,
                             shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 containerColor = Color.Transparent,
-                                contentColor = MaterialTheme.colorScheme.tertiaryContainer
+                                contentColor = MaterialTheme.colorScheme.onPrimary
                             ),
-                            modifier = Modifier.height(32.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                            modifier = Modifier.height(24.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
                                 text = strings.viewProfile,
                                 style = AppTypography.smallParagraphRegular,
-                                color = MaterialTheme.colorScheme.tertiaryContainer
+                                color = MaterialTheme.colorScheme.onPrimary
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
                                 painter = painterResource(id = R.drawable.right2),
                                 contentDescription = null,
                                 modifier = Modifier.size(10.dp),
-                                tint = MaterialTheme.colorScheme.tertiaryContainer
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Row 3: Proposing Parties Section (spans both columns)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(
+                            width = 0.5.dp,
+                            color = NeutralColors.Neutral10
+                        )
+                        .padding(vertical = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = strings.proposingParties,
+                        style = AppTypography.smallParagraphRegular,
+                        color = NeutralColors.Neutral50
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Supporting parties logos
+                    SupportingPartiesRow(
+                        supportingParties = electionPair.supporting_parties ?: emptyList(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Proposing Parties Section
-            Text(
-                text = "Proposing Parties", // You can add this to strings
-                style = AppTypography.paragraphRegular,
-                color = MaterialTheme.colorScheme.tertiary,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Supporting parties logos
-            SupportingPartiesRow(
-                supportingParties = electionPair.supporting_parties ?: emptyList(),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Vision & Mission Button
-            Button(
-                onClick = onVisionMissionClick,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MainColors.Primary1,
-                    contentColor = NeutralColors.Neutral10
-                ),
+            // Vision & Mission Button at the bottom
+            Box(
                 modifier = Modifier
-                    .height(44.dp)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = strings.visionMission,
-                    style = AppTypography.paragraphRegular,
-                    color = NeutralColors.Neutral10
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(
-                    painter = painterResource(id = R.drawable.right2),
-                    contentDescription = null,
-                    modifier = Modifier.size(12.dp),
-                    tint = NeutralColors.Neutral10
-                )
+                Button(
+                    onClick = onVisionMissionClick,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MainColors.Primary1,
+                        contentColor = NeutralColors.Neutral10
+                    ),
+                    modifier = Modifier.height(34.dp)
+                ) {
+                    Text(
+                        text = strings.candidateVisionMission,
+                        style = AppTypography.paragraphRegular,
+                        color = NeutralColors.Neutral10
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(
+                        painter = painterResource(id = R.drawable.right2),
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = NeutralColors.Neutral10
+                    )
+                }
             }
         }
     }
@@ -804,7 +794,7 @@ fun CandidateCardFromApi(
  * Composable to display supporting parties in a horizontal row
  */
 @Composable
-private fun SupportingPartiesRow(
+fun SupportingPartiesRow(
     supportingParties: List<com.nocturna.votechain.data.model.SupportingParty>,
     modifier: Modifier = Modifier
 ) {

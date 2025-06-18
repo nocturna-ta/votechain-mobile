@@ -66,7 +66,6 @@ fun HomeCarousel(
     val latestNews by viewModel.latestNews.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
-    val context = LocalContext.current
 
     if (isLoading) {
         Box(

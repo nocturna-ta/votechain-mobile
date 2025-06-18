@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.nocturna.votechain.R
+import com.nocturna.votechain.ui.screens.LoadingScreen
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
@@ -51,13 +52,10 @@ fun ResultsScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp) // Match active voting padding
+            .padding(horizontal = 24.dp)
     ) {
         if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.align(Alignment.Center),
-                color = MainColors.Primary1
-            )
+            LoadingScreen()
         } else if (error != null) {
             Column(
                 modifier = Modifier.align(Alignment.Center),

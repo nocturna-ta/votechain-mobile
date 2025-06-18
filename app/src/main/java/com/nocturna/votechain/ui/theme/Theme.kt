@@ -23,7 +23,7 @@ private val LightColorScheme = lightColorScheme(
     primary = MainColors.Primary1,
     onPrimary = NeutralColors.Neutral50,
     primaryContainer = PrimaryColors.Primary20,
-    onPrimaryContainer = PrimaryColors.Primary90,
+    onPrimaryContainer = NeutralColors.Neutral30,
 
     secondary = MainColors.Primary2,
     onSecondary = NeutralColors.Neutral10,

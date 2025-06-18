@@ -8,7 +8,7 @@ data class RegisterRequest(
     val email: String,
     val password: String,
     val role: String = "voter",
-    val address: String = "",  // Ethereum wallet address
+    val address: String = "",
     val nik: String = "",
     val full_name: String = "",
     val gender: String = "",
@@ -87,10 +87,9 @@ data class UserProfileData(
     val email: String,
     val id: String,
     val role: String,
-    // Add additional fields that may come from response headers
-    val publicAddress: String? = null,  // For x-address
-    val userId: String? = null,         // For x-user-id
-    val userRole: String? = null        // For x-role
+    val publicAddress: String? = null,
+    val userId: String? = null,
+    val userRole: String? = null
 )
 
 data class UserProfileResponse(

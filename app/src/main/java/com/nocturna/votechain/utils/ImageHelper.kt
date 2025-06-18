@@ -2,7 +2,7 @@ package com.nocturna.votechain.utils
 
 object ImageHelper {
     // Updated to use the new ngrok endpoint
-    private const val BASE_URL = "https://3d34-103-233-100-204.ngrok-free.app"
+    private const val BASE_URL = "https://f664-103-233-100-204.ngrok-free.app"
 
     /**
      * Convert relative path to full image URL

@@ -51,9 +51,3 @@ data class VisionMissionModel(
     val vision: String,
     val missions: List<String>
 )
-//
-//// API Error model for consistent error handling
-//data class ApiError(
-//    val error_message: String,
-//    val error_code: String? = null
-//)

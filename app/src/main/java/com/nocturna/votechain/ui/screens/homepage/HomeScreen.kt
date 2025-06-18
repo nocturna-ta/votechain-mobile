@@ -40,7 +40,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = viewModel()
 ) {
     val strings = LanguageManager.getLocalizedStrings()
-    val currentRoute = "home" // Default route is home
+    val currentRoute = "home"
     val context = LocalContext.current
 
     Scaffold(
@@ -147,7 +147,7 @@ fun HomeScreen(
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            text = "2024 Presidential Election - Indonesia",
+                            text = strings.cardTitle,
                             style = AppTypography.heading5Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -155,7 +155,7 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.height(6.dp))
 
                         Text(
-                            text = "Choose the leaders you trust to guide Indonesia forward",
+                            text = strings.cardSubtitle,
                             style = AppTypography.heading6Medium,
                             color = MaterialTheme.colorScheme.onBackground,
                             maxLines = 1,

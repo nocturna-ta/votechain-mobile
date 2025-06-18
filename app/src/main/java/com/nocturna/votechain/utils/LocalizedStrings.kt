@@ -18,7 +18,7 @@ data class LocalizedStrings(
 
     // Settings
     val settings: String,
-    val darkMode: String,
+    val theme: String,
     val language: String,
     val about: String,
     val faq: String,
@@ -84,6 +84,7 @@ data class LocalizedStrings(
     val visionMission: String,
     val vision: String,
     val mission: String,
+    val workProgram: String,
     val vote: String,
     val voteComplete: String,
     val voteIncomplete: String,
@@ -110,6 +111,8 @@ data class LocalizedStrings(
     val period: String,
     val candidate: String,
     val viewProfile: String,
+    val year: String,
+    val candidateVisionMission: String,
 
     // Results
     val results: String,
@@ -129,7 +132,12 @@ data class LocalizedStrings(
 
     // Notifications
     val notification: String,
-    val noNotifications: String
+    val noNotifications: String,
+
+    //Card
+    val cardTitle: String,
+    val cardSubtitle: String,
+    val cardDescription: String
 )
 
 /**
@@ -161,7 +169,7 @@ private fun getIndonesianStrings(): LocalizedStrings {
 
         // Settings
         settings = "Pengaturan",
-        darkMode = "Mode Gelap",
+        theme = "Tema",
         language = "Bahasa",
         about = "Tentang",
         faq = "Pertanyaan Umum",
@@ -227,6 +235,7 @@ private fun getIndonesianStrings(): LocalizedStrings {
         visionMission = "Visi & Misi",
         vision = "Visi:",
         mission = "Misi:",
+        workProgram = "Program Kerja:",
         vote = "Voting",
         voteComplete = "Sudah Memilih",
         voteIncomplete = "Belum Memilih",
@@ -253,6 +262,8 @@ private fun getIndonesianStrings(): LocalizedStrings {
         period = "Periode",
         candidate = "Kandidat",
         viewProfile = "Lihat Profil",
+        year = "Tahun",
+        candidateVisionMission = "Visi & Misi Kandidat",
 
         // Results
         results = "Hasil",
@@ -272,7 +283,12 @@ private fun getIndonesianStrings(): LocalizedStrings {
 
         // Notifications
         notification = "Notifikasi",
-        noNotifications = "Tidak ada notifikasi"
+        noNotifications = "Tidak ada notifikasi",
+
+        // Card
+        cardTitle = "Pemilihan Presiden 2024 - Indonesia",
+        cardSubtitle = "Pilihlah pemimpin yang Anda percayai untuk memajukan Indonesia",
+        cardDescription = "Klik di sini untuk mengakses informasi detail tentang visi, misi, dan program kerja lengkap pasangan calon ini"
     )
 }
 
@@ -295,7 +311,7 @@ private fun getEnglishStrings(): LocalizedStrings {
 
         // Settings
         settings = "Settings",
-        darkMode = "Dark Mode",
+        theme = "Theme",
         language = "Language",
         about = "About",
         faq = "FAQ",
@@ -361,6 +377,7 @@ private fun getEnglishStrings(): LocalizedStrings {
         visionMission = "Vision & Mission",
         vision = "Vision:",
         mission = "Mission:",
+        workProgram = "Work Program:",
         vote = "Vote",
         voteComplete = "Vote Complete",
         voteIncomplete = "Vote Incomplete",
@@ -387,6 +404,8 @@ private fun getEnglishStrings(): LocalizedStrings {
         period = "Period",
         candidate = "Candidate",
         viewProfile = "View Profile",
+        year = "Year",
+        candidateVisionMission = "Candidate Vision & Mission",
 
         // Results
         results = "Results",
@@ -406,6 +425,11 @@ private fun getEnglishStrings(): LocalizedStrings {
 
         // Notifications
         notification = "Notification",
-        noNotifications = "No notifications"
+        noNotifications = "No notifications",
+
+        // Card
+        cardTitle = "Presidential Election 2024 - Indonesia",
+        cardSubtitle = "Choose the leaders you trust to guide Indonesia forward",
+        cardDescription = "Click here to access detailed information about the vision, mission, and complete work program of this candidate pair"
     )
 }

@@ -48,6 +48,7 @@ import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.PrimaryColors
 import com.nocturna.votechain.ui.theme.VotechainTheme
+import com.nocturna.votechain.utils.LanguageManager
 
 @Composable
 fun FAQScreen(
@@ -55,6 +56,8 @@ fun FAQScreen(
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit = { navController.popBackStack() }
 ) {
+    val strings = LanguageManager.getLocalizedStrings()
+
     Column(modifier = Modifier.fillMaxSize()) {
         // Custom top bar with shadow
         Box(
@@ -74,13 +77,13 @@ fun FAQScreen(
                     painter = painterResource(id = R.drawable.back),
                     contentDescription = "Back",
                     tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(20.dp) // Smaller icon size
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
             // Centered title
             Text(
-                text = "FAQ",
+                text = strings.faq,
                 style = AppTypography.heading4Regular,
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier.align(Alignment.Center)
