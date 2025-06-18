@@ -23,12 +23,12 @@ import com.nocturna.votechain.ui.screens.LoadingScreen
 import com.nocturna.votechain.ui.screens.OTPVerificationScreen
 import com.nocturna.votechain.ui.screens.SplashScreen
 import com.nocturna.votechain.ui.screens.auth.EmailVerificationScreen
+import com.nocturna.votechain.ui.screens.homepage.CandidateSelectionScreen
 import com.nocturna.votechain.ui.screens.homepage.NotificationScreen
 import com.nocturna.votechain.ui.screens.profilepage.AccountDetailsScreen
 import com.nocturna.votechain.ui.screens.profilepage.FAQScreen
 import com.nocturna.votechain.ui.screens.profilepage.ProfileScreen
 import com.nocturna.votechain.ui.screens.register.RegistrationFlowController
-import com.nocturna.votechain.ui.screens.votepage.CandidateSelectionScreen
 import com.nocturna.votechain.ui.screens.votepage.OTPVotingVerificationScreen
 import com.nocturna.votechain.ui.screens.votepage.ResultsScreen
 import com.nocturna.votechain.ui.screens.votepage.VotingScreen

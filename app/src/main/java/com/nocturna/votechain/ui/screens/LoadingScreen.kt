@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,7 +42,7 @@ fun LoadingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White),
+            .background(MaterialTheme.colorScheme.surface),
         contentAlignment = Alignment.Center
     ) {
         // Display GIF of ballot box using Coil
@@ -53,7 +54,7 @@ fun LoadingScreen(
                 imageLoader = imageLoader
             ),
             contentDescription = "Loading Animation",
-            modifier = Modifier.size(185.dp),
+            modifier = Modifier.size(140.dp),
             contentScale = ContentScale.Fit
         )
     }

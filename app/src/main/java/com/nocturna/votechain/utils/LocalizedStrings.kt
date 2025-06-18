@@ -116,6 +116,7 @@ data class LocalizedStrings(
     val viewProfile: String,
     val year: String,
     val candidateVisionMission: String,
+    val noneSupportingParties: String,
 
     // Results
     val results: String,
@@ -268,6 +269,7 @@ private fun getIndonesianStrings(): LocalizedStrings {
         viewProfile = "Lihat Profil",
         year = "Tahun",
         candidateVisionMission = "Visi & Misi Kandidat",
+        noneSupportingParties = "Data partai tidak tersedia",
 
         // Results
         results = "Hasil",
@@ -411,6 +413,7 @@ private fun getEnglishStrings(): LocalizedStrings {
         viewProfile = "View Profile",
         year = "Year",
         candidateVisionMission = "Candidate Vision & Mission",
+        noneSupportingParties = "Party data not available",
 
         // Results
         results = "Results",

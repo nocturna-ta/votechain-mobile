@@ -64,7 +64,7 @@ fun EducationHistoryTable(educationHistory: List<EducationEntry>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(6.dp))
             .background(NeutralColors.Neutral20)
     ) {
         // Table header
@@ -149,7 +149,7 @@ fun WorkHistoryTable(workHistory: List<WorkEntry>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(6.dp))
             .background(NeutralColors.Neutral20)
     ) {
         // Table header

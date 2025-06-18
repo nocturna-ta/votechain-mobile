@@ -10,7 +10,9 @@ import com.nocturna.votechain.data.network.ElectionNetworkClient
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
+import okhttp3.logging.HttpLoggingInterceptor
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 /**
  * Helper class to create and manage authenticated ImageLoader for Coil
@@ -42,6 +44,7 @@ object CoilAuthHelper {
             // Try ElectionNetworkClient first
             if (ElectionNetworkClient.isInitialized()) {
                 token = ElectionNetworkClient.getUserToken()
+                Log.d(TAG, "Token from ElectionNetworkClient: ${if (token.isNotEmpty()) "Found (${token.length} chars)" else "Not found"}")
             }
 
             // Fallback to SharedPreferences
@@ -49,47 +52,7 @@ object CoilAuthHelper {
                 val sharedPreferences = context.applicationContext
                     .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 token = sharedPreferences.getString(KEY_USER_TOKEN, "") ?: ""
-            }
-
-            // Clean token - remove Bearer prefix if present
-            token = token.trim()
-            if (token.startsWith("Bearer ", ignoreCase = true)) {
-                token = token.substring(7).trim()
-            }
-
-            // Validate JWT format (should have 2 dots)
-            if (token.isNotEmpty() && token.split(".").size != 3) {
-                Log.e(TAG, "⚠️ Invalid JWT token format - expected 3 segments, got ${token.split(".").size}")
-                Log.e(TAG, "Token preview: ${token.take(20)}...")
-                return ""
-            }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting clean token", e)
-        }
-
-        return token
-    }
-
-    /**
-     * Get user token from multiple sources for fallback
-     */
-    private fun getUserToken(context: Context): String {
-        var token = ""
-
-        try {
-            // Try to get from ElectionNetworkClient first
-            if (ElectionNetworkClient.isInitialized()) {
-                token = ElectionNetworkClient.getUserToken()
-                Log.d(TAG, "Token from ElectionNetworkClient: ${if (token.isNotEmpty()) "Found" else "Not found"}")
-            }
-
-            // Fallback: get directly from SharedPreferences
-            if (token.isEmpty()) {
-                val ctx = context.applicationContext
-                val sharedPreferences = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                token = sharedPreferences.getString(KEY_USER_TOKEN, "") ?: ""
-                Log.d(TAG, "Token from SharedPreferences: ${if (token.isNotEmpty()) "Found" else "Not found"}")
+                Log.d(TAG, "Token from SharedPreferences: ${if (token.isNotEmpty()) "Found (${token.length} chars)" else "Not found"}")
 
                 // Save it to ElectionNetworkClient for future use if we found it
                 if (token.isNotEmpty() && ElectionNetworkClient.isInitialized()) {
@@ -97,6 +60,28 @@ object CoilAuthHelper {
                     Log.d(TAG, "Saved token to ElectionNetworkClient")
                 }
             }
+
+            // Clean token - remove Bearer prefix if present
+            token = token.trim()
+            if (token.startsWith("Bearer ", ignoreCase = true)) {
+                token = token.substring(7).trim()
+                Log.d(TAG, "Removed 'Bearer ' prefix from token")
+            }
+
+            // Validate JWT format (should have 2 dots)
+            if (token.isNotEmpty()) {
+                val segments = token.split(".")
+                if (segments.size != 3) {
+                    Log.e(TAG, "⚠️ Invalid JWT token format - expected 3 segments, got ${segments.size}")
+                    Log.e(TAG, "Token preview: ${token.take(20)}...${token.takeLast(20)}")
+                    // Clear invalid token
+                    clearInvalidToken(context)
+                    token = ""
+                } else {
+                    Log.d(TAG, "✅ Valid JWT token format detected")
+                }
+            }
+
         } catch (e: Exception) {
             Log.e(TAG, "Error getting user token", e)
         }
@@ -108,74 +93,110 @@ object CoilAuthHelper {
      * Create a new ImageLoader with enhanced authentication and debugging
      */
     private fun createImageLoader(context: Context): ImageLoader {
-        val token = getUserToken(context)
+        val token = getCleanToken(context)
 
-        // Create a comprehensive auth interceptor
-        val authInterceptor = object : Interceptor {
-            @Throws(IOException::class)
-            override fun intercept(chain: Interceptor.Chain): Response {
-                val originalRequest = chain.request()
-                val url = originalRequest.url.toString()
+        // Create logging interceptor for debugging
+        val loggingInterceptor = HttpLoggingInterceptor { message ->
+            if (message.contains("Image") || message.contains("photo") || message.contains("401")) {
+                Log.d(TAG, "HTTP: $message")
+            }
+        }.apply {
+            level = HttpLoggingInterceptor.Level.HEADERS
+        }
 
+        // Create auth interceptor that adds token to every request
+        val authInterceptor = Interceptor { chain ->
+            val originalRequest = chain.request()
+            val url = originalRequest.url.toString()
+
+            // Only log image-related requests
+            if (url.contains("/photo") || url.contains("/image")) {
                 Log.d(TAG, "🔄 Image request starting...")
                 Log.d(TAG, "📍 URL: $url")
-                Log.d(TAG, "🔑 Token available: ${if (token.isNotEmpty()) "YES" else "NO"}")
+                Log.d(TAG, "🔑 Token available: ${if (token.isNotEmpty()) "YES (${token.length} chars)" else "NO"}")
+            }
 
-                val newRequestBuilder = originalRequest.newBuilder()
+            // Build new request with headers
+            val requestBuilder = originalRequest.newBuilder()
+                .removeHeader("Authorization") // Remove any existing Authorization header first
 
-                // Add essential headers
-                if (token.isNotEmpty()) {
-                    newRequestBuilder.addHeader("Authorization", "Bearer $token")
-                    Log.d(TAG, "🔒 Added Authorization header")
+            // Add auth header if token is available
+            if (token.isNotEmpty()) {
+                requestBuilder.addHeader("Authorization", "Bearer $token")
+                if (url.contains("/photo")) {
+                    Log.d(TAG, "🔒 Added Authorization header with token")
                 }
+            }
 
-                // Add ngrok-specific headers
-                newRequestBuilder.addHeader("ngrok-skip-browser-warning", "true")
-                newRequestBuilder.addHeader("User-Agent", "VoteChain-Android-App")
-                newRequestBuilder.addHeader("Accept", "*/*")
+            // Add other required headers
+            requestBuilder
+                .addHeader("ngrok-skip-browser-warning", "true")
+                .addHeader("User-Agent", "VoteChain-Android-App")
+                .addHeader("Accept", "*/*")
+                .addHeader("Content-Type", "application/json")
 
-                val newRequest = newRequestBuilder.build()
+            val newRequest = requestBuilder.build()
 
+            // Log headers for image requests
+            if (url.contains("/photo")) {
                 Log.d(TAG, "📋 Request headers:")
                 newRequest.headers.forEach { header ->
-                    Log.d(TAG, "   ${header.first}: ${header.second}")
+                    if (header.first == "Authorization") {
+                        Log.d(TAG, "   ${header.first}: Bearer [TOKEN_HIDDEN]")
+                    } else {
+                        Log.d(TAG, "   ${header.first}: ${header.second}")
+                    }
                 }
+            }
 
+            try {
                 val response = chain.proceed(newRequest)
 
-                Log.d(TAG, "📥 Response received:")
-                Log.d(TAG, "   Status: ${response.code} ${response.message}")
-                Log.d(TAG, "   Content-Type: ${response.header("Content-Type")}")
-                Log.d(TAG, "   Content-Length: ${response.header("Content-Length")}")
+                // Log response for image requests
+                if (url.contains("/photo")) {
+                    Log.d(TAG, "📥 Response received:")
+                    Log.d(TAG, "   Status: ${response.code} ${response.message}")
+                    Log.d(TAG, "   Content-Type: ${response.header("Content-Type")}")
+                    Log.d(TAG, "   Content-Length: ${response.header("Content-Length")}")
 
-                if (!response.isSuccessful) {
-                    Log.e(TAG, "❌ Image loading failed for: $url")
-                    Log.e(TAG, "   Response code: ${response.code}")
-                    Log.e(TAG, "   Response message: ${response.message}")
-
-                    // Log response body for debugging (only first 500 chars)
-                    try {
-                        val responseBody = response.peekBody(500)
-                        val bodyString = responseBody.string()
-                        Log.e(TAG, "   Response body: ${bodyString.take(200)}...")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "   Could not read response body", e)
+                    when (response.code) {
+                        200 -> Log.d(TAG, "✅ Image loaded successfully")
+                        401 -> {
+                            Log.e(TAG, "❌ Authentication failed (401)")
+                            Log.e(TAG, "Token might be expired or invalid")
+                            // Try to peek at response body for more details
+                            try {
+                                val responseBody = response.peekBody(500)
+                                val bodyString = responseBody.string()
+                                Log.e(TAG, "Response body: ${bodyString.take(200)}")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Could not read response body", e)
+                            }
+                        }
+                        403 -> Log.e(TAG, "❌ Access forbidden (403)")
+                        404 -> Log.e(TAG, "❌ Image not found (404)")
+                        else -> Log.e(TAG, "❌ Unexpected response code: ${response.code}")
                     }
-                } else {
-                    Log.d(TAG, "✅ Image loaded successfully from: $url")
                 }
 
-                return response
+                response
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Request failed with exception", e)
+                throw e
             }
         }
 
+        // Create OkHttpClient with interceptors
         val okHttpClient = OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
-            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-            .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .addInterceptor(loggingInterceptor)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
             .build()
 
+        // Create and return ImageLoader
         return ImageLoader.Builder(context)
             .okHttpClient(okHttpClient)
             .memoryCache {
@@ -191,7 +212,8 @@ object CoilAuthHelper {
             }
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
-            .respectCacheHeaders(true)
+            .respectCacheHeaders(false) // Ignore cache headers from server
+            .crossfade(true)
             .build()
     }
 
@@ -223,7 +245,7 @@ object CoilAuthHelper {
      * Clear the current image loader to force re-creation
      */
     fun reset() {
-        Log.d(TAG, "Resetting image loader to force recreation with latest token")
+        Log.d(TAG, "🔄 Resetting image loader to force recreation with latest token")
         synchronized(this) {
             imageLoader = null
         }
@@ -239,5 +261,13 @@ object CoilAuthHelper {
             .data(url)
             .build()
         loader.enqueue(request)
+    }
+
+    /**
+     * Check if we have a valid token
+     */
+    fun hasValidToken(context: Context): Boolean {
+        val token = getCleanToken(context)
+        return token.isNotEmpty()
     }
 }

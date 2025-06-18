@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
@@ -588,7 +589,7 @@ fun CandidateCardFromApi(
                         // President Name
                         Text(
                             text = electionPair.president.full_name,
-                            style = AppTypography.heading6SemiBold,
+                            style = AppTypography.heading6SemiBold.copy(lineHeight = 22.sp),
                             color = MaterialTheme.colorScheme.onTertiary,
                             textAlign = TextAlign.Center,
                             maxLines = 2,
@@ -689,7 +690,7 @@ fun CandidateCardFromApi(
                         // Vice President Name
                         Text(
                             text = electionPair.vice_president.full_name,
-                            style = AppTypography.heading6SemiBold,
+                            style = AppTypography.heading6SemiBold.copy(lineHeight = 22.sp),
                             color = MaterialTheme.colorScheme.onTertiary,
                             textAlign = TextAlign.Center,
                             maxLines = 2,
@@ -799,6 +800,7 @@ fun SupportingPartiesRow(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val strings = LanguageManager.getLocalizedStrings()
 
     if (supportingParties.isEmpty()) {
         // Show placeholder when no parties available
@@ -807,7 +809,7 @@ fun SupportingPartiesRow(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "Data partai tidak tersedia",
+                text = strings.noneSupportingParties,
                 style = AppTypography.smallParagraphRegular,
                 color = MaterialTheme.colorScheme.tertiaryContainer
             )
@@ -817,7 +819,7 @@ fun SupportingPartiesRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(horizontal = 16.dp)
         ) {
-            items(supportingParties ?: emptyList()) { party ->
+            items(supportingParties) { party ->
                 val partyPhotoUrl = PartyPhotoHelper.getPartyPhotoUrl(party.party.id)
 
                 AsyncImage(
@@ -852,41 +854,6 @@ fun SupportingPartiesRow(
         }
     }
 }
-
-/**
- * Individual party logo item
- */
-@Composable
-private fun PartyLogoItem(
-    party: com.nocturna.votechain.data.model.Party,
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-    val photoUrl = PartyPhotoHelper.getPartyPhotoUrl(party.id)
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .size(width = 32.dp, height = 42.dp)
-            .padding(4.dp)
-    ) {
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(photoUrl)
-                .crossfade(true)
-                .build(),
-            contentDescription = "${party.name} Logo",
-            contentScale = ContentScale.Fit,
-            modifier = Modifier.fillMaxSize(),
-
-            placeholder = painterResource(id = R.drawable.ic_launcher_background), // Replace with party placeholder
-            error = painterResource(id = R.drawable.ic_launcher_background) // Replace with party placeholder
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-    }
-}
-
 
 @Preview(showBackground = true)
 @Composable
