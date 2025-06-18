@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Internal Files Directory -->
+    <files-path
+        name="internal_files"
+        path="." />
+
+    <!-- Documents Directory -->
+    <files-path
+        name="documents"
+        path="documents/" />
+
+    <!-- Cache Directory (optional, untuk temporary files) -->
+    <cache-path
+        name="cache"
+        path="." />
+</paths>

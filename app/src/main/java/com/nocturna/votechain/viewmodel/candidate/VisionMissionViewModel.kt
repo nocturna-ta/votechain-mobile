@@ -1,9 +1,11 @@
 package com.nocturna.votechain.viewmodel.candidate
 
+import android.content.Context
 import android.util.Log
 import com.nocturna.votechain.data.repository.VisionMissionRepository
 import com.nocturna.votechain.data.model.WorkProgram
 import com.nocturna.votechain.data.repository.VisionMissionRepositoryImpl
+import com.nocturna.votechain.utils.PdfUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -26,68 +28,56 @@ data class VisionMissionUiState(
     val programDocs: String? = null, // Program docs link from API
     val isLoading: Boolean = false,
     val error: String? = null,
-    val isDownloadingPdf: Boolean = false // Add download state
+    val isDownloadingPdf: Boolean = false, // New state for PDF download
+    val downloadError: String? = null // New state for download errors
 )
 
 /**
- * ViewModel Interface for Vision Mission
+ * Vision Mission Presenter Interface
  */
-/**
- * Interface for Vision Mission ViewModel
- */
-interface VisionMissionViewModel {
+interface VisionMissionPresenter {
     val uiState: StateFlow<VisionMissionUiState>
-
     fun loadData(candidateNumber: Int)
     fun loadDataFromAPI(pairId: String)
-    fun downloadProgramDocs(pairId: String): Result<ResponseBody>
+    fun downloadProgramDocs(context: Context, pairId: String, candidateName: String = "Kandidat")
 }
 
 /**
- * Implementation of Vision Mission ViewModel
+ * Implementation of Vision Mission Presenter
  */
-class VisionMissionViewModelImpl : VisionMissionViewModel {
+class VisionMissionViewModelImpl : VisionMissionPresenter {
 
     private val TAG = "VisionMissionViewModel"
     private val repository: VisionMissionRepository = VisionMissionRepositoryImpl()
 
-    // Create coroutine scope for the ViewModel
-    private val viewModelScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    // Create coroutine scope for the presenter
+    private val presenterScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private val _uiState = MutableStateFlow(VisionMissionUiState())
     override val uiState: StateFlow<VisionMissionUiState> = _uiState.asStateFlow()
 
     /**
-     * Load data using old method (for backward compatibility)
-     * @param candidateNumber The candidate number (1, 2, 3)
+     * Load data using legacy method (for backward compatibility)
      */
     override fun loadData(candidateNumber: Int) {
-        viewModelScope.launch {
+        presenterScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
             try {
-                Log.d(TAG, "Loading vision mission data for candidate: $candidateNumber")
-
-                val visionMissionData = repository.getVisionMission(candidateNumber)
-
+                val visionMission = repository.getVisionMission(candidateNumber)
                 _uiState.value = _uiState.value.copy(
-                    candidateNumber = candidateNumber,
-                    vision = visionMissionData.vision,
-                    missions = visionMissionData.missions,
-                    mission = visionMissionData.missions.joinToString(". "), // Convert list to single string
-                    workPrograms = emptyList(), // No work programs in old method
-                    programDocs = null, // No program docs in old method
+                    candidateNumber = visionMission.candidateNumber,
+                    vision = visionMission.vision,
+                    missions = visionMission.missions,
                     isLoading = false,
                     error = null
                 )
-
-                Log.d(TAG, "Successfully loaded vision mission data")
-
+                Log.d(TAG, "Successfully loaded legacy data for candidate $candidateNumber")
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading vision mission data: ${e.message}", e)
+                Log.e(TAG, "Error loading legacy data", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = "Failed to load data: ${e.message}"
+                    error = e.message ?: "Unknown error occurred"
                 )
             }
         }
@@ -95,70 +85,98 @@ class VisionMissionViewModelImpl : VisionMissionViewModel {
 
     /**
      * Load data from API using pair ID
-     * @param pairId The election pair ID
      */
     override fun loadDataFromAPI(pairId: String) {
-        viewModelScope.launch {
+        presenterScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
             try {
-                Log.d(TAG, "Loading vision mission data from API for pair: $pairId")
-
                 val visionMissionDetail = repository.getVisionMissionFromAPI(pairId)
-
                 _uiState.value = _uiState.value.copy(
-                    candidateNumber = pairId.toIntOrNull() ?: 1,
                     vision = visionMissionDetail.vision,
                     mission = visionMissionDetail.mission,
-                    missions = listOf(visionMissionDetail.mission), // Convert single string to list for compatibility
                     workPrograms = visionMissionDetail.workPrograms,
                     programDocs = visionMissionDetail.programDocs,
                     isLoading = false,
                     error = null
                 )
-
-                Log.d(TAG, "Successfully loaded vision mission data from API")
-
+                Log.d(TAG, "Successfully loaded API data for pair $pairId")
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading vision mission data from API: ${e.message}", e)
+                Log.e(TAG, "Error loading API data for pair $pairId", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = "Failed to load data from API: ${e.message}"
+                    error = e.message ?: "Failed to load candidate data"
                 )
             }
         }
     }
 
     /**
-     * Download program docs PDF
-     * @param pairId The election pair ID
-     * @return Result containing ResponseBody for the PDF file
+     * Download program docs PDF dan buka dengan aplikasi eksternal
      */
-    override fun downloadProgramDocs(pairId: String): Result<ResponseBody> {
-        return try {
-            _uiState.value = _uiState.value.copy(isDownloadingPdf = true)
+    override fun downloadProgramDocs(context: Context, pairId: String, candidateName: String) {
+        presenterScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isDownloadingPdf = true,
+                downloadError = null
+            )
 
-            Log.d(TAG, "Downloading program docs for pair: $pairId")
+            try {
+                Log.d(TAG, "Starting PDF download for pair $pairId")
 
-            // This should be called from a coroutine scope since it's a suspend function
-            val result = runBlocking {
-                repository.getProgramDocsFromAPI(pairId)
+                // Download PDF dari API
+                val result = repository.getProgramDocsFromAPI(pairId)
+
+                result.fold(
+                    onSuccess = { responseBody ->
+                        Log.d(TAG, "PDF downloaded successfully, opening with external app")
+
+                        // Download dan buka PDF
+                        val pdfResult = PdfUtils.downloadAndOpenPdf(
+                            context = context,
+                            responseBody = responseBody,
+                            candidateName = candidateName
+                        )
+
+                        pdfResult.fold(
+                            onSuccess = {
+                                _uiState.value = _uiState.value.copy(
+                                    isDownloadingPdf = false,
+                                    downloadError = null
+                                )
+                                Log.d(TAG, "PDF successfully opened with external app")
+                            },
+                            onFailure = { error ->
+                                _uiState.value = _uiState.value.copy(
+                                    isDownloadingPdf = false,
+                                    downloadError = "Gagal membuka dokumen: ${error.message}"
+                                )
+                                Log.e(TAG, "Error opening PDF", error)
+                            }
+                        )
+                    },
+                    onFailure = { error ->
+                        _uiState.value = _uiState.value.copy(
+                            isDownloadingPdf = false,
+                            downloadError = "Gagal mengunduh dokumen: ${error.message}"
+                        )
+                        Log.e(TAG, "Error downloading PDF", error)
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Unexpected error during PDF download", e)
+                _uiState.value = _uiState.value.copy(
+                    isDownloadingPdf = false,
+                    downloadError = "Terjadi kesalahan: ${e.message}"
+                )
             }
-
-            _uiState.value = _uiState.value.copy(isDownloadingPdf = false)
-
-            if (result.isSuccess) {
-                Log.d(TAG, "Successfully downloaded program docs")
-                result
-            } else {
-                Log.e(TAG, "Failed to download program docs: ${result.exceptionOrNull()?.message}")
-                result
-            }
-
-        } catch (e: Exception) {
-            _uiState.value = _uiState.value.copy(isDownloadingPdf = false)
-            Log.e(TAG, "Exception while downloading program docs: ${e.message}", e)
-            Result.failure(e)
         }
+    }
+
+    /**
+     * Clear download error
+     */
+    fun clearDownloadError() {
+        _uiState.value = _uiState.value.copy(downloadError = null)
     }
 }

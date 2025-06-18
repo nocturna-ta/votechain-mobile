@@ -3,11 +3,15 @@ package com.nocturna.votechain.data.network
 import com.nocturna.votechain.data.model.ElectionPairsResponse
 import com.nocturna.votechain.data.model.PartyResponse
 import com.nocturna.votechain.data.model.SupportingPartiesResponse
+import com.nocturna.votechain.data.model.VisionMissionApiResponse
 import com.nocturna.votechain.data.model.VisionMissionDetailResponse
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.GET
+import retrofit2.http.Header
+import retrofit2.http.Headers
 import retrofit2.http.Path
+import retrofit2.http.Streaming
 
 /**
  * API Service interface for election-related endpoints
@@ -81,8 +85,38 @@ interface ElectionApiService {
      * Endpoint: /v1/election/pairs/{id}/detail/program-docs
      * Returns PDF document with application/pdf content type
      */
+//    @GET("v1/election/pairs/{id}/detail/program-docs")
+//    suspend fun getProgramDocs(
+//        @Path("id") pairId: String
+//    ): Response<ResponseBody>
+
+    /**
+     * Get vision mission detail
+     */
+    @GET("v1/election/pairs/{id}/detail")
+    suspend fun getVisionMissionDetail(
+        @Path("id") pairId: String
+    ): Response<VisionMissionApiResponse>
+
+    /**
+     * Download program docs PDF
+     * @Streaming annotation penting untuk download file besar
+     * agar tidak di-load semua ke memory sekaligus
+     */
+    @Streaming
     @GET("v1/election/pairs/{id}/detail/program-docs")
     suspend fun getProgramDocs(
         @Path("id") pairId: String
+    ): Response<ResponseBody>
+
+    /**
+     * Alternative: Jika API memerlukan header khusus
+     */
+    @Streaming
+    @GET("v1/election/pairs/{id}/detail/program-docs")
+    @Headers("Accept: application/pdf")
+    suspend fun getProgramDocsWithHeaders(
+        @Path("id") pairId: String,
+        @Header("Authorization") token: String? = null
     ): Response<ResponseBody>
 }

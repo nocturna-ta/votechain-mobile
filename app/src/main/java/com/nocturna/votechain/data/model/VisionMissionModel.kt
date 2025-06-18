@@ -51,3 +51,22 @@ data class VisionMissionModel(
     val vision: String,
     val missions: List<String>
 )
+
+data class VisionMissionApiResponse(
+    val status: String?,
+    val message: String?,
+    val data: VisionMissionData?
+)
+
+data class VisionMissionData(
+    val vision: String?,
+    val mission: String?,
+    val workPrograms: List<WorkProgramApi>?,
+    val programDocsUrl: String?
+)
+
+data class WorkProgramApi(
+    val name: String?,
+    val descriptions: List<String>?,
+    val photoUrl: String?
+)

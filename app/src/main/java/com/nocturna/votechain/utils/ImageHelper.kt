@@ -1,9 +1,8 @@
 package com.nocturna.votechain.utils
 
-object ImageHelper {
-    // Updated to use the new ngrok endpoint
-    private const val BASE_URL = "https://f664-103-233-100-204.ngrok-free.app"
+import com.nocturna.votechain.data.network.ElectionNetworkClient
 
+object ImageHelper {
     /**
      * Convert relative path to full image URL
      */
@@ -16,19 +15,19 @@ object ImageHelper {
             relativePath.startsWith("http") -> relativePath
 
             // Path starts with uploads
-            relativePath.startsWith("uploads") -> "$BASE_URL/$relativePath"
+            relativePath.startsWith("uploads") -> "${ElectionNetworkClient.BASE_URL}/$relativePath"
 
             // Path starts with /uploads
-            relativePath.startsWith("/uploads") -> "$BASE_URL$relativePath"
+            relativePath.startsWith("/uploads") -> "${ElectionNetworkClient.BASE_URL}$relativePath"
 
             // Path starts with /v1/ (API endpoint)
-            relativePath.startsWith("/v1/") -> "$BASE_URL$relativePath"
+            relativePath.startsWith("/v1/") -> "${ElectionNetworkClient.BASE_URL}$relativePath"
 
             // Path starts with v1/ (API endpoint without leading slash)
-            relativePath.startsWith("v1/") -> "$BASE_URL/$relativePath"
+            relativePath.startsWith("v1/") -> "${ElectionNetworkClient.BASE_URL}/$relativePath"
 
             // Default case - assume it's in uploads folder
-            else -> "$BASE_URL/uploads/$relativePath"
+            else -> "${ElectionNetworkClient.BASE_URL}/uploads/$relativePath"
         }
     }
 
@@ -50,14 +49,14 @@ object ImageHelper {
      * Get full URL for candidate photo using API endpoint
      */
     fun getCandidatePhotoUrl(candidateId: String): String {
-        return "$BASE_URL/v1/candidate/$candidateId/photo"
+        return "${ElectionNetworkClient.BASE_URL}/v1/candidate/$candidateId/photo"
     }
 
     /**
      * Get full URL for party photo using API endpoint
      */
     fun getPartyPhotoUrl(partyId: String): String {
-        return "$BASE_URL/v1/party/$partyId/photo"
+        return "${ElectionNetworkClient.BASE_URL}/v1/party/$partyId/photo"
     }
 
     /**

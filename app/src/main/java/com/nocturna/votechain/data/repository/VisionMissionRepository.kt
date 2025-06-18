@@ -6,8 +6,10 @@ import com.nocturna.votechain.data.model.VisionMissionDetailModel
 import com.nocturna.votechain.data.model.WorkProgram
 import com.nocturna.votechain.data.network.ElectionApiService
 import com.nocturna.votechain.data.network.ElectionNetworkClient
+import com.nocturna.votechain.data.network.NetworkClient.apiService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.ResponseBody
 import javax.inject.Inject
 
 /**
@@ -16,7 +18,21 @@ import javax.inject.Inject
 interface VisionMissionRepository {
     suspend fun getVisionMission(candidateNumber: Int): VisionMissionModel // Keep for backward compatibility
     suspend fun getVisionMissionFromAPI(pairId: String): VisionMissionDetailModel // New method for API integration
-    suspend fun getProgramDocsFromAPI(pairId: String): Result<okhttp3.ResponseBody> // New method for fetching PDF program docs
+    suspend fun getProgramDocsFromAPI(pairId: String): Result<ResponseBody> {
+        return try {
+            val response = ElectionNetworkClient.electionApiService.getProgramDocs(pairId)
+
+            if (response.isSuccessful) {
+                response.body()?.let { responseBody ->
+                    Result.success(responseBody)
+                } ?: Result.failure(Exception("Empty response body"))
+            } else {
+                Result.failure(Exception("Failed to download PDF: ${response.code()} ${response.message()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
 
 /**
