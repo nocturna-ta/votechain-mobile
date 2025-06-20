@@ -190,25 +190,6 @@ fun LoginScreen(
                     }
                 }
 
-                // Display error message if any
-                AnimatedVisibility(
-                    visible = errorMessage != null,
-                    enter = fadeIn(tween(300)),
-                    exit = fadeOut(tween(300))
-                ) {
-                    errorMessage?.let {
-                        Text(
-                            text = it,
-                            style = AppTypography.paragraphRegular,
-                            color = MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                        )
-                    }
-                }
-
                 // Form section with animations
                 Box(modifier = Modifier.alpha(formAlpha.value)) {
                     Column {
@@ -231,7 +212,7 @@ fun LoginScreen(
                                 focusedTextColor = NeutralColors.Neutral70,
                                 unfocusedTextColor = NeutralColors.Neutral70,
 //                                focusedLabelColor = MainColors.Primary1,
-//                                unfocusedLabelColor = NeutralColors.Neutral30,
+                                unfocusedLabelColor = NeutralColors.Neutral30,
                                 errorBorderColor = MaterialTheme.colorScheme.error,
                                 errorLabelColor = MaterialTheme.colorScheme.error
                             ),
@@ -276,7 +257,7 @@ fun LoginScreen(
                                 focusedTextColor = NeutralColors.Neutral70,
                                 unfocusedTextColor = NeutralColors.Neutral70,
 //                                focusedLabelColor = MainColors.Primary1,
-//                                unfocusedLabelColor = NeutralColors.Neutral30,
+                                unfocusedLabelColor = NeutralColors.Neutral30,
                                 errorBorderColor = MaterialTheme.colorScheme.error,
                                 errorLabelColor = MaterialTheme.colorScheme.error
                             ),
@@ -403,6 +384,27 @@ fun LoginScreen(
                                     color = MainColors.Primary1,
                                     style = AppTypography.heading5Medium,
                                     modifier = Modifier.clickable(onClick = onRegisterClick)
+                                )
+                            }
+                        }
+
+                        // Display error message at the bottom
+                        Spacer(modifier = Modifier.height(80.dp))
+
+                        AnimatedVisibility(
+                            visible = errorMessage != null,
+                            enter = fadeIn(tween(300)),
+                            exit = fadeOut(tween(300))
+                        ) {
+                            errorMessage?.let {
+                                Text(
+                                    text = it,
+                                    style = AppTypography.paragraphRegular,
+                                    color = MaterialTheme.colorScheme.error,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp)
                                 )
                             }
                         }

@@ -97,4 +97,11 @@ dependencies {
 
     // Security library
     implementation (libs.androidx.security.crypto)
+
+    //Email functionality
+    implementation(libs.javax.mail)
+
+    // BouncyCastle dependencies
+    implementation (libs.bcprov.jdk15on)
+    implementation (libs.bcpkix.jdk15on)
 }

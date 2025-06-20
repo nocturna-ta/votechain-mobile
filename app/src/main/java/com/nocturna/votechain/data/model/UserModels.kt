@@ -1,105 +1,116 @@
 package com.nocturna.votechain.data.model
 
-/**
- * Data class for register request body with updated structure
- * to match the required API format
- */
-data class RegisterRequest(
-    val email: String,
-    val password: String,
-    val role: String = "voter",
-    val address: String = "",
-    val nik: String = "",
-    val full_name: String = "",
-    val gender: String = "",
-    val birth_place: String = "",
-    val birth_date: String = "",
-    val residential_address: String = "",
-    val ktp_photo_path: String = "",
-    val kpu_name: String = "",
-    val region: String = "",
-    val telephone: String = "",
-)
+import com.google.gson.annotations.SerializedName
 
 /**
- * Data class for register response that matches the actual API structure
+ * Generic API Response structure
  */
 data class ApiResponse<T>(
+    @SerializedName("code")
     val code: Int,
-    val message: String,
-    val data: T?,
-    val error: ApiError?
+
+    @SerializedName("data")
+    val data: T? = null,
+
+    @SerializedName("error")
+    val error: ApiError? = null,
+
+    @SerializedName("message")
+    val message: String
 )
 
 /**
- * Data class for API error information
+ * API Error structure
  */
 data class ApiError(
+    @SerializedName("error_code")
     val error_code: Int,
+
+    @SerializedName("error_message")
     val error_message: String
 )
 
 /**
- * Data class for user registration response data
+ * User Registration Response Data
  */
 data class UserRegistrationData(
+    @SerializedName("email")
     val email: String,
+
+    @SerializedName("id")
     val id: String,
+
+    @SerializedName("message")
     val message: String,
+
+    @SerializedName("requested_role")
     val requested_role: String,
+
+    @SerializedName("verification_status")
     val verification_status: String
 )
 
 /**
- * Data class for login request body
+ * User Registration Request
  */
-data class LoginRequest(
+data class UserRegistrationRequest(
+    @SerializedName("email")
     val email: String,
-    val password: String
+
+    @SerializedName("password")
+    val password: String,
+
+    @SerializedName("nik")
+    val nik: String,
+
+    @SerializedName("full_name")
+    val fullName: String,
+
+    @SerializedName("gender")
+    val gender: String,
+
+    @SerializedName("birth_place")
+    val birthPlace: String,
+
+    @SerializedName("birth_date")
+    val birthDate: String,
+
+    @SerializedName("residential_address")
+    val residentialAddress: String,
+
+    @SerializedName("region")
+    val region: String,
+
+    @SerializedName("role")
+    val role: String = "voter",
+
+    @SerializedName("voter_address")
+    val voterAddress: String
+)
+
+
+/**
+ * Wallet Data for local storage
+ */
+data class WalletData(
+    val address: String,
+    val privateKey: String,
+    val publicKey: String,
+    val balance: java.math.BigInteger = java.math.BigInteger.ZERO,
+    val name: String = "Main Wallet",
+    val mnemonic: String? = null,
+    val isDefault: Boolean = false,
+    val createdAt: Long = System.currentTimeMillis()
 )
 
 /**
- * Data class for user login response data
+ * Encrypted Wallet Info for secure storage
  */
-data class UserLoginData(
-    val expires_at: String,
-    val is_active: Boolean,
-    val message: String,
-    val requested_role: String,
-    val token: String,
-    val verification_status: String,
-
-)
-
-/**
- * Data class for verification status response data
- * Used for GET /v1/user/verification-status/{email} endpoint
- */
-data class VerificationStatusData(
-    val id: String,
-    val email: String,
-    val requested_role: String,
-    val verification_status: String,
-    val created_at: String
-)
-
-data class UserProfileData(
-    val email: String,
-    val id: String,
-    val role: String,
-    val publicAddress: String? = null,
-    val userId: String? = null,
-    val userRole: String? = null
-)
-
-data class UserProfileResponse(
-    val code: Int,
-    val data: UserProfileData?,
-    val error: ApiError?,
-    val message: String
-)
-
-data class CompleteUserProfile(
-    val userProfile: UserProfileData,
-    val voterProfile: VoterData?
+data class WalletInfo(
+    val address: String,
+    val encryptedPrivateKey: String,
+    val name: String = "Wallet",
+    val mnemonic: String? = null,
+    val isDefault: Boolean = false,
+    val createdAt: Long = System.currentTimeMillis()
 )

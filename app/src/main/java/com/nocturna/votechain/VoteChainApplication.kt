@@ -12,6 +12,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+import java.security.Security
 
 /**
  * Custom Application class to initialize blockchain connection and language manager
@@ -25,6 +27,11 @@ class VoteChainApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        // Register BouncyCastle provider
+        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+            Security.addProvider(BouncyCastleProvider())
+        }
 
         // Initialize language manager
         initializeLanguageManager()

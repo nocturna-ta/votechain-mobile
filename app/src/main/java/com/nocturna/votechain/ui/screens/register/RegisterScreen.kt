@@ -120,6 +120,9 @@ fun RegisterScreen(
 
     // Observe UI state
     val uiState by viewModel.uiState.collectAsState()
+    var isLoading by remember { mutableStateOf(false) }
+    var showWalletCreationDialog by remember { mutableStateOf(false) }
+    var walletAddress by remember { mutableStateOf("") }
 
     // Animation states
     var showElements by remember { mutableStateOf(false) }
@@ -399,6 +402,8 @@ fun RegisterScreen(
                         unfocusedBorderColor = if (nationalIdValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                         focusedTextColor = NeutralColors.Neutral70,
                         unfocusedTextColor = NeutralColors.Neutral70,
+                        focusedLabelColor = if (fullNameValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
+                        unfocusedLabelColor = if (fullNameValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                     ),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,
@@ -611,6 +616,8 @@ fun RegisterScreen(
                         unfocusedBorderColor = if (addressValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                         focusedTextColor = NeutralColors.Neutral70,
                         unfocusedTextColor = NeutralColors.Neutral70,
+                        focusedLabelColor = if (fullNameValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
+                        unfocusedLabelColor = if (fullNameValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                     ),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
@@ -904,6 +911,8 @@ fun RegisterScreen(
                         unfocusedBorderColor = if (passwordValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                         focusedTextColor = NeutralColors.Neutral70,
                         unfocusedTextColor = NeutralColors.Neutral70,
+                        focusedLabelColor = if (fullNameValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
+                        unfocusedLabelColor = if (fullNameValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                     ),
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(

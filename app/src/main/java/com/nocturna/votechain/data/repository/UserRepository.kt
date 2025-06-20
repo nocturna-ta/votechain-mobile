@@ -3,36 +3,26 @@ package com.nocturna.votechain.data.repository
 import android.content.Context
 import android.net.Uri
 import android.util.Log
-import android.webkit.MimeTypeMap
-import com.google.gson.Gson
 import com.nocturna.votechain.data.model.ApiResponse
-import com.nocturna.votechain.data.model.RegisterRequest
 import com.nocturna.votechain.data.model.UserRegistrationData
-import com.nocturna.votechain.data.network.NetworkClient
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import okhttp3.*
+import com.nocturna.votechain.data.model.UserRegistrationRequest
+import com.nocturna.votechain.data.network.ApiRepository
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Response
 import java.io.File
 import java.io.FileOutputStream
-import java.util.Locale
-import java.util.concurrent.TimeUnit
+import java.io.InputStream
 
 /**
- * Repository class to handle user-related operations
+ * Repository untuk mengelola operasi user (registrasi, login, dll)
  */
 class UserRepository(private val context: Context) {
-
-    private val apiService = NetworkClient.apiService
+    private val apiRepository = ApiRepository()
+    private val TAG = "UserRepository"
 
     /**
-     * Register a new user with or without KTP file
-     * @param ktpFileUri Optional KTP file URI - if provided, form data approach will be used
-     * @param voterAddress Ethereum address to use as voter_address
+     * Register user dengan file KTP
      */
     suspend fun registerUser(
         email: String,
@@ -45,177 +35,211 @@ class UserRepository(private val context: Context) {
         residentialAddress: String,
         region: String,
         role: String = "voter",
-        voterAddress: String = "",
-        ktpFileUri: Uri? = null
-    ): Result<ApiResponse<UserRegistrationData>> = withContext(Dispatchers.IO) {
-        try {
-            // Determine which API approach to use based on KTP file presence
-            val response = if (ktpFileUri != null) {
-                // Use multipart form data approach with file upload
-                registerWithFormData(
-                    email, password, role, nik, fullName, gender,
-                    birthPlace, birthDate, residentialAddress, region,
-                    voterAddress, ktpFileUri
-                )
-            } else {
-                // Use JSON request approach without file
-                registerWithJson(
-                    email, password, role, nik, fullName, gender,
-                    birthPlace, birthDate, residentialAddress, region,
-                    voterAddress
-                )
+        voterAddress: String,
+        ktpFileUri: Uri?
+    ): Result<ApiResponse<UserRegistrationData>> {
+        return try {
+            Log.d(TAG, "Registering user with email: $email")
+
+            // Prepare request data
+            val request = UserRegistrationRequest(
+                email = email,
+                password = password,
+                nik = nik,
+                fullName = fullName,
+                gender = gender,
+                birthPlace = birthPlace,
+                birthDate = birthDate,
+                residentialAddress = residentialAddress,
+                region = region,
+                role = role,
+                voterAddress = voterAddress
+            )
+
+            // Prepare file part if KTP file is provided
+            val ktpFilePart = ktpFileUri?.let { uri ->
+                createMultipartFromUri(uri, "ktp_file")
             }
 
-            // Enhanced logging for both success and error cases
+            Log.d(TAG, "Sending registration request to API")
+
+            // Make API call
+            val response = apiRepository.registerUser(request, ktpFilePart)
+
             if (response.isSuccessful) {
-                response.body()?.let {
-                    Log.d("UserRepository", "Registration successful: ${it.message}")
-                    Result.success(it)
-                } ?: run {
-                    Log.e("UserRepository", "Empty response body with success code: ${response.code()}")
-                    Result.failure(Exception("Empty response body"))
+                val apiResponse = response.body()
+                if (apiResponse != null) {
+                    Log.d(TAG, "Registration successful: ${apiResponse.message}")
+                    Result.success(apiResponse)
+                } else {
+                    Log.e(TAG, "Registration response body is null")
+                    Result.failure(Exception("Empty response from server"))
                 }
             } else {
-                val errorBody = response.errorBody()?.string()
-                Log.e("UserRepository", "Registration failed with code: ${response.code()}")
-                Log.e("UserRepository", "Error body: $errorBody")
-
-                // Try to parse the error body as JSON for more detailed logging
-                try {
-                    val gson = Gson()
-                    val errorJson = gson.fromJson(errorBody, ApiResponse::class.java)
-                    Log.e("UserRepository", "Parsed error: ${errorJson.message}, code: ${errorJson.code}")
-                    if (errorJson.error != null) {
-                        Log.e("UserRepository", "Error details: ${errorJson.error.error_message}")
-                    }
-                } catch (e: Exception) {
-                    Log.e("UserRepository", "Could not parse error JSON: ${e.message}")
-                }
-
-                Result.failure(Exception("Error: ${response.code()} - $errorBody"))
+                val errorMessage = "Registration failed: ${response.code()} ${response.message()}"
+                Log.e(TAG, errorMessage)
+                Result.failure(Exception(errorMessage))
             }
+
         } catch (e: Exception) {
-            Log.e("UserRepository", "Exception during registration", e)
+            Log.e(TAG, "Registration error", e)
             Result.failure(e)
         }
     }
 
     /**
-     * Register with JSON request (no file upload)
+     * Login user
      */
-    private suspend fun registerWithJson(
-        email: String,
-        password: String,
-        role: String,
-        nik: String,
-        fullName: String,
-        gender: String,
-        birthPlace: String,
-        birthDate: String,
-        residentialAddress: String,
-        region: String,
-        voterAddress: String // Added voter_address parameter
-    ): Response<ApiResponse<UserRegistrationData>> {
-        val request = RegisterRequest(
-            email = email,
-            password = password,
-            role = role,
-            address = voterAddress,
-            nik = nik,
-            full_name = fullName,
-            gender = gender,
-            birth_place = birthPlace,
-            birth_date = birthDate,
-            residential_address = residentialAddress,
-            region = region
-        )
-        Log.d("UserRepository", "Sending registration request with voter_address: $voterAddress")
-        return apiService.registerUser(request)
+    suspend fun loginUser(email: String, password: String): Result<ApiResponse<Any>> {
+        return try {
+            Log.d(TAG, "Logging in user with email: $email")
+
+            val response = apiRepository.loginUser(email, password)
+
+            if (response.isSuccessful) {
+                val apiResponse = response.body()
+                if (apiResponse != null) {
+                    Log.d(TAG, "Login successful")
+                    Result.success(apiResponse)
+                } else {
+                    Log.e(TAG, "Login response body is null")
+                    Result.failure(Exception("Empty response from server"))
+                }
+            } else {
+                val errorMessage = "Login failed: ${response.code()} ${response.message()}"
+                Log.e(TAG, errorMessage)
+                Result.failure(Exception(errorMessage))
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Login error", e)
+            Result.failure(e)
+        }
     }
 
     /**
-     * Get file extension from Uri
+     * Verify email with token
      */
-    private fun getFileExtension(uri: Uri): String {
-        val mimeType = context.contentResolver.getType(uri)
-        return MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "jpg"
+    suspend fun verifyEmail(token: String): Result<ApiResponse<Any>> {
+        return try {
+            Log.d(TAG, "Verifying email with token")
+
+            val response = apiRepository.verifyEmail(token)
+
+            if (response.isSuccessful) {
+                val apiResponse = response.body()
+                if (apiResponse != null) {
+                    Log.d(TAG, "Email verification successful")
+                    Result.success(apiResponse)
+                } else {
+                    Log.e(TAG, "Verification response body is null")
+                    Result.failure(Exception("Empty response from server"))
+                }
+            } else {
+                val errorMessage = "Email verification failed: ${response.code()} ${response.message()}"
+                Log.e(TAG, errorMessage)
+                Result.failure(Exception(errorMessage))
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Email verification error", e)
+            Result.failure(e)
+        }
     }
 
     /**
-     * Register with form data approach (with file upload)
+     * Resend verification email
      */
-    private suspend fun registerWithFormData(
-        email: String,
-        password: String,
-        role: String,
-        nik: String,
-        fullName: String,
-        gender: String,
-        birthPlace: String,
-        birthDate: String,
-        residentialAddress: String,
-        region: String,
-        voterAddress: String,
-        ktpFileUri: Uri
-    ): Response<ApiResponse<UserRegistrationData>> {
-        // Get the file extension from the actual URI
-        val fileExtension = getFileExtension(ktpFileUri)
+    suspend fun resendVerification(email: String): Result<ApiResponse<Any>> {
+        return try {
+            Log.d(TAG, "Resending verification email to: $email")
 
-        // Convert Uri to File with the appropriate extension
-        val ktpFile = uriToFile(ktpFileUri, "ktp_${System.currentTimeMillis()}.$fileExtension")
+            val response = apiRepository.resendVerification(email)
 
-        // Create user data object
-        val userRequest = RegisterRequest(
-            email = email,
-            password = password,
-            role = role,
-            address = voterAddress,
-            nik = nik,
-            full_name = fullName,
-            gender = gender,
-            birth_place = birthPlace,
-            birth_date = birthDate,
-            residential_address = residentialAddress,
-            region = region
-        )
+            if (response.isSuccessful) {
+                val apiResponse = response.body()
+                if (apiResponse != null) {
+                    Log.d(TAG, "Resend verification successful")
+                    Result.success(apiResponse)
+                } else {
+                    Log.e(TAG, "Resend verification response body is null")
+                    Result.failure(Exception("Empty response from server"))
+                }
+            } else {
+                val errorMessage = "Resend verification failed: ${response.code()} ${response.message()}"
+                Log.e(TAG, errorMessage)
+                Result.failure(Exception(errorMessage))
+            }
 
-        // Convert user data to JSON
-        val gson = Gson()
-        val userJson = gson.toJson(userRequest)
-        Log.d("UserRepository", "User JSON: $userJson")
-        val userPart = userJson.toRequestBody("application/json".toMediaTypeOrNull())
-
-        // Get MIME type from Uri
-        val mimeType = context.contentResolver.getType(ktpFileUri) ?: "image/jpeg"
-
-        // Create file part with the appropriate MIME type
-        val requestFile = ktpFile.asRequestBody(mimeType.toMediaTypeOrNull())
-        val ktpFilePart = MultipartBody.Part.createFormData("ktp_photo", ktpFile.name, requestFile)
-
-
-        // Make API call with the updated parameters
-        return apiService.registerUserWithFormData(
-            user = userPart,
-            ktp_photo = ktpFilePart
-        )
+        } catch (e: Exception) {
+            Log.e(TAG, "Resend verification error", e)
+            Result.failure(e)
+        }
     }
 
     /**
-     * Convert Uri to File
-     * @param uri URI of the file
-     * @param fileName Name of the file
-     * @return File object
+     * Create MultipartBody.Part from Uri
      */
-    private fun uriToFile(uri: Uri, fileName: String): File {
-        val inputStream = context.contentResolver.openInputStream(uri)
-        val outputFile = File(context.cacheDir, fileName)
+    private fun createMultipartFromUri(uri: Uri, partName: String): MultipartBody.Part? {
+        return try {
+            val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
+            inputStream?.let { stream ->
+                // Create temporary file
+                val tempFile = File.createTempFile("upload", ".tmp", context.cacheDir)
+                val outputStream = FileOutputStream(tempFile)
 
-        inputStream?.use { input ->
-            FileOutputStream(outputFile).use { output ->
-                input.copyTo(output)
+                stream.copyTo(outputStream)
+                stream.close()
+                outputStream.close()
+
+                // Get file extension and mime type
+                val mimeType = context.contentResolver.getType(uri) ?: "image/jpeg"
+                val extension = when (mimeType) {
+                    "image/jpeg" -> "jpg"
+                    "image/png" -> "png"
+                    "image/jpg" -> "jpg"
+                    else -> "jpg"
+                }
+
+                // Create request body
+                val requestBody = tempFile.asRequestBody(mimeType.toMediaTypeOrNull())
+
+                // Create multipart body part
+                MultipartBody.Part.createFormData(
+                    partName,
+                    "ktp_file.$extension",
+                    requestBody
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating multipart from URI", e)
+            null
+        }
+    }
+
+    /**
+     * Get file name from Uri
+     */
+    private fun getFileName(uri: Uri): String {
+        var result: String? = null
+        if (uri.scheme == "content") {
+            val cursor = context.contentResolver.query(uri, null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val displayNameIndex = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (displayNameIndex != -1) {
+                        result = it.getString(displayNameIndex)
+                    }
+                }
             }
         }
-
-        return outputFile
+        if (result == null) {
+            result = uri.path
+            val cut = result?.lastIndexOf('/')
+            if (cut != -1) {
+                result = result?.substring(cut!! + 1)
+            }
+        }
+        return result ?: "unknown_file"
     }
 }
