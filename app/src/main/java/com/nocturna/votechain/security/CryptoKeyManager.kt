@@ -15,6 +15,7 @@ import org.web3j.utils.Numeric
 import java.math.BigInteger
 import java.security.KeyPairGenerator
 import java.security.KeyStore
+import java.security.MessageDigest
 import java.security.Security
 import java.security.SecureRandom
 import java.security.spec.ECGenParameterSpec
@@ -1143,6 +1144,25 @@ class CryptoKeyManager(private val context: Context) {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error getting complete key info: ${e.message}", e)
+            null
+        }
+    }
+
+    fun signData(data: String): String? {
+        return try {
+            val privateKey = getPrivateKey()
+            if (privateKey != null) {
+                // Implement actual signing logic here
+                // This is a placeholder - replace with actual cryptographic signing
+                val signature = MessageDigest.getInstance("SHA-256")
+                    .digest(data.toByteArray())
+                    .joinToString("") { "%02x".format(it) }
+                signature
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e("CryptoKeyManager", "Error signing data", e)
             null
         }
     }

@@ -30,6 +30,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import com.nocturna.votechain.R
 import com.nocturna.votechain.ui.screens.LoadingScreen
@@ -41,17 +42,23 @@ import kotlinx.coroutines.launch
 @Composable
 fun VotingScreen(
     navController: NavController,
-    viewModel: VotingViewModel = viewModel(),
     onHomeClick: () -> Unit = { navController.navigate("home") },
     onVotesClick: () -> Unit = { /* Already on votes */ },
     onProfileClick: () -> Unit = { navController.navigate("profile") }
 ) {
+    val context = LocalContext.current
     val strings = LanguageManager.getLocalizedStrings()
+
+    // Create ViewModel with proper dependencies
+    val viewModel: VotingViewModel = viewModel(
+        factory = VotingViewModel.Factory(context)
+    )
 
     val activeVotings by viewModel.activeVotings.collectAsState()
     val votingResults by viewModel.votingResults.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val hasVoted by viewModel.hasVoted.collectAsState()
 
     val currentRoute = "votes"
 
@@ -90,7 +97,7 @@ fun VotingScreen(
                         color = MainColors.Primary1
                     )
                 },
-               divider = { Divider(color = NeutralColors.Neutral10, thickness = 1.dp) }
+                divider = { Divider(color = NeutralColors.Neutral10, thickness = 1.dp) }
             ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
@@ -121,6 +128,7 @@ fun VotingScreen(
                         activeVotings = activeVotings,
                         isLoading = isLoading,
                         error = error,
+                        hasVoted = hasVoted,
                         onVoteItemClick = { categoryId, title ->
                             // Check if it's the 2024 presidential election - Indonesia card
                             if (title.contains("2024 presidential election", ignoreCase = true) &&
@@ -156,6 +164,7 @@ fun ActiveVotingTab(
     activeVotings: List<VotingCategory>,
     isLoading: Boolean,
     error: String?,
+    hasVoted: Boolean,
     onVoteItemClick: (String, String) -> Unit
 ) {
     Box(
@@ -182,16 +191,27 @@ fun ActiveVotingTab(
                 )
             }
         } else if (activeVotings.isEmpty()) {
-//            EmptyVotingState()
+            // Show empty state
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "No active elections",
+                    style = AppTypography.heading5Medium,
+                    color = NeutralColors.Neutral70
+                )
+            }
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(top = 24.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp) // Add spacing between cards
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 items(activeVotings) { votingCategory ->
                     VotingCard(
                         votingCategory = votingCategory,
+                        hasVoted = hasVoted,
                         onClick = { onVoteItemClick(votingCategory.id, votingCategory.title) }
                     )
                 }
@@ -203,18 +223,19 @@ fun ActiveVotingTab(
 @Composable
 fun VotingCard(
     votingCategory: VotingCategory,
+    hasVoted: Boolean,
     onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp), // Match home screen corner radius
+        shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface // Match home screen background
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp // Match home screen elevation
+            defaultElevation = 2.dp
         ),
-        onClick = onClick // Use Card's onClick for better touch feedback
+        onClick = if (!hasVoted) onClick else { {} } // Disable click if already voted
     ) {
         Row(
             modifier = Modifier
@@ -228,18 +249,18 @@ fun VotingCard(
             ) {
                 Text(
                     text = votingCategory.title,
-                    style = AppTypography.heading5Bold, // Match home screen text style
-                    color = MaterialTheme.colorScheme.onSurface // Match home screen text color
+                    style = AppTypography.heading5Bold,
+                    color = if (hasVoted) NeutralColors.Neutral50 else MaterialTheme.colorScheme.onSurface
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = votingCategory.description,
-                    style = AppTypography.heading6Medium, // Match home screen description style
-                    color = MaterialTheme.colorScheme.onBackground, // Match home screen description color
+                    text = if (hasVoted) "You have already voted" else votingCategory.description,
+                    style = AppTypography.heading6Medium,
+                    color = if (hasVoted) NeutralColors.Neutral40 else MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
-                    modifier = Modifier.width(270.dp), // Match home screen width constraint
+                    modifier = Modifier.width(270.dp),
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -247,7 +268,7 @@ fun VotingCard(
             Icon(
                 painter = painterResource(id = R.drawable.right2),
                 contentDescription = "View Details",
-                tint = MainColors.Primary1,
+                tint = if (hasVoted) NeutralColors.Neutral40 else MainColors.Primary1,
                 modifier = Modifier.size(16.dp)
             )
         }

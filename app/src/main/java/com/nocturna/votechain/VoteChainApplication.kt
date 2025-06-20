@@ -5,6 +5,7 @@ import android.util.Log
 import com.nocturna.votechain.blockchain.BlockchainManager
 import com.nocturna.votechain.data.network.ElectionNetworkClient
 import com.nocturna.votechain.data.network.NetworkClient
+import com.nocturna.votechain.security.CryptoKeyManager
 import com.nocturna.votechain.utils.CoilAuthHelper
 import com.nocturna.votechain.utils.LanguageManager
 import com.nocturna.votechain.utils.ThemeManager
@@ -27,6 +28,15 @@ class VoteChainApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        Log.d("VoteChainApp", "Application initialized")
+
+        // Initialize CryptoKeyManager BouncyCastle provider
+        try {
+            CryptoKeyManager.initializeBouncyCastle()
+        } catch (e: Exception) {
+            Log.e("VoteChainApp", "Failed to initialize BouncyCastle", e)
+        }
 
         // Register BouncyCastle provider
         if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {

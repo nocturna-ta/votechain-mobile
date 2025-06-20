@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.nocturna.votechain.data.model.EducationEntry
 import com.nocturna.votechain.data.model.WorkEntry
 import com.nocturna.votechain.ui.theme.AppTypography
@@ -115,7 +116,7 @@ fun EducationRow(institution: String, years: String) {
     ) {
         Text(
             text = institution,
-            style = AppTypography.paragraphRegular,
+            style = AppTypography.paragraphRegular.copy(lineHeight = 18.sp),
             color = NeutralColors.Neutral90,
             modifier = Modifier
                 .weight(1.5f)
@@ -210,7 +211,7 @@ fun WorkRow(institution: String, position: String, years: String) {
     ) {
         Text(
             text = institution,
-            style = AppTypography.paragraphRegular,
+            style = AppTypography.paragraphRegular.copy(lineHeight = 18.sp),
             color = NeutralColors.Neutral90,
             modifier = Modifier
                 .weight(1.5f)
@@ -219,7 +220,7 @@ fun WorkRow(institution: String, position: String, years: String) {
 
         Text(
             text = position,
-            style = AppTypography.paragraphRegular,
+            style = AppTypography.paragraphRegular.copy(lineHeight = 18.sp),
             color = NeutralColors.Neutral90,
             textAlign = TextAlign.Center,
             modifier = Modifier

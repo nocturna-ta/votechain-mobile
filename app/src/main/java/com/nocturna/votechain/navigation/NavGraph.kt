@@ -1,8 +1,8 @@
 package com.nocturna.votechain.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nocturna.votechain.ui.screens.login.LoginScreen
 import com.nocturna.votechain.ui.screens.homepage.CandidatePresidentScreen
@@ -10,7 +10,6 @@ import com.nocturna.votechain.ui.screens.homepage.DetailCandidateScreen
 import com.nocturna.votechain.ui.screens.homepage.HomeScreen
 import com.nocturna.votechain.ui.screens.homepage.VisionMissionScreen
 import com.nocturna.votechain.ui.screens.register.AcceptedScreen
-import com.nocturna.votechain.ui.screens.register.RegisterScreen
 import com.nocturna.votechain.ui.screens.register.RejectedScreen
 import com.nocturna.votechain.ui.screens.register.WaitingScreen
 import androidx.navigation.NavHostController
@@ -23,7 +22,7 @@ import com.nocturna.votechain.ui.screens.LoadingScreen
 import com.nocturna.votechain.ui.screens.OTPVerificationScreen
 import com.nocturna.votechain.ui.screens.SplashScreen
 import com.nocturna.votechain.ui.screens.auth.EmailVerificationScreen
-import com.nocturna.votechain.ui.screens.homepage.CandidateSelectionScreen
+import com.nocturna.votechain.ui.screens.votepage.CandidateSelectionScreen
 import com.nocturna.votechain.ui.screens.homepage.NotificationScreen
 import com.nocturna.votechain.ui.screens.profilepage.AccountDetailsScreen
 import com.nocturna.votechain.ui.screens.profilepage.FAQScreen
@@ -31,6 +30,7 @@ import com.nocturna.votechain.ui.screens.profilepage.ProfileScreen
 import com.nocturna.votechain.ui.screens.register.RegistrationFlowController
 import com.nocturna.votechain.ui.screens.votepage.OTPVotingVerificationScreen
 import com.nocturna.votechain.ui.screens.votepage.ResultsScreen
+import com.nocturna.votechain.ui.screens.votepage.VoteSuccessScreen
 import com.nocturna.votechain.ui.screens.votepage.VotingScreen
 import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
 import com.nocturna.votechain.viewmodel.vote.VotingViewModel
@@ -40,10 +40,20 @@ fun VotechainNavGraph(
     navController: NavHostController,
     startDestination: String = "splash",
     modifier: Modifier = Modifier,
-    viewModel: VotingViewModel = viewModel(),
-    electionViewModel: ElectionViewModel = viewModel(factory = ElectionViewModel.Factory),
+    electionViewModel: ElectionViewModel,
     onNewsClick: (NewsItem) -> Unit = {}
 ) {
+    // Get context for ViewModel factories
+    val context = LocalContext.current
+
+    // Create ViewModels with proper factories
+    val votingViewModel: VotingViewModel = viewModel(
+        factory = VotingViewModel.Factory(context)
+    )
+    val electionViewModel: ElectionViewModel = viewModel(
+        factory = ElectionViewModel.Factory
+    )
+
     NavHost(
         navController = navController,
         startDestination = startDestination
@@ -181,7 +191,6 @@ fun VotechainNavGraph(
         composable("votes") {
             VotingScreen(
                 navController = navController,
-                viewModel = viewModel,
                 onHomeClick = {
                     navController.navigate("home") {
                         popUpTo("votes") { inclusive = true }
@@ -192,6 +201,17 @@ fun VotechainNavGraph(
                     navController.navigate("profile") {
                         popUpTo("votes") { inclusive = true }
                         launchSingleTop = true
+                    }
+                }
+            )
+        }
+
+        // Vote Success screen - Fixed implementation
+        composable("vote_success") {
+            VoteSuccessScreen(
+                onBackToHome = {
+                    navController.navigate("home") {
+                        popUpTo("vote_success") { inclusive = true }
                     }
                 }
             )
@@ -253,34 +273,37 @@ fun VotechainNavGraph(
             )
         }
 
+        // FIXED: Candidate Selection screen with proper parameters and ViewModel
         composable(
             "candidate_selection/{categoryId}",
             arguments = listOf(navArgument("categoryId") { type = NavType.StringType })
         ) {
             val categoryId = it.arguments?.getString("categoryId") ?: ""
             CandidateSelectionScreen(
-                categoryId = categoryId,
+                onBackClick = { navController.popBackStack() }, // Added missing onBackClick
                 navController = navController,
-                viewModel = viewModel
+                categoryId = categoryId,
+                viewModel = votingViewModel, // Use the ViewModel with proper factory
+                electionViewModel = electionViewModel
             )
         }
 
-        composable(
-            "voting_detail/{categoryId}",
-            arguments = listOf(navArgument("categoryId") { type = NavType.StringType })
-        ) {
-            val categoryId = it.arguments?.getString("categoryId") ?: ""
-            VotingDetailScreen(
-                categoryId = categoryId,
-                navController = navController,
-                viewModel = viewModel
-            )
-        }
+        // FIXED: Voting Detail screen implementation
+//        composable(
+//            "voting_detail/{categoryId}",
+//            arguments = listOf(navArgument("categoryId") { type = NavType.StringType })
+//        ) {
+//            val categoryId = it.arguments?.getString("categoryId") ?: ""
+//            VotingDetailScreen(
+//                categoryId = categoryId,
+//                navController = navController,
+//                viewModel = votingViewModel // Use the ViewModel with proper factory
+//            )
+//        }
 
         composable("results") {
-            ResultsScreen(navController, viewModel)
+            ResultsScreen(navController, votingViewModel)
         }
-
 
         // FAQ Screen - Updated implementation
         composable("faq") {
@@ -322,13 +345,4 @@ fun VotechainNavGraph(
             )
         }
     }
-}
-
-@Composable
-fun VotingDetailScreen(
-    categoryId: String,
-    navController: NavHostController,
-    viewModel: VotingViewModel
-) {
-    TODO("Not yet implemented")
 }

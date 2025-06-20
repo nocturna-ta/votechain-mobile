@@ -1,4 +1,4 @@
-package com.nocturna.votechain.ui.screens.homepage
+package com.nocturna.votechain.ui.screens.votepage
 
 import android.content.Context
 import android.util.Log
@@ -41,6 +41,7 @@ import com.nocturna.votechain.ui.theme.PrimaryColors
 import com.nocturna.votechain.utils.CandidatePhotoHelper
 import com.nocturna.votechain.utils.CoilAuthHelper
 import com.nocturna.votechain.utils.LanguageManager
+import com.nocturna.votechain.utils.VoteErrorHandler
 import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
 import com.nocturna.votechain.viewmodel.vote.VotingViewModel
 
@@ -58,12 +59,17 @@ fun CandidateSelectionScreen(
     val scrollState = rememberScrollState()
 
     val electionPairs by electionViewModel.electionPairs.collectAsState()
-    val isLoading by electionViewModel.isLoading.collectAsState()
     val error by electionViewModel.error.collectAsState()
-    var selectedCandidateNumber by remember { mutableStateOf<Int?>(null) }
+    var selectedCandidateId by remember { mutableStateOf<String?>(null) }
 
     // Check token status
     val hasToken = remember { CoilAuthHelper.hasValidToken(context) }
+
+    // Observe vote result
+    val voteResult by viewModel.voteResult.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val hasVoted by viewModel.hasVoted.collectAsState()
+    val voteError by viewModel.error.collectAsState()
 
     // Reset image loader when screen is opened to ensure fresh token
     LaunchedEffect(Unit) {
@@ -74,6 +80,29 @@ fun CandidateSelectionScreen(
     // Log token status
     LaunchedEffect(hasToken) {
         Log.d("CandidateSelectionScreen", "Token status: ${if (hasToken) "Available" else "Missing"}")
+    }
+
+    // Handle vote result
+    LaunchedEffect(voteResult) {
+        voteResult?.let { result ->
+            if (result.code == 0) {
+                // Success - navigate to success screen or show success message
+                navController.navigate("vote_success") {
+                    popUpTo("candidate_selection/$categoryId") { inclusive = true }
+                }
+            } else {
+                // Error handling is done through voteError state
+                Log.e("CandidateSelection", "Vote failed: ${VoteErrorHandler.getErrorMessage(result)}")
+            }
+        }
+    }
+
+    // Handle vote error
+    LaunchedEffect(voteError) {
+        voteError?.let { error ->
+            Log.e("CandidateSelection", "Vote error: $error")
+            // You can show a snackbar or dialog here
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -107,69 +136,7 @@ fun CandidateSelectionScreen(
                 modifier = Modifier.align(Alignment.Center)
             )
         }
-//
-//    Scaffold(
-//        topBar = {
-//            CenterAlignedTopAppBar(
-//                title = {
-//                    Text(
-//                        text = strings.selectCandidate,
-//                        style = AppTypography.heading4Bold,
-//                        color = NeutralColors.Neutral80
-//                    )
-//                },
-//                navigationIcon = {
-//                    IconButton(onClick = onBackClick) {
-//                        Icon(
-//                            painter = painterResource(id = R.drawable.back),
-//                            contentDescription = "Back",
-//                            tint = NeutralColors.Neutral80
-//                        )
-//                    }
-//                },
-//                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-//                    containerColor = Color.White
-//                )
-//            )
-//        },
-//        containerColor = Color(0xFFF8F9FA),
-//        bottomBar = {
-//            // Bottom button section
-//            Box(
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .background(Color.White)
-//                    .padding(24.dp)
-//            ) {
-//                Button(
-//                    onClick = {
-//                        selectedCandidateNumber?.let { number ->
-//                            val selectedPair = electionPairs.find {
-//                                it.election_no.toIntOrNull() == number
-//                            }
-//                            selectedPair?.let { pair ->
-////                                viewModel.setSelectedCandidate(pair.id)
-//                                navController.navigate("vote/$categoryId")
-//                            }
-//                        }
-//                    },
-//                    modifier = Modifier.fillMaxWidth(),
-//                    enabled = selectedCandidateNumber != null,
-//                    colors = ButtonDefaults.buttonColors(
-//                        containerColor = MainColors.Primary1,
-//                        disabledContainerColor = MainColors.Primary1.copy(alpha = 0.5f)
-//                    ),
-//                    shape = RoundedCornerShape(100.dp)
-//                ) {
-//                    Text(
-//                        text = strings.candidateSelection,
-//                        style = AppTypography.paragraphSemiBold,
-//                        modifier = Modifier.padding(vertical = 8.dp)
-//                    )
-//                }
-//            }
-//        }
-//    ) { paddingValues ->
+
         when {
             isLoading -> {
                 LoadingScreen()
@@ -222,21 +189,99 @@ fun CandidateSelectionScreen(
                         electionPairs.forEach { pair ->
                             CandidateCard(
                                 electionPair = pair,
-                                isSelected = selectedCandidateNumber == pair.election_no.toIntOrNull(),
+                                isSelected = selectedCandidateId == pair.id,
                                 onSelect = {
-                                    selectedCandidateNumber = pair.election_no.toIntOrNull()
+                                    selectedCandidateId = pair.id
                                 }
                             )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
+
+                    // Vote Button
+                    Button(
+                        onClick = {
+                            selectedCandidateId?.let { electionPairId ->
+                                if (!hasVoted) {
+                                    // Get user region from SharedPreferences or use default
+                                    val sharedPrefs = context.getSharedPreferences("VoteChainPrefs", Context.MODE_PRIVATE)
+                                    val userRegion = sharedPrefs.getString("voter_region", "default") ?: "default"
+
+                                    viewModel.castVote(electionPairId, userRegion)
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        enabled = !hasVoted && !isLoading && selectedCandidateId != null,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MainColors.Primary1,
+                            disabledContainerColor = MainColors.Primary1.copy(alpha = 0.5f)
+                        ),
+                        shape = RoundedCornerShape(100.dp)
+                    ) {
+                        if (isLoading) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Submitting...",
+                                    style = AppTypography.paragraphSemiBold,
+                                    color = Color.White
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = when {
+                                    hasVoted -> "Already Voted"
+                                    selectedCandidateId == null -> "Select Candidate"
+                                    else -> strings.vote
+                                },
+                                style = AppTypography.paragraphSemiBold,
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                color = Color.White
+                            )
+                        }
+                    }
+
+                    // Error message display
+                    voteError?.let { error ->
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color.Red.copy(alpha = 0.1f)
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = error,
+                                style = AppTypography.paragraphRegular,
+                                color = Color.Red,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
     }
 }
 
+// CandidateCard composable tetap sama seperti sebelumnya...
 @Composable
 fun CandidateCard(
     electionPair: ElectionPair,
@@ -303,7 +348,7 @@ fun CandidateCard(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Single combined candidate photo using API endpoint /v1/election/pairs/{id}/photo
+            // Single combined candidate photo
             Box(
                 modifier = Modifier
                     .width(224.dp)
@@ -311,7 +356,7 @@ fun CandidateCard(
                     .clip(RoundedCornerShape(2.dp))
             ) {
                 if (isUsingFallbackData) {
-                    // Use local drawable for fallback data (single combined photo)
+                    // Use local drawable for fallback data
                     Image(
                         painter = painterResource(id = getCombinedPhotoDrawable),
                         contentDescription = "Candidate Pair Photo",

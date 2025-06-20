@@ -1,18 +1,22 @@
 package com.nocturna.votechain.viewmodel.vote
 
-import androidx.compose.runtime.mutableStateOf
+import android.content.Context
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.nocturna.votechain.data.model.VoteCastResponse
 import com.nocturna.votechain.data.model.VotingCategory
 import com.nocturna.votechain.data.model.VotingResult
+import com.nocturna.votechain.data.network.NetworkClient
 import com.nocturna.votechain.data.repository.VotingRepository
+import com.nocturna.votechain.security.CryptoKeyManager
+import com.nocturna.votechain.utils.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class VotingViewModel : ViewModel() {
-    private val repository = VotingRepository()
+class VotingViewModel(private val repository: VotingRepository) : ViewModel() {
 
     private val _activeVotings = MutableStateFlow<List<VotingCategory>>(emptyList())
     val activeVotings: StateFlow<List<VotingCategory>> = _activeVotings.asStateFlow()
@@ -26,10 +30,14 @@ class VotingViewModel : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    val hasActiveVotings = mutableStateOf(false)
+    private val _voteResult = MutableStateFlow<VoteCastResponse?>(null)
+    val voteResult: StateFlow<VoteCastResponse?> = _voteResult.asStateFlow()
+
+    private val _hasVoted = MutableStateFlow(false)
+    val hasVoted: StateFlow<Boolean> = _hasVoted.asStateFlow()
 
     init {
-        fetchActiveVotings()
+        checkVotingStatus()
     }
 
     fun fetchActiveVotings() {
@@ -40,9 +48,8 @@ class VotingViewModel : ViewModel() {
             repository.getActiveVotings().collect { result ->
                 _isLoading.value = false
                 result.fold(
-                    onSuccess = { votingList ->
-                        _activeVotings.value = votingList
-                        hasActiveVotings.value = votingList.isNotEmpty()
+                    onSuccess = { votings ->
+                        _activeVotings.value = votings
                     },
                     onFailure = { e ->
                         _error.value = e.message ?: "Unknown error occurred"
@@ -71,6 +78,39 @@ class VotingViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Cast a vote for a specific election pair
+     * @param electionPairId The ID of the selected candidate pair
+     * @param region The voter's region
+     */
+    fun castVote(electionPairId: String, region: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            _voteResult.value = null
+
+            repository.castVote(electionPairId, region).collect { result ->
+                _isLoading.value = false
+                result.fold(
+                    onSuccess = { voteResponse ->
+                        _voteResult.value = voteResponse
+                        _hasVoted.value = true
+
+                        // Refresh data after successful vote
+                        fetchActiveVotings()
+                        fetchVotingResults()
+                    },
+                    onFailure = { e ->
+                        _error.value = e.message ?: "Failed to cast vote"
+                    }
+                )
+            }
+        }
+    }
+
+    /**
+     * Legacy method for backward compatibility
+     */
     fun submitVote(categoryId: String, optionId: String) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -80,6 +120,7 @@ class VotingViewModel : ViewModel() {
                 _isLoading.value = false
                 result.fold(
                     onSuccess = {
+                        _hasVoted.value = true
                         // Refresh data after successful vote
                         fetchActiveVotings()
                         fetchVotingResults()
@@ -89,6 +130,46 @@ class VotingViewModel : ViewModel() {
                     }
                 )
             }
+        }
+    }
+
+    /**
+     * Check current voting status
+     */
+    private fun checkVotingStatus() {
+        _hasVoted.value = repository.hasVoted()
+    }
+
+    /**
+     * Clear error state
+     */
+    fun clearError() {
+        _error.value = null
+    }
+
+    /**
+     * Clear vote result
+     */
+    fun clearVoteResult() {
+        _voteResult.value = null
+    }
+
+    // Factory for creating VotingViewModel with dependencies
+    class Factory(private val context: Context) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(VotingViewModel::class.java)) {
+                val cryptoKeyManager = CryptoKeyManager(context)
+                val tokenManager = TokenManager(context)
+                val repository = VotingRepository(
+                    context = context,
+                    voteApiService = NetworkClient.voteApiService,
+                    cryptoKeyManager = cryptoKeyManager,
+                    tokenManager = tokenManager
+                )
+                return VotingViewModel(repository) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class")
         }
     }
 }

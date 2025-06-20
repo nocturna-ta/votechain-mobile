@@ -134,6 +134,8 @@ object NetworkClient {
         retrofit.create(VoterApiService::class.java)
     }
 
+    val voteApiService: VoteApiService = retrofit.create(VoteApiService::class.java)
+
     /**
      * Create a new OkHttpClient specifically for requests that need manual token injection
      * This is useful for requests where you want to pass a specific token
