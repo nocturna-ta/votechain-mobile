@@ -17,6 +17,8 @@ import com.nocturna.votechain.data.repository.UserLoginRepository
 import com.nocturna.votechain.navigation.VotechainNavGraph
 import com.nocturna.votechain.ui.theme.VotechainTheme
 import com.nocturna.votechain.utils.RegistrationStatusChecker
+import com.nocturna.votechain.utils.TokenManager
+import com.nocturna.votechain.utils.TokenSyncUtil
 import com.nocturna.votechain.utils.openUrlInBrowser
 import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
 
@@ -49,6 +51,13 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     val context = LocalContext.current
                     val electionViewModel: ElectionViewModel = viewModel(factory = ElectionViewModel.Factory)
+                    val tokenManager = TokenManager(this)
+                    val isAuthenticated = TokenSyncUtil.isUserAuthenticated(this, tokenManager)
+
+                    if (isAuthenticated) {
+                        // Sync tokens jika perlu
+                        TokenSyncUtil.validateAndSyncTokens(this, tokenManager)
+                    }
 
                     VotechainNavGraph(
                         navController = navController,

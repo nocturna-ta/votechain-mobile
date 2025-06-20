@@ -110,6 +110,8 @@ class VotingViewModel(private val repository: VotingRepository) : ViewModel() {
 
     /**
      * Legacy method for backward compatibility
+     * @param categoryId The voting category ID
+     * @param optionId The selected option/candidate ID
      */
     fun submitVote(categoryId: String, optionId: String) {
         viewModelScope.launch {
@@ -126,7 +128,7 @@ class VotingViewModel(private val repository: VotingRepository) : ViewModel() {
                         fetchVotingResults()
                     },
                     onFailure = { e ->
-                        _error.value = e.message ?: "Unknown error occurred"
+                        _error.value = e.message ?: "Failed to submit vote"
                     }
                 )
             }
@@ -152,6 +154,14 @@ class VotingViewModel(private val repository: VotingRepository) : ViewModel() {
      */
     fun clearVoteResult() {
         _voteResult.value = null
+    }
+
+    /**
+     * Reset voting status (for testing purposes)
+     */
+    fun resetVotingStatus() {
+        repository.resetVotingStatus()
+        _hasVoted.value = false
     }
 
     // Factory for creating VotingViewModel with dependencies

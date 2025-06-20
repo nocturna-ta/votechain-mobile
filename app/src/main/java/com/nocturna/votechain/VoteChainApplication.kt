@@ -9,6 +9,8 @@ import com.nocturna.votechain.security.CryptoKeyManager
 import com.nocturna.votechain.utils.CoilAuthHelper
 import com.nocturna.votechain.utils.LanguageManager
 import com.nocturna.votechain.utils.ThemeManager
+import com.nocturna.votechain.utils.TokenManager
+import com.nocturna.votechain.utils.TokenSyncUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -55,6 +57,10 @@ class VoteChainApplication : Application() {
 
         // Initialize the ElectionNetworkClient with application context
         initializeElectionNetworkClient()
+
+        // Validate and sync tokens
+        val tokenManager = TokenManager(this)
+        TokenSyncUtil.validateAndSyncTokens(this, tokenManager)
 
     }
 
