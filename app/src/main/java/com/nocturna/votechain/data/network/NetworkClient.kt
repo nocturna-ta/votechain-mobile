@@ -15,10 +15,11 @@ import java.util.concurrent.TimeUnit
  */
 object NetworkClient {
 
-    const val BASE_URL = "https://681a-103-233-100-202.ngrok-free.app"
+    const val BASE_URL = "https://c0cd-36-69-141-188.ngrok-free.app"
     private const val TAG = "NetworkClient"
     private const val PREFS_NAME = "VoteChainPrefs"
     private const val KEY_USER_TOKEN = "user_token"
+    private const val KEY_TEMP_API_KEY = "temporary_api_key" // Added for initial registration
 
     private var applicationContext: Context? = null
 
@@ -41,37 +42,44 @@ object NetworkClient {
     }
 
     /**
-     * Create authentication interceptor that automatically adds Bearer token
+     * Get temporary API key for initial registration
+     * This is used for endpoints that need authentication before the user has logged in
      */
-    private fun createAuthInterceptor(): Interceptor {
+    private fun getTemporaryApiKey(): String {
+        // You can implement a more secure mechanism to obtain this key
+        return "register_temp_key_123456" // Replace with your actual temporary API key for registration
+    }
+
+    /**
+     * Create authentication interceptor that automatically adds Bearer token
+     * with an option to use temporary API key for registration flows
+     */
+    private fun createAuthInterceptor(useTemporaryKeyForMissingToken: Boolean = false): Interceptor {
         return Interceptor { chain ->
             val originalRequest = chain.request()
             val token = getUserToken()
 
-            val newRequest = if (token.isNotEmpty()) {
-                // Add Bearer token to all requests that don't already have Authorization header
-                if (originalRequest.header("Authorization") == null) {
-                    originalRequest.newBuilder()
-                        .addHeader("Authorization", "Bearer $token")
-                        .addHeader("Accept", "application/json")
-                        .addHeader("Content-Type", "application/json")
-                        .build()
-                } else {
-                    // If Authorization header already exists, just add other headers
-                    originalRequest.newBuilder()
-                        .addHeader("Accept", "application/json")
-                        .addHeader("Content-Type", "application/json")
-                        .build()
-                }
-            } else {
-                // No token available, just add basic headers
-                originalRequest.newBuilder()
-                    .addHeader("Accept", "application/json")
-                    .addHeader("Content-Type", "application/json")
-                    .build()
+            // Check if request is multipart
+            val isMultipart = originalRequest.body?.contentType()?.toString()
+                ?.contains("multipart/form-data") == true
+
+            val requestBuilder = originalRequest.newBuilder()
+                .addHeader("Accept", "application/json")
+
+            // Only add Content-Type for non-multipart requests
+            if (!isMultipart) {
+                requestBuilder.addHeader("Content-Type", "application/json")
             }
 
-            chain.proceed(newRequest)
+            // Add authorization header
+            if (token.isNotEmpty()) {
+                requestBuilder.addHeader("Authorization", "Bearer $token")
+            } else if (useTemporaryKeyForMissingToken) {
+                // Use temporary API key when no token is available and the flag is set
+                requestBuilder.addHeader("Authorization", "Bearer ${getTemporaryApiKey()}")
+            }
+
+            chain.proceed(requestBuilder.build())
         }
     }
 
@@ -79,7 +87,7 @@ object NetworkClient {
      * Create and configure OkHttpClient with logging and timeouts
      * Made public so it can be used directly if needed
      */
-    fun createOkHttpClient(): OkHttpClient {
+    fun createOkHttpClient(useTemporaryKeyForMissingToken: Boolean = false): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor { message ->
             Log.d(TAG, message)
         }.apply {
@@ -88,7 +96,7 @@ object NetworkClient {
 
         return OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
-            .addInterceptor(createAuthInterceptor()) // Add auth interceptor
+            .addInterceptor(createAuthInterceptor(useTemporaryKeyForMissingToken)) // Add auth interceptor with option
             .connectTimeout(60, TimeUnit.SECONDS) // Increased timeout for slow connections
             .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
@@ -172,5 +180,30 @@ object NetworkClient {
             .client(createClientWithToken(token))
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
+    }
+
+    /**
+     * Create a Retrofit instance for registration flow API calls
+     * This includes special handling for verification status checks
+     */
+    private val registrationRetrofit: Retrofit by lazy {
+        val gson = GsonBuilder()
+            .setLenient()
+            .serializeNulls()
+            .create()
+
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .client(createOkHttpClient(useTemporaryKeyForMissingToken = true))
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .build()
+    }
+
+    /**
+     * API service specifically for registration flow API calls
+     * This service will use the temporary API key for auth when needed
+     */
+    val registrationApiService: ApiService by lazy {
+        registrationRetrofit.create(ApiService::class.java)
     }
 }

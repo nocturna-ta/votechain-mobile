@@ -3,41 +3,36 @@ package com.nocturna.votechain.data.repository
 import android.content.Context
 import android.util.Log
 import com.nocturna.votechain.data.model.VoterData
-import com.nocturna.votechain.data.model.VoterWalletInfo
 import com.nocturna.votechain.data.model.WalletInfo
 import com.nocturna.votechain.data.network.NetworkClient
-import com.nocturna.votechain.data.network.NetworkClient.apiService
-import com.nocturna.votechain.data.network.VoterApiService
-import com.nocturna.votechain.data.storage.WalletManager
+import com.nocturna.votechain.security.CryptoKeyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.web3j.utils.Convert
 
 /**
- * Enhanced VoterRepository with integrated wallet functionality
+ * Updated VoterRepository with integrated cryptographic key management
  */
 class VoterRepository(private val context: Context) {
     private val TAG = "VoterRepository"
     private val PREFS_NAME = "VoteChainPrefs"
-    private val KEY_VOTER_DATA = "voter_data"
     private val KEY_VOTER_FULL_NAME = "voter_full_name"
     private val KEY_VOTER_NIK = "voter_nik"
     private val KEY_VOTER_PUBLIC_KEY = "voter_public_key"
-    private val KEY_VOTER_PRIVATE_KEY = "voter_private_key"
+    private val KEY_VOTER_ADDRESS = "voter_address"
     private val KEY_VOTER_HAS_VOTED = "voter_has_voted"
     private val KEY_USER_ID = "user_id"
 
-    private val walletManager = WalletManager.getInstance(context)
-    private val enhancedUserRepository by lazy { EnhancedUserRepository(context) }
+    // API service and crypto manager
+    private val apiService = NetworkClient.apiService
+    private val cryptoKeyManager = CryptoKeyManager(context)
 
     /**
-     * Fetch voter data from API and save to local storage
+     * Fetch voter data from API and merge with locally stored cryptographic keys
      */
     suspend fun fetchVoterData(userToken: String): Result<VoterData> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Fetching voter data with token")
 
-            // Format token properly if it doesn't already have Bearer prefix
             val formattedToken = if (userToken.startsWith("Bearer ")) {
                 userToken
             } else {
@@ -49,152 +44,72 @@ class VoterRepository(private val context: Context) {
             if (response.isSuccessful) {
                 response.body()?.let { voterResponse ->
                     if (voterResponse.data.isNotEmpty()) {
-                        // Get the user_id from the header to find the right voter data
                         val userId = getUserIdFromResponse(response.headers().get("x-user-id"))
                         Log.d(TAG, "Looking for voter data with user_id: $userId")
 
-                        // Find the voter data that matches the user_id
                         val voterData = if (!userId.isNullOrEmpty()) {
                             voterResponse.data.find { it.user_id == userId }
-                                ?: voterResponse.data.firstOrNull()
+                                ?: voterResponse.data.first()
                         } else {
-                            voterResponse.data.firstOrNull()
+                            voterResponse.data.first()
                         }
 
-                        if (voterData != null) {
-                            Log.d(TAG, "Voter data found: ${voterData.full_name}")
+                        // Save user ID for future reference
+                        saveUserId(userId ?: voterData.user_id)
 
-                            // Save user_id for future reference
-                            saveUserId(userId)
+                        // Merge API data with locally stored cryptographic keys
+                        val enhancedVoterData = mergeWithStoredKeys(voterData)
 
-                            // Save voter data to local storage
-                            saveVoterDataLocally(voterData)
+                        // Save merged data locally
+                        saveVoterDataLocally(enhancedVoterData)
 
-                            // Integrate with wallet if voter has an address
-                            if (voterData.voter_address.isNotEmpty()) {
-                                integrateWalletAddress(voterData.voter_address)
-                            }
-
-                            Result.success(voterData)
-                        } else {
-                            Log.e(TAG, "No voter data found for user")
-                            Result.failure(Exception("No voter data found"))
-                        }
+                        Log.d(TAG, "Voter data fetched and merged successfully")
+                        Result.success(enhancedVoterData)
                     } else {
-                        Log.e(TAG, "Empty voter data response")
-                        Result.failure(Exception("No voter data available"))
+                        Log.e(TAG, "No voter data found in response")
+                        Result.failure(Exception("No voter data found"))
                     }
                 } ?: run {
-                    Log.e(TAG, "Null response body")
-                    Result.failure(Exception("Invalid response"))
+                    Log.e(TAG, "Response body is null")
+                    Result.failure(Exception("Empty response body"))
                 }
             } else {
-                Log.e(TAG, "API call failed: ${response.code()}")
-                Result.failure(Exception("Failed to fetch voter data: ${response.message()}"))
+                val errorMessage = "API call failed with code: ${response.code()}"
+                Log.e(TAG, errorMessage)
+                Result.failure(Exception(errorMessage))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception during voter data fetch", e)
+            Log.e(TAG, "Error fetching voter data: ${e.message}", e)
             Result.failure(e)
         }
     }
 
     /**
-     * Integrate voter address with wallet system
+     * Merge API voter data with locally stored cryptographic keys
      */
-    private suspend fun integrateWalletAddress(voterAddress: String) {
-        try {
-            // Check if the voter address matches any existing wallet
-            val existingWallets = walletManager.getAllWallets()
-            val matchingWallet = existingWallets.find {
-                it.address.equals(voterAddress, ignoreCase = true)
-            }
-
-            if (matchingWallet != null) {
-                Log.d(TAG, "Found matching wallet for voter address")
-                // Set this wallet as selected if no wallet is currently selected
-                if (walletManager.getSelectedWalletAddress() == null) {
-                    walletManager.setSelectedWallet(voterAddress)
-                }
-            } else {
-                Log.d(TAG, "No matching wallet found for voter address: $voterAddress")
-                // Note: We don't create a wallet here as we need the private key
-                // This would typically be handled during wallet import/creation
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error integrating wallet address", e)
-        }
-    }
-
-    /**
-     * Create or import wallet for voter
-     */
-    suspend fun createVoterWallet(pin: String, privateKey: String? = null): Result<String> {
+    private fun mergeWithStoredKeys(apiVoterData: VoterData): VoterData {
         return try {
-            val walletData = if (privateKey != null) {
-                // Import existing wallet
-                walletManager.importWallet(privateKey, pin, "Voter Wallet")
+            // Get stored voter address from crypto manager
+            val storedVoterAddress = cryptoKeyManager.getVoterAddress()
+
+            // Use stored voter address if available, otherwise use API data
+            val voterAddress = if (!storedVoterAddress.isNullOrEmpty()) {
+                Log.d(TAG, "Using stored voter address: $storedVoterAddress")
+                storedVoterAddress
             } else {
-                // Create new wallet
-                walletManager.createNewWallet(pin, "Voter Wallet")
+                Log.d(TAG, "Using API voter address: ${apiVoterData.voter_address}")
+                apiVoterData.voter_address
             }
 
-            // Update voter data with new wallet address
-            updateVoterWalletAddress(walletData.address)
-
-            Result.success(walletData.address)
+            apiVoterData.copy(voter_address = voterAddress)
         } catch (e: Exception) {
-            Log.e(TAG, "Error creating voter wallet", e)
-            Result.failure(e)
+            Log.e(TAG, "Error merging stored keys, using API data as-is", e)
+            apiVoterData
         }
     }
 
     /**
-     * Get current wallet information
-     */
-    suspend fun getCurrentWalletInfo(): WalletInfo? {
-        return try {
-            val selectedAddress = walletManager.getSelectedWalletAddress()
-                ?: walletManager.getDefaultWalletAddress()
-
-            if (selectedAddress != null) {
-                val balance = walletManager.getWalletBalance(selectedAddress)
-                val balanceEth = Convert.fromWei(balance.toString(), Convert.Unit.ETHER)
-
-                WalletInfo(
-                    balance = "${balanceEth.setScale(4)} ETH",
-                    privateKey = "", // Don't expose private key
-                    publicKey = selectedAddress
-                )
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting wallet info", e)
-            null
-        }
-    }
-
-    /**
-     * Check if user has a wallet setup
-     */
-    fun hasWalletSetup(): Boolean {
-        return walletManager.hasWallets()
-    }
-
-    /**
-     * Update voter wallet address in local storage
-     */
-    private fun updateVoterWalletAddress(address: String) {
-        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        with(sharedPreferences.edit()) {
-            putString(KEY_VOTER_PUBLIC_KEY, address)
-            apply()
-        }
-        Log.d(TAG, "Updated voter wallet address: $address")
-    }
-
-    /**
-     * Extract the user_id from the response header
+     * Get user ID from response header
      */
     private fun getUserIdFromResponse(headerValue: String?): String? {
         return headerValue?.takeIf { it.isNotEmpty() }?.also {
@@ -217,32 +132,38 @@ class VoterRepository(private val context: Context) {
     }
 
     /**
-     * Save voter data to SharedPreferences
+     * Save voter data to SharedPreferences (without private key for security)
      */
     private fun saveVoterDataLocally(voterData: VoterData) {
         val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         with(sharedPreferences.edit()) {
             putString(KEY_VOTER_FULL_NAME, voterData.full_name)
             putString(KEY_VOTER_NIK, voterData.nik)
-            putString(KEY_VOTER_PUBLIC_KEY, voterData.voter_address)
+            putString(KEY_VOTER_PUBLIC_KEY, cryptoKeyManager.getPublicKey() ?: "")
+            putString(KEY_VOTER_ADDRESS, voterData.voter_address)
             putBoolean(KEY_VOTER_HAS_VOTED, voterData.has_voted)
-            // Don't store private key directly - use wallet manager instead
-            putString(KEY_VOTER_PRIVATE_KEY, "")
             apply()
         }
         Log.d(TAG, "Voter data saved to SharedPreferences")
     }
 
     /**
-     * Get voter data from local storage with wallet integration
+     * Get voter data from local storage with cryptographic key integration
      */
     fun getVoterDataLocally(): VoterData? {
         val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         val fullName = sharedPreferences.getString(KEY_VOTER_FULL_NAME, "") ?: ""
         val nik = sharedPreferences.getString(KEY_VOTER_NIK, "") ?: ""
-        val publicKey = sharedPreferences.getString(KEY_VOTER_PUBLIC_KEY, "") ?: ""
+        val storedVoterAddress = sharedPreferences.getString(KEY_VOTER_ADDRESS, "") ?: ""
         val hasVoted = sharedPreferences.getBoolean(KEY_VOTER_HAS_VOTED, false)
+
+        // Try to get voter address from crypto manager if not in regular storage
+        val voterAddress = if (storedVoterAddress.isNotEmpty()) {
+            storedVoterAddress
+        } else {
+            cryptoKeyManager.getVoterAddress() ?: ""
+        }
 
         return if (fullName.isNotEmpty()) {
             VoterData(
@@ -254,7 +175,7 @@ class VoterRepository(private val context: Context) {
                 birth_place = "",
                 birth_date = "",
                 residential_address = "",
-                voter_address = publicKey,
+                voter_address = voterAddress,
                 region = "",
                 is_registered = true,
                 has_voted = hasVoted
@@ -265,30 +186,69 @@ class VoterRepository(private val context: Context) {
     }
 
     /**
-     * Get wallet information for display with enhanced features
+     * Get wallet information with secure private key access
      */
-    suspend fun getWalletInfo(): VoterWalletInfo {
-        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val storedPublicKey = sharedPreferences.getString(KEY_VOTER_PUBLIC_KEY, "") ?: ""
-
-        // Try to get wallet info from wallet manager
-        val walletInfo = getCurrentWalletInfo()
-
-        return walletInfo?.let {
-            VoterWalletInfo(
-                balance = it.balance,
-                privateKey = it.privateKey,
-                publicKey = it.publicKey
-            )
-        } ?: VoterWalletInfo(
-            balance = "0.0000 ETH",
-            privateKey = "",
-            publicKey = storedPublicKey
+    fun getWalletInfo(): WalletInfo {
+        return WalletInfo(
+            balance = "0.0000", // TODO: Implement balance checking from blockchain
+            privateKey = "", // Private key not exposed here for security
+            publicKey = cryptoKeyManager.getPublicKey() ?: ""
         )
     }
 
     /**
-     * Clear voter data from local storage
+     * Get wallet information including private key (use only when absolutely necessary)
+     * This method should only be called when private key is explicitly needed for transactions
+     */
+    fun getWalletInfoWithPrivateKey(): WalletInfo {
+        return WalletInfo(
+            balance = "0.0000",
+            privateKey = cryptoKeyManager.getPrivateKey() ?: "",
+            publicKey = cryptoKeyManager.getPublicKey() ?: ""
+        )
+    }
+
+    /**
+     * Get only the private key (securely decrypted from Android Keystore)
+     */
+    fun getPrivateKey(): String? {
+        return try {
+            val privateKey = cryptoKeyManager.getPrivateKey()
+            if (privateKey != null) {
+                Log.d(TAG, "Private key retrieved successfully")
+            } else {
+                Log.w(TAG, "Private key not found")
+            }
+            privateKey
+        } catch (e: Exception) {
+            Log.e(TAG, "Error retrieving private key", e)
+            null
+        }
+    }
+
+    /**
+     * Get only the public key
+     */
+    fun getPublicKey(): String? {
+        return cryptoKeyManager.getPublicKey()
+    }
+
+    /**
+     * Get only the voter address
+     */
+    fun getVoterAddress(): String? {
+        return cryptoKeyManager.getVoterAddress()
+    }
+
+    /**
+     * Check if cryptographic keys are stored and accessible
+     */
+    fun hasStoredKeys(): Boolean {
+        return cryptoKeyManager.hasStoredKeyPair()
+    }
+
+    /**
+     * Clear voter data from local storage and secure keystore
      */
     fun clearVoterData() {
         val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -296,11 +256,16 @@ class VoterRepository(private val context: Context) {
             remove(KEY_VOTER_FULL_NAME)
             remove(KEY_VOTER_NIK)
             remove(KEY_VOTER_PUBLIC_KEY)
-            remove(KEY_VOTER_PRIVATE_KEY)
+            remove(KEY_VOTER_ADDRESS)
             remove(KEY_VOTER_HAS_VOTED)
+            remove(KEY_USER_ID)
             apply()
         }
-        Log.d(TAG, "Voter data cleared from SharedPreferences")
+
+        // Also clear cryptographic keys from secure storage
+        cryptoKeyManager.clearStoredKeys()
+
+        Log.d(TAG, "Voter data and cryptographic keys cleared from all storage")
     }
 
     /**
@@ -310,7 +275,9 @@ class VoterRepository(private val context: Context) {
         val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val fullName = sharedPreferences.getString(KEY_VOTER_FULL_NAME, null)
         val nik = sharedPreferences.getString(KEY_VOTER_NIK, null)
-        return fullName != null && nik != null
+        val hasKeys = cryptoKeyManager.hasStoredKeyPair()
+
+        return fullName != null && nik != null && hasKeys
     }
 
     /**
@@ -331,5 +298,97 @@ class VoterRepository(private val context: Context) {
     fun getVotingStatus(): Boolean {
         val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return sharedPreferences.getBoolean(KEY_VOTER_HAS_VOTED, false)
+    }
+
+    /**
+     * Validate that all stored voter data and keys are consistent and accessible
+     */
+    fun validateStoredData(): Boolean {
+        return try {
+            val hasVoterData = hasStoredVoterData()
+            val hasValidKeys = cryptoKeyManager.hasStoredKeyPair()
+            val canAccessPrivateKey = cryptoKeyManager.getPrivateKey() != null
+            val canAccessPublicKey = cryptoKeyManager.getPublicKey() != null
+            val canAccessVoterAddress = cryptoKeyManager.getVoterAddress() != null
+
+            val isValid = hasVoterData && hasValidKeys && canAccessPrivateKey &&
+                    canAccessPublicKey && canAccessVoterAddress
+
+            Log.d(TAG, "Data validation result: $isValid")
+            if (!isValid) {
+                Log.w(TAG, "Validation details - VoterData: $hasVoterData, Keys: $hasValidKeys, " +
+                        "PrivateKey: $canAccessPrivateKey, PublicKey: $canAccessPublicKey, " +
+                        "VoterAddress: $canAccessVoterAddress")
+            }
+
+            isValid
+        } catch (e: Exception) {
+            Log.e(TAG, "Error validating stored data", e)
+            false
+        }
+    }
+
+    /**
+     * Backup essential voter information (excluding private key for security)
+     * @return Map containing backed up voter data
+     */
+    fun backupVoterData(): Map<String, String> {
+        val backupData = mutableMapOf<String, String>()
+
+        try {
+            val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+            // Backup basic voter information
+            sharedPreferences.getString(KEY_VOTER_FULL_NAME, "")?.let {
+                if (it.isNotEmpty()) backupData["full_name"] = it
+            }
+            sharedPreferences.getString(KEY_VOTER_NIK, "")?.let {
+                if (it.isNotEmpty()) backupData["nik"] = it
+            }
+
+            // Backup public key and voter address (safe to backup)
+            cryptoKeyManager.getPublicKey()?.let {
+                if (it.isNotEmpty()) backupData["public_key"] = it
+            }
+            cryptoKeyManager.getVoterAddress()?.let {
+                if (it.isNotEmpty()) backupData["voter_address"] = it
+            }
+
+            // Backup voting status
+            backupData["has_voted"] = sharedPreferences.getBoolean(KEY_VOTER_HAS_VOTED, false).toString()
+
+            Log.d(TAG, "Voter data backup created (${backupData.size} items)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating backup", e)
+        }
+
+        return backupData
+    }
+
+    /**
+     * Restore voter data from backup (excluding private key)
+     * Note: This only restores non-sensitive data. Private key must be regenerated or imported separately
+     */
+    fun restoreVoterDataFromBackup(backupData: Map<String, String>): Boolean {
+        return try {
+            val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+            with(sharedPreferences.edit()) {
+                backupData["full_name"]?.let { putString(KEY_VOTER_FULL_NAME, it) }
+                backupData["nik"]?.let { putString(KEY_VOTER_NIK, it) }
+                backupData["public_key"]?.let { putString(KEY_VOTER_PUBLIC_KEY, it) }
+                backupData["voter_address"]?.let { putString(KEY_VOTER_ADDRESS, it) }
+                backupData["has_voted"]?.let {
+                    putBoolean(KEY_VOTER_HAS_VOTED, it.toBoolean())
+                }
+                apply()
+            }
+
+            Log.d(TAG, "Voter data restored from backup")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error restoring from backup", e)
+            false
+        }
     }
 }

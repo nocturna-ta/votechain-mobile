@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit
  */
 object ElectionNetworkClient {
     // Public BASE_URL to be used across the app
-    const val BASE_URL = "https://681a-103-233-100-202.ngrok-free.app"
+    const val BASE_URL = "https://c0cd-36-69-141-188.ngrok-free.app"
     private const val TAG = "ElectionNetworkClient"
     private const val PREFS_NAME = "VoteChainPrefs"
     private const val KEY_USER_TOKEN = "user_token"
@@ -55,7 +55,7 @@ object ElectionNetworkClient {
         val result = isInitialized && applicationContext != null
         if (!result) {
             Log.w(TAG, "ElectionNetworkClient initialization check failed: " +
-                "isInitialized=$isInitialized, applicationContext=${if (applicationContext == null) "null" else "not null"}")
+                    "isInitialized=$isInitialized, applicationContext=${if (applicationContext == null) "null" else "not null"}")
         }
         return result
     }

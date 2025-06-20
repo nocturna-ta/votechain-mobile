@@ -4,8 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.background
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,7 +14,6 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
@@ -27,16 +24,14 @@ import com.nocturna.votechain.R
 import com.nocturna.votechain.data.repository.UserLoginRepository
 import com.nocturna.votechain.data.repository.UserProfileRepository
 import com.nocturna.votechain.data.repository.VoterRepository
-import com.nocturna.votechain.data.repository.EnhancedUserRepository
-import com.nocturna.votechain.data.storage.WalletManager
+import com.nocturna.votechain.ui.screens.login.LoginScreen
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.utils.LanguageManager
 import com.nocturna.votechain.viewmodel.login.LoginViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.web3j.utils.Convert
-import java.math.BigDecimal
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,39 +43,25 @@ fun AccountDetailsScreen(
     val strings = LanguageManager.getLocalizedStrings()
     val scrollState = rememberScrollState()
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
     // Repository instances
     val userProfileRepository = remember { UserProfileRepository(context) }
     val userLoginRepository = remember { UserLoginRepository(context) }
     val voterRepository = remember { VoterRepository(context) }
-    val enhancedUserRepository = remember { EnhancedUserRepository(context) }
-    val walletManager = remember { WalletManager.getInstance(context) }
 
     // Get LoginViewModel instance
     val loginViewModel: LoginViewModel = viewModel(factory = LoginViewModel.Factory(context))
 
-    // State management
+    // State untuk profile data dengan fallback
     var completeUserProfile by remember { mutableStateOf(userProfileRepository.getSavedCompleteProfile()) }
     var fallbackVoterData by remember { mutableStateOf(voterRepository.getVoterDataLocally()) }
     var dataLoadError by remember { mutableStateOf<String?>(null) }
+
+    // State for logout confirmation dialog
     var showLogoutDialog by remember { mutableStateOf(false) }
-    var showPrivateKey by remember { mutableStateOf(false) }
-    var showCopiedMessage by remember { mutableStateOf(false) }
 
-    // Wallet-specific state
-    var walletData by remember { mutableStateOf<com.nocturna.votechain.data.model.WalletData?>(null) }
-    var walletBalance by remember { mutableStateOf("Loading...") }
-    var isLoadingWallet by remember { mutableStateOf(true) }
-    var walletError by remember { mutableStateOf<String?>(null) }
-    var showWalletDialog by remember { mutableStateOf(false) }
-
-    val clipboardManager = LocalClipboardManager.current
-    val snackbarHostState = remember { SnackbarHostState() }
-
-    // Load profile and wallet data
+    // Refresh profile data saat screen dibuka
     LaunchedEffect(Unit) {
-        // Load profile data
         userProfileRepository.fetchCompleteUserProfile().fold(
             onSuccess = { profile ->
                 completeUserProfile = profile
@@ -88,75 +69,34 @@ fun AccountDetailsScreen(
             },
             onFailure = { error ->
                 dataLoadError = error.message
+                // Gunakan saved profile sebagai fallback
                 completeUserProfile = userProfileRepository.getSavedCompleteProfile()
+
+                // Jika masih tidak ada, gunakan local voter data
                 if (completeUserProfile?.voterProfile == null) {
                     fallbackVoterData = voterRepository.getVoterDataLocally()
                 }
             }
         )
-
-        // Load wallet data
-        scope.launch {
-            try {
-                isLoadingWallet = true
-                walletError = null
-
-                val userEmail = userLoginRepository.getUserEmail()
-                val voterData = completeUserProfile?.voterProfile ?: fallbackVoterData
-
-                if (userEmail.isNotEmpty() && voterData?.nik?.isNotEmpty() == true) {
-                    // Try to setup wallet access
-                    val walletSetupSuccess = enhancedUserRepository.setupWalletAccessAfterLogin(
-                        userEmail,
-                        voterData.nik
-                    )
-
-                    if (walletSetupSuccess) {
-                        // Get the wallet address for this user
-                        val walletAddress = enhancedUserRepository.getWalletAddressForUser(userEmail)
-
-                        if (walletAddress != null) {
-                            // Load wallet with registration PIN
-                            val pin = enhancedUserRepository.getRegistrationPinForUser(userEmail, voterData.nik)
-                            val wallet = walletManager.loadWallet(walletAddress, pin)
-
-                            if (wallet != null) {
-                                walletData = wallet
-                                // Format balance
-                                val balanceEth = Convert.fromWei(wallet.balance.toString(), Convert.Unit.ETHER)
-                                walletBalance = "${balanceEth.setScale(4, BigDecimal.ROUND_DOWN)} ETH"
-                            } else {
-                                walletError = "Failed to load wallet data"
-                            }
-                        } else {
-                            walletError = "No wallet found for this account"
-                        }
-                    } else {
-                        walletError = "Failed to setup wallet access"
-                    }
-                } else {
-                    walletError = "Missing user information for wallet access"
-                }
-            } catch (e: Exception) {
-                walletError = "Error loading wallet: ${e.message}"
-            } finally {
-                isLoadingWallet = false
-            }
-        }
     }
 
-    // Auto-hide copied message
-    LaunchedEffect(showCopiedMessage) {
-        if (showCopiedMessage) {
-            kotlinx.coroutines.delay(2000)
-            showCopiedMessage = false
-        }
-    }
-
-    // Extract data
-    val voterData = completeUserProfile?.voterProfile ?: fallbackVoterData
+    // Extract data dari complete profile
+    val voterData = completeUserProfile?.voterProfile
     val userProfile = completeUserProfile?.userProfile
+
+    // Data dari voter atau default values
+    val balance = "0.0000" // Placeholder balance
     val nik = voterData?.nik ?: "No NIK available"
+    val privateKey = "Not available yet" // Placeholder private key
+    val publicKey = voterData?.voter_address ?: "No public key available"
+
+    var showPrivateKey by remember { mutableStateOf(false) }
+
+    // For copy to clipboard functionality
+    val clipboardManager = LocalClipboardManager.current
+    var showCopiedMessage by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     // Logout Dialog
     if (showLogoutDialog) {
@@ -182,250 +122,228 @@ fun AccountDetailsScreen(
                         showLogoutDialog = false
                         loginViewModel.logoutUser()
                         onLogout()
-                    }
-                ) {
-                    Text("Logout", color = Color(0xFFE53E3E))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showLogoutDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
-    // Wallet Setup Dialog
-    if (showWalletDialog) {
-        AlertDialog(
-            onDismissRequest = { showWalletDialog = false },
-            title = { Text("Setup Wallet") },
-            text = { Text("Would you like to access the advanced wallet features? This will take you to the wallet management screen.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showWalletDialog = false
-                        // Navigate to wallet navigation
-                        navController.navigate("wallet_setup")
-                    }
-                ) {
-                    Text("Continue", color = MainColors.Primary1)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showWalletDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
-    Box(modifier = modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(16.dp)
-        ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.back),
-                        contentDescription = "Back",
-                        tint = MainColors.Primary1
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = NeutralColors.Neutral40
                     )
+                ) {
+                    Text("Logout")
                 }
-                Text(
-                    text = "Account Details",
-                    style = AppTypography.heading4Bold,
-                    color = MainColors.Primary1,
-                    modifier = Modifier.weight(1f).padding(start = 8.dp)
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showLogoutDialog = false },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Text("Cancel")
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        "Account",
+                        style = AppTypography.heading4Regular,
+                        color = NeutralColors.Neutral90
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.back),
+                            contentDescription = strings.back,
+                            tint = MainColors.Primary1
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.White
                 )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Account Information Section
+            )
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 24.dp)
+                .verticalScroll(scrollState)
+        ) {
+            // Balance
             Text(
-                text = "Account Information",
-                style = AppTypography.heading5Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(bottom = 16.dp)
+                text = strings.balance,
+                style = AppTypography.heading5Regular,
+                color = NeutralColors.Neutral70,
+                modifier = Modifier.padding(bottom = 8.dp, top = 16.dp)
             )
 
-            // NIK Card
-            Card(
+            OutlinedTextField(
+                value = balance,
+                onValueChange = { },
+                readOnly = true,
+                shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = NeutralColors.Neutral80),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "National ID Number (NIK)",
-                        style = AppTypography.paragraphRegular,
-                        color = NeutralColors.Neutral40
-                    )
-                    Text(
-                        text = nik,
-                        style = AppTypography.paragraphSemiBold,
-                        color = NeutralColors.Neutral10
-                    )
-                }
-            }
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = NeutralColors.Neutral30,
+                    unfocusedTextColor = NeutralColors.Neutral70,
+                    disabledBorderColor = NeutralColors.Neutral30,
+                    disabledTextColor = NeutralColors.Neutral70,
+                    focusedBorderColor = MainColors.Primary1,
+                    focusedTextColor = NeutralColors.Neutral70,
+                ),
+                textStyle = AppTypography.heading5Regular
+            )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            // NIK
+            Text(
+                text = strings.nik,
+                style = AppTypography.heading5Regular,
+                color = NeutralColors.Neutral70,
+                modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
+            )
 
-            // Wallet Information Section
-            Row(
+            OutlinedTextField(
+                value = nik,
+                onValueChange = { },
+                readOnly = true,
+                shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Wallet Information",
-                    style = AppTypography.heading5Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                TextButton(
-                    onClick = { showWalletDialog = true }
-                ) {
-                    Text(
-                        text = "Advanced",
-                        style = AppTypography.paragraphRegular,
-                        color = MainColors.Primary1
-                    )
-                }
-            }
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = NeutralColors.Neutral30,
+                    unfocusedTextColor = NeutralColors.Neutral70,
+                    disabledBorderColor = NeutralColors.Neutral30,
+                    disabledTextColor = NeutralColors.Neutral70,
+                    focusedBorderColor = MainColors.Primary1,
+                    focusedTextColor = NeutralColors.Neutral70,
+                ),
+                textStyle = AppTypography.heading5Regular
+            )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // Full Name
+            Text(
+                text = "Full Name",
+                style = AppTypography.heading5Regular,
+                color = NeutralColors.Neutral70,
+                modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
+            )
 
-            if (isLoadingWallet) {
-                // Loading state
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = NeutralColors.Neutral80),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = MainColors.Primary1)
-                    }
-                }
-            } else if (walletError != null) {
-                // Error state
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Wallet Error",
-                            style = AppTypography.paragraphSemiBold,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                        Text(
-                            text = walletError!!,
-                            style = AppTypography.paragraphRegular,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    }
-                }
-            } else if (walletData != null) {
-                // Wallet data loaded successfully
+            OutlinedTextField(
+                value = voterData?.full_name ?: "No name available",
+                onValueChange = { },
+                readOnly = true,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = NeutralColors.Neutral30,
+                    unfocusedTextColor = NeutralColors.Neutral70,
+                    disabledBorderColor = NeutralColors.Neutral30,
+                    disabledTextColor = NeutralColors.Neutral70,
+                    focusedBorderColor = MainColors.Primary1,
+                    focusedTextColor = NeutralColors.Neutral70,
+                ),
+                textStyle = AppTypography.heading5Regular
+            )
 
-                // Balance Card
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MainColors.Primary1),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Balance",
-                            style = AppTypography.paragraphRegular,
-                            color = Color.White.copy(alpha = 0.8f)
-                        )
-                        Text(
-                            text = walletBalance,
-                            style = AppTypography.heading4Bold,
-                            color = Color.White
+            // Private Key
+            Text(
+                text = strings.privateKey,
+                style = AppTypography.heading5Regular,
+                color = NeutralColors.Neutral70,
+                modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
+            )
+
+            OutlinedTextField(
+                value = privateKey,
+                onValueChange = { },
+                readOnly = true,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+                visualTransformation = if (showPrivateKey) VisualTransformation.None else PasswordVisualTransformation(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = NeutralColors.Neutral30,
+                    unfocusedTextColor = NeutralColors.Neutral70,
+                    disabledBorderColor = NeutralColors.Neutral30,
+                    disabledTextColor = NeutralColors.Neutral70,
+                    focusedBorderColor = MainColors.Primary1,
+                    focusedTextColor = NeutralColors.Neutral70,
+                    unfocusedTrailingIconColor = NeutralColors.Neutral40,
+                    focusedTrailingIconColor = NeutralColors.Neutral40,
+                ),
+                textStyle = AppTypography.heading5Regular,
+                trailingIcon = {
+                    IconButton(onClick = { showPrivateKey = !showPrivateKey }) {
+                        Icon(
+                            painter = painterResource(
+                                id = if (showPrivateKey) R.drawable.show else R.drawable.hide
+                            ),
+                            contentDescription = if (showPrivateKey) "Hide private key" else "Show private key",
+                            tint = NeutralColors.Neutral40
                         )
                     }
                 }
+            )
 
-                Spacer(modifier = Modifier.height(16.dp))
+            // Public Key
+            Text(
+                text = strings.publicKey,
+                style = AppTypography.heading5Regular,
+                color = NeutralColors.Neutral70,
+                modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
+            )
 
-                // Public Key Card
-                WalletDetailCard(
-                    title = "Public Key",
-                    value = walletData!!.address,
-                    onCopy = {
-                        clipboardManager.setText(AnnotatedString(walletData!!.address))
-                        showCopiedMessage = true
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Private Key Card
-                WalletDetailCard(
-                    title = "Private Key",
-                    value = if (showPrivateKey) walletData!!.privateKey else "•".repeat(64),
-                    onCopy = {
-                        if (showPrivateKey) {
-                            clipboardManager.setText(AnnotatedString(walletData!!.privateKey))
-                            showCopiedMessage = true
+            OutlinedTextField(
+                value = publicKey,
+                onValueChange = { },
+                readOnly = true,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = NeutralColors.Neutral30,
+                    unfocusedTextColor = NeutralColors.Neutral70,
+                    disabledBorderColor = NeutralColors.Neutral30,
+                    disabledTextColor = NeutralColors.Neutral70,
+                    focusedBorderColor = MainColors.Primary1,
+                    focusedTextColor = NeutralColors.Neutral70,
+                    unfocusedTrailingIconColor = NeutralColors.Neutral40,
+                    focusedTrailingIconColor = NeutralColors.Neutral40,
+                ),
+                textStyle = AppTypography.heading5Regular,
+                trailingIcon = {
+                    IconButton(
+                        onClick = {
+                            clipboardManager.setText(AnnotatedString(publicKey))
+                            scope.launch {
+                                showCopiedMessage = true
+                                snackbarHostState.showSnackbar(
+                                    message = "Public Key copied to clipboard",
+                                    duration = SnackbarDuration.Short
+                                )
+                                delay(2000)
+                                showCopiedMessage = false
+                            }
                         }
-                    },
-                    trailingIcon = {
-                        IconButton(
-                            onClick = { showPrivateKey = !showPrivateKey }
-                        ) {
-                            Icon(
-                                painter = painterResource(
-                                    id = if (showPrivateKey) R.drawable.hide else R.drawable.show
-                                ),
-                                contentDescription = if (showPrivateKey) "Hide" else "Show",
-                                tint = MainColors.Primary1
-                            )
-                        }
-                    }
-                )
-
-                // Warning about private key
-                if (showPrivateKey) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
-                        ),
-                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text(
-                            text = "⚠️ Never share your private key with anyone!",
-                            style = AppTypography.paragraphRegular,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(12.dp)
+                        Icon(
+                            painter = painterResource(id = R.drawable.copy),
+                            contentDescription = "Copy public key",
+                            tint = NeutralColors.Neutral40
                         )
                     }
                 }
-            }
+            )
 
+            // Add spacer at the bottom for better scrolling experience
             Spacer(modifier = Modifier.height(40.dp))
         }
 
@@ -433,7 +351,6 @@ fun AccountDetailsScreen(
         Button(
             onClick = { showLogoutDialog = true },
             modifier = Modifier
-                .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .padding(16.dp)
                 .height(48.dp),
@@ -441,78 +358,22 @@ fun AccountDetailsScreen(
                 containerColor = Color(0xFFE53E3E),
                 contentColor = Color.White
             ),
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Text(
-                text = "Logout",
-                style = AppTypography.paragraphRegular,
-                color = Color.White
+            shape = RoundedCornerShape(8.dp),
+            elevation = ButtonDefaults.buttonElevation(
+                defaultElevation = 0.dp,
+                pressedElevation = 2.dp
             )
-        }
-
-        // Copied Message Snackbar
-        if (showCopiedMessage) {
-            Card(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 80.dp)
-                    .padding(horizontal = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = NeutralColors.Neutral70
-                ),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(
-                    text = "Copied to clipboard",
-                    style = AppTypography.paragraphRegular.copy(color = Color.White),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun WalletDetailCard(
-    title: String,
-    value: String,
-    onCopy: () -> Unit,
-    trailingIcon: (@Composable () -> Unit)? = null
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = NeutralColors.Neutral80),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = title,
+                    text = "Logout",
                     style = AppTypography.paragraphRegular,
-                    color = NeutralColors.Neutral40
+                    color = Color.White
                 )
-                Row {
-                    trailingIcon?.invoke()
-                    IconButton(onClick = onCopy) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.copy),
-                            contentDescription = "Copy",
-                            tint = MainColors.Primary1
-                        )
-                    }
-                }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = value,
-                style = AppTypography.paragraphRegular,
-                color = NeutralColors.Neutral10,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
     }
 }
@@ -521,6 +382,6 @@ fun WalletDetailCard(
 @Composable
 fun AccountDetailsPreview() {
     MaterialTheme {
-        AccountDetailsScreen(navController = NavController(LocalContext.current))
+        AccountDetailsScreen(navController = NavController(LocalContext.current), modifier = Modifier, onLogout = {})
     }
 }

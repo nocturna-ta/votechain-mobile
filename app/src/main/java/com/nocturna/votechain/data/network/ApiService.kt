@@ -1,119 +1,134 @@
 package com.nocturna.votechain.data.network
 
 import com.nocturna.votechain.data.model.ApiResponse
+import com.nocturna.votechain.data.model.LoginRequest
+import com.nocturna.votechain.data.model.RegisterRequest
+import com.nocturna.votechain.data.model.UserLoginData
+import com.nocturna.votechain.data.model.UserProfileResponse
 import com.nocturna.votechain.data.model.UserRegistrationData
-import com.nocturna.votechain.data.model.UserRegistrationRequest
+import com.nocturna.votechain.data.model.VerificationStatusData
+import com.nocturna.votechain.data.model.VoterResponse
 import okhttp3.MultipartBody
-import okhttp3.OkHttpClient
 import okhttp3.RequestBody
-import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.*
-import java.util.concurrent.TimeUnit
+import retrofit2.http.Body
+import retrofit2.http.Multipart
+import retrofit2.http.POST
+import retrofit2.http.Part
+import retrofit2.http.GET
+import retrofit2.http.Header
+import retrofit2.http.Path
+import retrofit2.http.Query
 
 /**
- * API Service interface untuk VoteChain
+ * API Service interface for network requests
  */
-interface VoteChainApiService {
-
-    @Multipart
-    @POST("/v1/user/register")
+interface ApiService {
+    /**
+     * Register a new user through JSON request
+     * Endpoint: /v1/user/register
+     */
+    @POST("v1/user/register")
     suspend fun registerUser(
-        @Part("email") email: RequestBody,
-        @Part("password") password: RequestBody,
-        @Part("nik") nik: RequestBody,
-        @Part("full_name") fullName: RequestBody,
-        @Part("gender") gender: RequestBody,
-        @Part("birth_place") birthPlace: RequestBody,
-        @Part("birth_date") birthDate: RequestBody,
-        @Part("residential_address") residentialAddress: RequestBody,
-        @Part("region") region: RequestBody,
-        @Part("role") role: RequestBody,
-        @Part("voter_address") voterAddress: RequestBody,
-        @Part ktpFile: MultipartBody.Part?
+        @Body request: RegisterRequest
     ): Response<ApiResponse<UserRegistrationData>>
 
-    @POST("/v1/user/login")
-    suspend fun loginUser(
-        @Body loginRequest: Map<String, String>
-    ): Response<ApiResponse<Any>>
+    /**
+     * Register a new user with form data and file upload
+     * Endpoint: /v1/user/register
+     */
+    @Multipart
+    @POST("v1/user/register")
+    suspend fun registerUserWithFormData(
+        @Part("user") user: RequestBody,
+        @Part ktp_photo: MultipartBody.Part?
+    ): Response<ApiResponse<UserRegistrationData>>
 
-    @GET("/v1/user/verify-email")
-    suspend fun verifyEmail(
-        @Query("token") token: String
-    ): Response<ApiResponse<Any>>
+    /**
+     * Login a user
+     * Endpoint: /v1/user/login
+     */
+    @POST("v1/user/login")
+    suspend fun loginUser(@Body request: LoginRequest): Response<ApiResponse<UserLoginData>>
 
-    @POST("/v1/user/resend-verification")
-    suspend fun resendVerification(
-        @Body request: Map<String, String>
-    ): Response<ApiResponse<Any>>
-}
+    /**
+     * Get voter information
+     * Endpoint: /v1/voter
+     */
+    @GET("v1/voter")
+    suspend fun getVoterData(
+        @Header("Authorization") token: String
+    ): Response<VoterResponse>
 
-/**
- * API Client singleton untuk mengelola Retrofit instance
- */
-object ApiClient {
-    private const val BASE_URL = "https://api.votechain.com/" // Ganti dengan URL API yang sebenarnya
+    @GET("v1/voter")
+    suspend fun getVoterDataWithToken(
+        @Header("Authorization") token: String
+    ): Response<VoterResponse>
 
-    private val loggingInterceptor = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BODY
-    }
+    /**
+     * Get user verification status by email
+     * Endpoint: /v1/user/verification-status/{email}
+     * Note: May require authentication depending on API design
+     */
+    @GET("v1/user/verification-status/{email}")
+    suspend fun getVerificationStatus(
+        @Path("email") email: String
+    ): Response<ApiResponse<VerificationStatusData>>
 
-    private val okHttpClient = OkHttpClient.Builder()
-        .addInterceptor(loggingInterceptor)
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .build()
+    /**
+     * Get user verification status with manual token
+     * Endpoint: /v1/user/verification-status/{email}
+     */
+    @GET("v1/user/verification-status/{email}")
+    suspend fun getVerificationStatusWithToken(
+        @Path("email") email: String,
+        @Header("Authorization") token: String
+    ): Response<ApiResponse<VerificationStatusData>>
 
-    val retrofit: Retrofit = Retrofit.Builder()
-        .baseUrl(BASE_URL)
-        .client(okHttpClient)
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
+    /**
+     * Get user profile by email
+     * Endpoint: /v1/user/{email}
+     */
+    @GET("v1/user/{email}")
+    suspend fun getUserProfile(
+        @Path("email") email: String,
+        @Header("Authorization") token: String
+    ): Response<UserProfileResponse>
 
-    val apiService: VoteChainApiService = retrofit.create(VoteChainApiService::class.java)
-}
+    /**
+     * Get voter data by user_id (jika API mendukung filter)
+     * Endpoint: /v1/voter
+     */
+    @GET("v1/voter")
+    suspend fun getVoterByUserId(
+        @Header("Authorization") token: String,
+        @Query("user_id") userId: String? = null
+    ): Response<VoterResponse>
 
-/**
- * API Repository untuk mengelola panggilan API
- */
-class ApiRepository {
-    private val apiService = ApiClient.apiService
+    /**
+     * Send password reset OTP to email
+     * Endpoint: /v1/user/forgot-password
+     */
+    @POST("v1/user/forgot-password")
+    suspend fun sendPasswordResetOTP(
+        @Body requestBody: RequestBody
+    ): ApiResponse<Any>
 
-    suspend fun registerUser(request: UserRegistrationRequest, ktpFile: MultipartBody.Part?): Response<ApiResponse<UserRegistrationData>> {
-        return apiService.registerUser(
-            email = RequestBody.create(MultipartBody.FORM, request.email),
-            password = RequestBody.create(MultipartBody.FORM, request.password),
-            nik = RequestBody.create(MultipartBody.FORM, request.nik),
-            fullName = RequestBody.create(MultipartBody.FORM, request.fullName),
-            gender = RequestBody.create(MultipartBody.FORM, request.gender),
-            birthPlace = RequestBody.create(MultipartBody.FORM, request.birthPlace),
-            birthDate = RequestBody.create(MultipartBody.FORM, request.birthDate),
-            residentialAddress = RequestBody.create(MultipartBody.FORM, request.residentialAddress),
-            region = RequestBody.create(MultipartBody.FORM, request.region),
-            role = RequestBody.create(MultipartBody.FORM, request.role),
-            voterAddress = RequestBody.create(MultipartBody.FORM, request.voterAddress),
-            ktpFile = ktpFile
-        )
-    }
+    /**
+     * Verify password reset OTP
+     * Endpoint: /v1/user/verify-otp
+     */
+    @POST("v1/user/verify-otp")
+    suspend fun verifyPasswordResetOTP(
+        @Body requestBody: RequestBody
+    ): ApiResponse<Any>
 
-    suspend fun loginUser(email: String, password: String): Response<ApiResponse<Any>> {
-        val loginRequest = mapOf(
-            "email" to email,
-            "password" to password
-        )
-        return apiService.loginUser(loginRequest)
-    }
-
-    suspend fun verifyEmail(token: String): Response<ApiResponse<Any>> {
-        return apiService.verifyEmail(token)
-    }
-
-    suspend fun resendVerification(email: String): Response<ApiResponse<Any>> {
-        val request = mapOf("email" to email)
-        return apiService.resendVerification(request)
-    }
+    /**
+     * Reset password with verified OTP
+     * Endpoint: /v1/user/reset-password
+     */
+    @POST("v1/user/reset-password")
+    suspend fun resetPassword(
+        @Body requestBody: RequestBody
+    ): ApiResponse<Any>
 }

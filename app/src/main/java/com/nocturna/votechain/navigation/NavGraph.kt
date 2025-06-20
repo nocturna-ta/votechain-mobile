@@ -20,6 +20,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.nocturna.votechain.data.model.NewsItem
 import com.nocturna.votechain.ui.screens.LoadingScreen
+import com.nocturna.votechain.ui.screens.OTPVerificationScreen
 import com.nocturna.votechain.ui.screens.SplashScreen
 import com.nocturna.votechain.ui.screens.auth.EmailVerificationScreen
 import com.nocturna.votechain.ui.screens.homepage.CandidateSelectionScreen
@@ -31,9 +32,6 @@ import com.nocturna.votechain.ui.screens.register.RegistrationFlowController
 import com.nocturna.votechain.ui.screens.votepage.OTPVotingVerificationScreen
 import com.nocturna.votechain.ui.screens.votepage.ResultsScreen
 import com.nocturna.votechain.ui.screens.votepage.VotingScreen
-import com.nocturna.votechain.ui.screens.wallet.MnemonicScreen
-import com.nocturna.votechain.ui.screens.wallet.PinEntryScreen
-import com.nocturna.votechain.ui.screens.wallet.WalletAccountScreen
 import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
 import com.nocturna.votechain.viewmodel.vote.VotingViewModel
 
@@ -103,19 +101,19 @@ fun VotechainNavGraph(
         }
 
         // OTP Verification screen for forgot password
-//        composable("otp_verification_reset") {
-//            val email = navController.currentBackStackEntry?.arguments?.getString("email") ?: ""
-//            OTPVerificationScreen(
-//                email = email,
-//                onBackClick = { navController.popBackStack() },
-//                onOtpVerified = {
-//                    // Navigate to home screen after successful verification
-//                    navController.navigate("home") {
-//                        popUpTo("login") { inclusive = true }
-//                    }
-//                }
-//            )
-//        }
+        composable("otp_verification_reset") {
+            val email = navController.currentBackStackEntry?.arguments?.getString("email") ?: ""
+            OTPVerificationScreen(
+                navController = navController,
+                onBackClick = { navController.popBackStack() },
+                onVerificationComplete = {
+                    // Navigate to home screen after successful verification
+                    navController.navigate("home") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                }
+            )
+        }
 
         // Registration flow - now using the controller
         composable("register") {
@@ -146,80 +144,6 @@ fun VotechainNavGraph(
                     navController.navigate("register") {
                         popUpTo("rejected") { inclusive = true }
                     }
-                }
-            )
-        }
-
-        // Wallet Setup Integration
-        composable("wallet_setup") {
-            WalletIntegrationScreen(
-                onWalletSetupComplete = {
-                    // Navigate back to account details after wallet setup
-                    navController.navigate("account_details") {
-                        popUpTo("wallet_setup") { inclusive = true }
-                    }
-                },
-                onBackPressed = {
-                    navController.popBackStack()
-                }
-            )
-        }
-
-        // Individual wallet routes for advanced users
-        composable("wallet_pin_entry") {
-            PinEntryScreen(
-                onPinVerified = {
-                    navController.navigate("wallet_account") {
-                        popUpTo("wallet_pin_entry") { inclusive = true }
-                    }
-                },
-                onWalletCreated = {
-                    navController.navigate("wallet_account") {
-                        popUpTo("wallet_pin_entry") { inclusive = true }
-                    }
-                }
-            )
-        }
-
-        composable("wallet_account") {
-            WalletAccountScreen(
-                onBackPressed = {
-                    navController.popBackStack()
-                },
-                onSwitchWallet = {
-                    navController.navigate("wallet_pin_entry") {
-                        popUpTo("wallet_account") { inclusive = true }
-                    }
-                },
-                onShowMnemonic = { address, privateKey, walletName ->
-                    navController.navigate(
-                        "wallet_mnemonic/$address/$privateKey/$walletName"
-                    )
-                }
-            )
-        }
-
-        composable(
-            "wallet_mnemonic/{address}/{privateKey}/{walletName}",
-            arguments = listOf(
-                navArgument("address") { type = NavType.StringType },
-                navArgument("privateKey") { type = NavType.StringType },
-                navArgument("walletName") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val address = backStackEntry.arguments?.getString("address") ?: ""
-            val privateKey = backStackEntry.arguments?.getString("privateKey") ?: ""
-            val walletName = backStackEntry.arguments?.getString("walletName") ?: ""
-
-            MnemonicScreen(
-                walletAddress = address,
-                privateKey = privateKey,
-                walletName = walletName,
-                onBackPressed = {
-                    navController.popBackStack()
-                },
-                onContinue = {
-                    navController.popBackStack()
                 }
             )
         }

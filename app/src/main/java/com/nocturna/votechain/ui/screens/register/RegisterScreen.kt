@@ -12,12 +12,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -56,7 +52,21 @@ import org.web3j.utils.Numeric
 import java.security.SecureRandom
 import android.util.Log
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nocturna.votechain.ui.theme.PrimaryColors
+import com.nocturna.votechain.ui.theme.SuccessColors
 import com.nocturna.votechain.utils.LanguageManager
+import androidx.compose.material3.*
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import com.nocturna.votechain.ui.theme.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.nocturna.votechain.viewmodel.register.KeyGenerationState
 
 // Data class to manage validation state for each field
 data class ValidationState(
@@ -75,6 +85,15 @@ fun RegisterScreen(
 ) {
     val context = LocalContext.current
     val strings = LanguageManager.getLocalizedStrings()
+    val keyGenerationState by viewModel.keyGenerationState.collectAsState()
+    val nodeConnected by viewModel.nodeConnected.collectAsState()
+
+    // Email validation regex
+    val emailRegex = "[a-zA-Z0-9._-]+@[a-z]+\\.+[a-z]+".toRegex()
+
+    // Observe UI state
+    val uiState by viewModel.uiState.collectAsState()
+    val isLoading = uiState is RegisterViewModel.RegisterUiState.Loading
 
     // Form field values
     var nationalId by remember { mutableStateOf("") }
@@ -114,15 +133,6 @@ fun RegisterScreen(
     var genderValidation by remember { mutableStateOf(ValidationState()) }
     var passwordValidation by remember { mutableStateOf(ValidationState()) }
     var fileValidation by remember { mutableStateOf(ValidationState()) }
-
-    // Email validation regex
-    val emailRegex = "[a-zA-Z0-9._-]+@[a-z]+\\.+[a-z]+".toRegex()
-
-    // Observe UI state
-    val uiState by viewModel.uiState.collectAsState()
-    var isLoading by remember { mutableStateOf(false) }
-    var showWalletCreationDialog by remember { mutableStateOf(false) }
-    var walletAddress by remember { mutableStateOf("") }
 
     // Animation states
     var showElements by remember { mutableStateOf(false) }
@@ -384,6 +394,12 @@ fun RegisterScreen(
             }
         }
 
+        CryptoKeyStatusCard(
+            keyGenerationState = keyGenerationState,
+            nodeConnected = nodeConnected,
+            modifier = Modifier.padding(vertical = 8.dp)
+        )
+
         // Form section with animation
         Box(modifier = Modifier.alpha(formAlpha.value)) {
             Column {
@@ -402,8 +418,6 @@ fun RegisterScreen(
                         unfocusedBorderColor = if (nationalIdValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                         focusedTextColor = NeutralColors.Neutral70,
                         unfocusedTextColor = NeutralColors.Neutral70,
-                        focusedLabelColor = if (fullNameValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                        unfocusedLabelColor = if (fullNameValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                     ),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,
@@ -616,8 +630,6 @@ fun RegisterScreen(
                         unfocusedBorderColor = if (addressValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                         focusedTextColor = NeutralColors.Neutral70,
                         unfocusedTextColor = NeutralColors.Neutral70,
-                        focusedLabelColor = if (fullNameValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                        unfocusedLabelColor = if (fullNameValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                     ),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
@@ -911,8 +923,6 @@ fun RegisterScreen(
                         unfocusedBorderColor = if (passwordValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                         focusedTextColor = NeutralColors.Neutral70,
                         unfocusedTextColor = NeutralColors.Neutral70,
-                        focusedLabelColor = if (fullNameValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                        unfocusedLabelColor = if (fullNameValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
                     ),
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(
@@ -1118,57 +1128,49 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Add this function to your RegisterScreen
-                fun registerWithVoterAddress() {
-                    if (validateAllFields()) {
-                        // Ensure we have a selected file URI
-                        selectedFileUri?.let { fileUri ->
-                            // Call the view model to register the user with KTP file
-                            // EnhancedUserRepository akan menghasilkan voter_address secara otomatis
-                            viewModel.registerUserWithVoterAddress(
-                                nationalId = nationalId,
-                                fullName = fullName,
-                                email = email,
-                                password = password,
-                                birthPlace = birthPlace,
-                                birthDate = birthDate,
-                                address = address,
-                                region = selectedRegion,
-                                gender = selectedGender,
-                                ktpFileUri = fileUri,
-                                role = "voter"
-                            )
-                        } ?: run {
-                            // If no file is selected, show error
-                            fileValidation = ValidationState(true, "ID card upload is required")
-                            Toast.makeText(context, "Please select an ID card file", Toast.LENGTH_SHORT).show()
-                        }
-                    } else {
-                        // Show validation error toast
-                        Toast.makeText(context, "Please correct the errors in the form", Toast.LENGTH_SHORT).show()
-                    }
-                }
-
-
-                // Register button with scale animation
+                // ✅ Submit Button - TETAP menggunakan method signature yang sama
                 Button(
                     onClick = {
-                        registerWithVoterAddress()
+                        if (validateAllFields()) {
+                            // ✅ Tetap memanggil method yang sama seperti existing code
+                            selectedFileUri?.let { fileUri ->
+                                viewModel.registerUserWithVoterAddress(
+                                    nationalId = nationalId,
+                                    fullName = fullName,
+                                    email = email,
+                                    password = password,
+                                    birthPlace = birthPlace,
+                                    birthDate = birthDate,
+                                    address = address,
+                                    region = selectedRegion,
+                                    gender = selectedGender,
+                                    ktpFileUri = fileUri,
+                                    role = "voter"
+                                )
+                            } ?: run {
+                                Toast.makeText(context, "Please upload your ID card", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
-                        .scale(buttonScale.value),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MainColors.Primary1,
-                        contentColor = NeutralColors.Neutral10,
-                        disabledContainerColor = NeutralColors.Neutral30,
-                        disabledContentColor = NeutralColors.Neutral50
-                    ),
-                    shape = MaterialTheme.shapes.medium,
-                    enabled = isFormValid
+                        .height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MainColors.Primary1),
+                    enabled = isFormValid && !isLoading
                 ) {
-                    Text(strings.register, style = AppTypography.heading4SemiBold, color = NeutralColors.Neutral10)
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = strings.register,
+                            color = Color.White,
+                            style = AppTypography.paragraphRegular.copy(fontWeight = FontWeight.SemiBold)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -1202,6 +1204,120 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
             }
+        }
+    }
+}
+
+// ✅ New Composable untuk Crypto Key Status
+@Composable
+fun CryptoKeyStatusCard(
+    keyGenerationState: KeyGenerationState,
+    nodeConnected: Boolean,
+    modifier: Modifier = Modifier
+) {
+    when (keyGenerationState) {
+        KeyGenerationState.NotStarted -> {
+            // Show info about crypto security
+            Card(
+                modifier = modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MainColors.Primary1.copy(alpha = 0.1f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.back),
+                        contentDescription = null,
+                        tint = MainColors.Primary1,
+                        modifier = Modifier.size(20.dp)
+                    )
+
+                    Column {
+                        Text(
+                            text = "Kunci Kriptografi",
+                            style = Typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MainColors.Primary1
+                        )
+                        Text(
+                            text = if (nodeConnected)
+                                "Koneksi blockchain siap untuk registrasi"
+                            else
+                                "Koneksi blockchain tidak tersedia",
+                            style = Typography.bodySmall,
+                            color = PrimaryColors.Primary50
+                        )
+                    }
+                }
+            }
+        }
+        KeyGenerationState.Generating -> {
+            Card(
+                modifier = modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MainColors.Primary1.copy(alpha = 0.1f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = MainColors.Primary1,
+                        strokeWidth = 2.dp
+                    )
+                    Column {
+                        Text(
+                            text = "Membuat Kunci Kriptografi",
+                            style = Typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MainColors.Primary1
+                        )
+                        Text(
+                            text = "Mohon tunggu sebentar...",
+                            style = Typography.bodySmall,
+                            color = PrimaryColors.Primary50
+                        )
+                    }
+                }
+            }
+        }
+        is KeyGenerationState.Generated -> {
+            Card(
+                modifier = modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MainColors.Primary1.copy(alpha = 0.1f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Kunci Kriptografi Berhasil Dibuat",
+                            style = Typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MainColors.Primary1
+                        )
+                        Text(
+                            text = "Data Anda akan disimpan dengan aman",
+                            style = Typography.bodySmall,
+                            color = PrimaryColors.Primary50
+                        )
+                    }
+                }
+            }
+        }
+        else -> {
+            // Nothing to show for other states
         }
     }
 }
