@@ -36,7 +36,8 @@ import kotlinx.coroutines.delay
 fun WaitingScreen(
     onClose: () -> Unit,
     onStatusUpdated: (String) -> Unit = {},
-    viewModel: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(LocalContext.current))
+    viewModel: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(LocalContext.current)),
+    source: String = "register"
 ) {
     val context = LocalContext.current
     val strings = LanguageManager.getLocalizedStrings()
@@ -131,8 +132,21 @@ fun WaitingScreen(
                 // Close button
                 OutlinedButton(
                     onClick = {
-                        viewModel.onWaitingScreenClose()
-                        onClose()
+                        when (source) {
+                            "register" -> {
+                                // From register flow - return to register page without clearing state
+                                viewModel?.onWaitingScreenClose()
+                                onClose()
+                            }
+                            "login" -> {
+                                // From login flow - this shouldn't happen, but if it does, go back to login
+                                onClose()
+                            }
+                            else -> {
+                                // Default behavior
+                                onClose()
+                            }
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()

@@ -8,14 +8,17 @@ import androidx.lifecycle.viewModelScope
 import com.nocturna.votechain.data.model.ApiResponse
 import com.nocturna.votechain.data.model.CompleteUserData
 import com.nocturna.votechain.data.model.UserLoginData
+import com.nocturna.votechain.data.network.NetworkClient.apiService
 import com.nocturna.votechain.data.repository.IntegratedEnhancedUserRepository
 import com.nocturna.votechain.data.repository.RegistrationStateManager
 import com.nocturna.votechain.data.repository.UserLoginRepository
 import com.nocturna.votechain.data.repository.VoterRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * ViewModel for the Login Screen
@@ -46,6 +49,30 @@ class LoginViewModel(
     }
 
     /**
+     * UI State for Login Screen
+     */
+    sealed class LoginUiState {
+        data object Initial : LoginUiState()
+        data object Loading : LoginUiState()
+        data class Success(val userData: CompleteUserData) : LoginUiState()
+        data class Error(val message: String) : LoginUiState()
+        data object NavigateToHome : LoginUiState()
+
+        // User data states
+        data class PartialSuccess(val userData: CompleteUserData, val message: String) : LoginUiState()
+        data class RefreshError(val userData: CompleteUserData, val message: String) : LoginUiState()
+        data object LoggedOut : LoginUiState()
+
+        // New states for registration status
+        data object NavigateToWaiting : LoginUiState()
+        data object NavigateToAccepted : LoginUiState()
+        data object NavigateToRejected : LoginUiState()
+    }
+
+    // Add registration state manager
+    private val registrationStateManager = RegistrationStateManager(context)
+
+    /**
      * Login user with email and password
      */
     fun loginUser(email: String, password: String) {
@@ -60,10 +87,10 @@ class LoginViewModel(
 
                 loginResult.fold(
                     onSuccess = { loginResponse ->
-                        Log.d(TAG, "Login successful, loading complete user data...")
+                        Log.d(TAG, "Login successful, checking registration status...")
 
-                        // Step 2: Load complete user data including real-time balance
-                        loadCompleteUserData()
+                        // Step 2: Check registration status after successful login
+                        checkRegistrationStatusAfterLogin(email, loginResponse.data)
                     },
                     onFailure = { error ->
                         Log.e(TAG, "Login failed: ${error.message}")
@@ -72,8 +99,113 @@ class LoginViewModel(
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "Login exception: ${e.message}", e)
-                _uiState.value = LoginUiState.Error(e.message ?: "An unexpected error occurred")
+                _uiState.value = LoginUiState.Error(e.message ?: "Unknown error occurred")
             }
+        }
+    }
+
+    /**
+     * Check registration status after successful login
+     */
+    private suspend fun checkRegistrationStatusAfterLogin(email: String, loginData: UserLoginData?) {
+        try {
+            // First check local state
+            val localState = registrationStateManager.getRegistrationState()
+            val savedEmail = registrationStateManager.getSavedEmail()
+
+            if (localState != RegistrationStateManager.STATE_NONE && savedEmail == email) {
+                Log.d(TAG, "Found local registration state: $localState")
+                handleRegistrationState(localState, email)
+                return
+            }
+
+            // Check with API
+            val response = withContext(Dispatchers.IO) {
+                apiService.getVerificationStatus(email)
+            }
+
+            if (response.isSuccessful && response.body() != null) {
+                val verificationData = response.body()!!.data
+                if (verificationData != null) {
+                    val status = verificationData.verification_status.lowercase()
+                    Log.d(TAG, "API verification status for $email: $status")
+
+                    when (status) {
+                        "pending", "waiting" -> {
+                            registrationStateManager.saveRegistrationState(
+                                RegistrationStateManager.STATE_WAITING, email, ""
+                            )
+                            _uiState.value = LoginUiState.NavigateToWaiting
+                        }
+                        "approved", "accepted" -> {
+                            registrationStateManager.saveRegistrationState(
+                                RegistrationStateManager.STATE_APPROVED, email, ""
+                            )
+                            _uiState.value = LoginUiState.NavigateToAccepted
+                        }
+                        "denied", "rejected" -> {
+                            registrationStateManager.saveRegistrationState(
+                                RegistrationStateManager.STATE_REJECTED, email, ""
+                            )
+                            _uiState.value = LoginUiState.NavigateToRejected
+                        }
+                        else -> {
+                            // User is approved/no pending registration - proceed to home
+                            proceedToHome(loginData)
+                        }
+                    }
+                } else {
+                    // No verification data found - proceed to home
+                    proceedToHome(loginData)
+                }
+            } else {
+                // API call failed - proceed to home (fallback)
+                proceedToHome(loginData)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking registration status: ${e.message}")
+            // On error, proceed to home (fallback)
+            proceedToHome(loginData)
+        }
+    }
+
+    /**
+     * Handle registration state after login
+     */
+    private suspend fun handleRegistrationState(state: Int, email: String) {
+        when (state) {
+            RegistrationStateManager.STATE_WAITING -> {
+                Log.d(TAG, "User has waiting registration - navigating to waiting screen")
+                _uiState.value = LoginUiState.NavigateToWaiting
+            }
+            RegistrationStateManager.STATE_APPROVED -> {
+                Log.d(TAG, "User has approved registration - navigating to accepted screen")
+                _uiState.value = LoginUiState.NavigateToAccepted
+            }
+            RegistrationStateManager.STATE_REJECTED -> {
+                Log.d(TAG, "User has rejected registration - navigating to rejected screen")
+                _uiState.value = LoginUiState.NavigateToRejected
+            }
+            else -> {
+                // No pending registration - proceed to home
+                proceedToHome(null)
+            }
+        }
+    }
+
+    /**
+     * Proceed to home screen after successful login
+     */
+    private suspend fun proceedToHome(loginData: UserLoginData?) {
+        try {
+            // Load complete user data
+            loadCompleteUserData()
+
+            // Set navigation state
+            _uiState.value = LoginUiState.NavigateToHome
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading user data: ${e.message}")
+            _uiState.value = LoginUiState.Error("Failed to load user data")
         }
     }
 
@@ -262,6 +394,13 @@ class LoginViewModel(
     }
 
     /**
+     * Reset login state (used when navigating away from login result screens)
+     */
+    fun resetLoginState() {
+        _uiState.value = LoginUiState.Initial
+    }
+
+    /**
      * Log out the current user
      */
     fun logoutUser() {
@@ -286,20 +425,6 @@ class LoginViewModel(
                 _uiState.value = LoginUiState.LoggedOut
             }
         }
-    }
-
-    /**
-     * UI State for Login Screen
-     */
-    sealed class LoginUiState {
-        object Initial : LoginUiState()
-        object Loading : LoginUiState()
-        data class Success(val userData: CompleteUserData) : LoginUiState()
-        data class PartialSuccess(val userData: CompleteUserData, val warning: String) : LoginUiState()
-        data class Error(val message: String) : LoginUiState()
-        data class RefreshError(val userData: CompleteUserData, val message: String) : LoginUiState()
-        object AlreadyLoggedIn : LoginUiState()
-        object LoggedOut : LoginUiState()
     }
 
     /**

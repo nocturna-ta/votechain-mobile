@@ -114,7 +114,7 @@ fun LoginScreen(
                 val message = (uiState as LoginViewModel.LoginUiState.Error).message
                 errorMessage = message
             }
-            is LoginViewModel.LoginUiState.AlreadyLoggedIn -> {
+            is LoginViewModel.LoginUiState.Success -> {
                 // User is already logged in, navigate to home
                 onLoginClick()
             }

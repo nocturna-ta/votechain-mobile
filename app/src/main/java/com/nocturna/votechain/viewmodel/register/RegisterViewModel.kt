@@ -464,6 +464,14 @@ class RegisterViewModel(
     }
 
     /**
+     * Reset to register form (used when navigating back from waiting screen)
+     */
+    fun resetToRegisterForm() {
+        Log.d(TAG, "Resetting to register form")
+        _uiState.value = RegisterUiState.Initial
+    }
+
+    /**
      * For testing/admin purposes - force clear registration state
      */
     fun forceClearRegistrationState() {
@@ -666,6 +674,56 @@ class RegisterViewModel(
                 } catch (e: Exception) {
                     Log.d(TAG, "Error checking verification status: ${e.message}")
                     onResult(true) // Proceed with new registration on error
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if current email has pending registration
+     */
+    fun checkEmailRegistrationStatus(email: String, onResult: (hasRegistration: Boolean, state: Int) -> Unit) {
+        val currentState = registrationStateManager.getRegistrationState()
+        val savedEmail = registrationStateManager.getSavedEmail()
+
+        if (currentState != RegistrationStateManager.STATE_NONE && savedEmail == email) {
+            Log.d(TAG, "Email $email has existing registration with state: $currentState")
+            onResult(true, currentState)
+        } else {
+            // Check with API
+            viewModelScope.launch {
+                try {
+                    val response = withContext(Dispatchers.IO) {
+                        apiService.getVerificationStatus(email)
+                    }
+
+                    if (response.isSuccessful && response.body() != null) {
+                        val verificationData = response.body()!!.data
+                        if (verificationData != null) {
+                            val status = verificationData.verification_status.lowercase()
+                            val state = when (status) {
+                                "pending", "waiting" -> RegistrationStateManager.STATE_WAITING
+                                "approved", "accepted" -> RegistrationStateManager.STATE_APPROVED
+                                "denied", "rejected" -> RegistrationStateManager.STATE_REJECTED
+                                else -> RegistrationStateManager.STATE_NONE
+                            }
+
+                            if (state != RegistrationStateManager.STATE_NONE) {
+                                // Save this state locally
+                                registrationStateManager.saveRegistrationState(state, email, "")
+                                onResult(true, state)
+                            } else {
+                                onResult(false, RegistrationStateManager.STATE_NONE)
+                            }
+                        } else {
+                            onResult(false, RegistrationStateManager.STATE_NONE)
+                        }
+                    } else {
+                        onResult(false, RegistrationStateManager.STATE_NONE)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error checking email registration status: ${e.message}")
+                    onResult(false, RegistrationStateManager.STATE_NONE)
                 }
             }
         }

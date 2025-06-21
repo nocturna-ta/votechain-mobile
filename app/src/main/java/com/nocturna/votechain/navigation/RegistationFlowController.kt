@@ -5,8 +5,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.nocturna.votechain.data.repository.RegistrationStateManager
 import com.nocturna.votechain.viewmodel.register.RegisterViewModel
 
 /**
@@ -16,20 +18,23 @@ import com.nocturna.votechain.viewmodel.register.RegisterViewModel
 @Composable
 fun RegistrationFlowController(
     navController: NavController,
-    viewModel: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(androidx.compose.ui.platform.LocalContext.current))
 ) {
-    val uiState by viewModel.uiState.collectAsState()
     val TAG = "RegistrationFlowController"
+    val context = LocalContext.current
+    val viewModel: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(context))
+    val uiState by viewModel.uiState.collectAsState()
 
-    // Handle navigation based on registration state
+    Log.d(TAG, "RegistrationFlowController - Current UI State: $uiState")
+
+    // Handle navigation based on UI state changes
     LaunchedEffect(uiState) {
-        Log.d(TAG, "UI State changed to: $uiState")
+        Log.d(TAG, "LaunchedEffect triggered with uiState: $uiState")
 
         when (uiState) {
             RegisterViewModel.RegisterUiState.Waiting -> {
                 Log.d(TAG, "Navigating to waiting screen")
                 navController.navigate("waiting") {
-                    popUpTo("register") { inclusive = true }
+                    // Don't clear the back stack - allow returning to register
                 }
             }
             RegisterViewModel.RegisterUiState.Approved -> {
@@ -52,8 +57,8 @@ fun RegistrationFlowController(
             }
             is RegisterViewModel.RegisterUiState.Success -> {
                 Log.d(TAG, "Registration success, handling based on verification status")
-                // Let the ViewModel handle the state transition based on verification status
-                // The ViewModel will update the UI state accordingly
+                // The ViewModel will automatically update the state based on verification status
+                // No navigation needed here as it will be handled by other state changes
             }
             is RegisterViewModel.RegisterUiState.Error -> {
                 Log.e(TAG, "Registration error: ${(uiState as RegisterViewModel.RegisterUiState.Error).message}")
@@ -70,22 +75,27 @@ fun RegistrationFlowController(
         }
     }
 
-    // Check if user should be redirected immediately (when coming from register navigation)
+    // Check initial registration state when component loads
     LaunchedEffect(Unit) {
         Log.d(TAG, "Checking initial registration state")
         val currentState = viewModel.getCurrentRegistrationState()
         Log.d(TAG, "Current registration state: $currentState")
 
-        // The ViewModel's init already handles this, but we can add additional logic here if needed
+        // If there's an existing state, update the UI accordingly
         when (currentState) {
-            com.nocturna.votechain.data.repository.RegistrationStateManager.STATE_WAITING -> {
-                Log.d(TAG, "User has waiting registration, should redirect to waiting screen")
+            RegistrationStateManager.STATE_WAITING -> {
+                Log.d(TAG, "User has waiting registration, navigating to waiting screen")
+                // Don't auto-navigate here - let user choose to continue or start new registration
             }
-            com.nocturna.votechain.data.repository.RegistrationStateManager.STATE_APPROVED -> {
-                Log.d(TAG, "User has approved registration, should redirect to accepted screen")
+            RegistrationStateManager.STATE_APPROVED -> {
+                Log.d(TAG, "User has approved registration, navigating to accepted screen")
+                navController.navigate("accepted") {
+                    popUpTo("register") { inclusive = true }
+                }
             }
-            com.nocturna.votechain.data.repository.RegistrationStateManager.STATE_REJECTED -> {
-                Log.d(TAG, "User has rejected registration, allowing new registration")
+            RegistrationStateManager.STATE_REJECTED -> {
+                Log.d(TAG, "User has rejected registration, staying on register to allow new registration")
+                // Stay on register screen but could show a message
             }
             else -> {
                 Log.d(TAG, "No active registration state, showing register form")
@@ -93,60 +103,34 @@ fun RegistrationFlowController(
         }
     }
 
-    // Render the appropriate screen based on current state
-    when (uiState) {
-        RegisterViewModel.RegisterUiState.Waiting -> {
-            // Don't render anything here, navigation will handle it
-            Log.d(TAG, "Waiting state - navigation should handle this")
-        }
-        RegisterViewModel.RegisterUiState.Approved -> {
-            // Don't render anything here, navigation will handle it
-            Log.d(TAG, "Approved state - navigation should handle this")
-        }
-        RegisterViewModel.RegisterUiState.Rejected -> {
-            // Don't render anything here, navigation will handle it
-            Log.d(TAG, "Rejected state - navigation should handle this")
-        }
-        RegisterViewModel.RegisterUiState.NavigateToLogin -> {
-            // Don't render anything here, navigation will handle it
-            Log.d(TAG, "Navigate to login state - navigation should handle this")
-        }
-        else -> {
-            // Render the RegisterScreen with existing interface
-            Log.d(TAG, "Rendering RegisterScreen for state: $uiState")
-            RegisterScreen(
-                onRegisterClick = {
-                    // ✅ Sekarang tanpa parameter, sesuai interface existing
-                    // Logic checking existing registration akan dilakukan di ViewModel
-                    Log.d(TAG, "Register button clicked")
-                    // RegisterScreen akan memanggil viewModel.registerUserWithVoterAddress()
-                    // secara internal dan ViewModel akan handle checking existing registration
-                },
-                onLoginClick = {
-                    // When login text is clicked, navigate back to login screen
-                    Log.d(TAG, "Login clicked, navigating to login")
-                    navController.navigate("login") {
-                        popUpTo("register") { inclusive = true }
-                    }
-                },
-                onWaitingScreen = {
-                    Log.d(TAG, "Navigating to waiting screen from register")
-                    navController.navigate("waiting")
-                },
-                navigateToAccepted = {
-                    Log.d(TAG, "Navigating to accepted screen from register")
-                    navController.navigate("accepted") {
-                        popUpTo("register") { inclusive = true }
-                    }
-                },
-                navigateToRejected = {
-                    Log.d(TAG, "Navigating to rejected screen from register")
-                    navController.navigate("rejected") {
-                        popUpTo("register") { inclusive = true }
-                    }
-                },
-                viewModel = viewModel
-            )
-        }
-    }
+    // Always render the RegisterScreen - navigation is handled above
+    RegisterScreen(
+        onRegisterClick = {
+            Log.d(TAG, "Register button clicked")
+            // The RegisterScreen will handle the registration internally through the ViewModel
+        },
+        onLoginClick = {
+            Log.d(TAG, "Login clicked, navigating to login")
+            navController.navigate("login") {
+                popUpTo("register") { inclusive = true }
+            }
+        },
+        onWaitingScreen = {
+            Log.d(TAG, "Navigating to waiting screen from register")
+            navController.navigate("waiting")
+        },
+        navigateToAccepted = {
+            Log.d(TAG, "Navigating to accepted screen from register")
+            navController.navigate("accepted") {
+                popUpTo("register") { inclusive = true }
+            }
+        },
+        navigateToRejected = {
+            Log.d(TAG, "Navigating to rejected screen from register")
+            navController.navigate("rejected") {
+                popUpTo("register") { inclusive = true }
+            }
+        },
+        viewModel = viewModel
+    )
 }

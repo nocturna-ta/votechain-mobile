@@ -26,8 +26,9 @@ import com.nocturna.votechain.viewmodel.register.RegisterViewModel
 
 @Composable
 fun RejectedScreen(
-    onRetryClick: () -> Unit = {},
-    viewModel: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(LocalContext.current))
+    onRegisterAgainClick: () -> Unit,
+    viewModel: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(LocalContext.current)),
+    source: String = "register"
 ) {
     val strings = LanguageManager.getLocalizedStrings()
 
@@ -70,9 +71,21 @@ fun RejectedScreen(
         // Retry button
         Button(
             onClick = {
-                // Clear the rejected state and allow new registration
-                viewModel.retryRegistration()
-                onRetryClick()
+                when (source) {
+                    "register" -> {
+                        // From register flow - clear state and allow new registration
+                        viewModel?.clearRegistrationState()
+                        onRegisterAgainClick()
+                    }
+                    "login" -> {
+                        // From login flow - navigate to register for new registration
+                        onRegisterAgainClick()
+                    }
+                    else -> {
+                        // Default behavior
+                        onRegisterAgainClick()
+                    }
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -88,13 +101,5 @@ fun RejectedScreen(
                 color = NeutralColors.Neutral10
             )
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun VerificationDeniedScreenPreview() {
-    VotechainTheme {
-        RejectedScreen()
     }
 }

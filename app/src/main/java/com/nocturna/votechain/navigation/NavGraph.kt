@@ -1,6 +1,8 @@
 package com.nocturna.votechain.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -34,6 +36,8 @@ import com.nocturna.votechain.ui.screens.votepage.ResultsScreen
 import com.nocturna.votechain.ui.screens.votepage.VoteSuccessScreen
 import com.nocturna.votechain.ui.screens.votepage.VotingScreen
 import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
+import com.nocturna.votechain.viewmodel.login.LoginViewModel
+import com.nocturna.votechain.viewmodel.register.RegisterViewModel
 import com.nocturna.votechain.viewmodel.vote.VotingViewModel
 
 @Composable
@@ -80,21 +84,46 @@ fun VotechainNavGraph(
 
         // Authentication routes
         composable("login") {
-            LoginScreen(
-                onLoginClick = {
-                    // When login button is clicked, navigate to home screen
-                    navController.navigate("home") {
-                        popUpTo("login") { inclusive = true }
+            val loginViewModel: LoginViewModel = viewModel(factory = LoginViewModel.Factory(context))
+            val loginState = loginViewModel.uiState.collectAsState().value
+
+            // Handle navigation based on login result
+            LaunchedEffect(loginState) {
+                when (loginState) {
+                    LoginViewModel.LoginUiState.NavigateToHome -> {
+                        navController.navigate("home") {
+                            popUpTo("login") { inclusive = true }
+                        }
                     }
-                },
+                    LoginViewModel.LoginUiState.NavigateToWaiting -> {
+                        navController.navigate("waiting_from_login") {
+                            popUpTo("login") { inclusive = true }
+                        }
+                    }
+                    LoginViewModel.LoginUiState.NavigateToAccepted -> {
+                        navController.navigate("accepted_from_login") {
+                            popUpTo("login") { inclusive = true }
+                        }
+                    }
+                    LoginViewModel.LoginUiState.NavigateToRejected -> {
+                        navController.navigate("rejected_from_login") {
+                            popUpTo("login") { inclusive = true }
+                        }
+                    }
+                    else -> {
+                        // Stay on login screen
+                    }
+                }
+            }
+            LoginScreen(
                 onRegisterClick = {
-                    // When register text is clicked, navigate to register screen
-                    // The RegistrationFlowController will handle checking for existing registration states
                     navController.navigate("register")
                 },
+                onLoginClick = {
+                    // Login handled by ViewModel
+                },
                 onForgotPasswordClick = {
-                    // When forgot password is clicked, navigate to Email Verification screen
-                    navController.navigate("email_verification")
+                    navController.navigate("forgot_password")
                 }
             )
         }
@@ -169,26 +198,78 @@ fun VotechainNavGraph(
         }
 
         composable("waiting") {
-            WaitingScreen(
-                onClose = { navController.popBackStack() }
-            )
-        }
+            val registerViewModel: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(context))
 
-        composable("accepted") {
-            AcceptedScreen(
-                onLoginClick = {
-                    navController.navigate("login") {
+            WaitingScreen(
+                source = "register",
+                viewModel = registerViewModel,
+                onClose = {
+                    // Return to register page
+                    navController.navigate("register") {
                         popUpTo("register") { inclusive = true }
                     }
                 }
             )
         }
 
+        composable("waiting_from_login") {
+            WaitingScreen(
+                source = "login",
+                onClose = {
+                    // Return to login page
+                    navController.navigate("login") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // Accepted Screen from Register Flow
+        composable("accepted") {
+            val registerViewModel: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(context))
+
+            AcceptedScreen(
+                onLoginClick = {
+                    navController.navigate("login") {
+                        popUpTo("register") { inclusive = true }
+                    }
+                },
+                viewModel = registerViewModel
+            )
+        }
+
+        // Accepted Screen from Login Flow
+        composable("accepted_from_login") {
+            AcceptedScreen(
+                onLoginClick = {
+                    navController.navigate("login") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // Rejected Screen from Register Flow
         composable("rejected") {
+            val registerViewModel: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(context))
+
             RejectedScreen(
-                onRetryClick = {
+                onRegisterAgainClick = {
+                    // Clear registration state and start new registration
+                    registerViewModel.clearRegistrationState()
                     navController.navigate("register") {
-                        popUpTo("rejected") { inclusive = true }
+                        popUpTo("register") { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // Rejected Screen from Login Flow
+        composable("rejected_from_login") {
+            RejectedScreen(
+                onRegisterAgainClick = {
+                    navController.navigate("register") {
+                        popUpTo("login") { inclusive = true }
                     }
                 }
             )
