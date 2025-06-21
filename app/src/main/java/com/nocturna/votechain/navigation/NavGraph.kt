@@ -22,6 +22,7 @@ import com.nocturna.votechain.ui.screens.LoadingScreen
 import com.nocturna.votechain.ui.screens.OTPVerificationScreen
 import com.nocturna.votechain.ui.screens.SplashScreen
 import com.nocturna.votechain.ui.screens.auth.EmailVerificationScreen
+import com.nocturna.votechain.ui.screens.forgotpassword.ResetPasswordScreen
 import com.nocturna.votechain.ui.screens.votepage.CandidateSelectionScreen
 import com.nocturna.votechain.ui.screens.homepage.NotificationScreen
 import com.nocturna.votechain.ui.screens.profilepage.AccountDetailsScreen
@@ -105,21 +106,56 @@ fun VotechainNavGraph(
                 onBackClick = { navController.popBackStack() },
                 onSubmitEmail = { email ->
                     // Navigate to OTP verification with the email as parameter
-                    navController.navigate("otp_verification_reset?email=$email")
+                    navController.navigate("otp_verification_reset?email=${email}")
                 }
             )
         }
 
         // OTP Verification screen for forgot password
-        composable("otp_verification_reset") {
-            val email = navController.currentBackStackEntry?.arguments?.getString("email") ?: ""
-            OTPVerificationScreen(
+        composable(
+            "otp_verification_reset?email={email}",
+            arguments = listOf(navArgument("email") {
+                type = NavType.StringType
+                defaultValue = ""
+            })
+        ) { backStackEntry ->
+            val email = backStackEntry.arguments?.getString("email") ?: ""
+            com.nocturna.votechain.ui.screens.forgotpassword.OTPVerificationScreen(
                 navController = navController,
+                email = email,
                 onBackClick = { navController.popBackStack() },
-                onVerificationComplete = {
-                    // Navigate to home screen after successful verification
-                    navController.navigate("home") {
-                        popUpTo("login") { inclusive = true }
+                onVerificationComplete = { verifiedEmail, otp ->
+                    // Navigate to reset password screen
+                    navController.navigate("reset_password?email=${verifiedEmail}&otp=${otp}")
+                }
+            )
+        }
+
+        // Reset Password screen
+        composable(
+            "reset_password?email={email}&otp={otp}",
+            arguments = listOf(
+                navArgument("email") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument("otp") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                }
+            )
+        ) { backStackEntry ->
+            val email = backStackEntry.arguments?.getString("email") ?: ""
+            val otp = backStackEntry.arguments?.getString("otp") ?: ""
+            ResetPasswordScreen(
+                navController = navController,
+                email = email,
+                otp = otp,
+                onBackClick = { navController.popBackStack() },
+                onResetSuccess = {
+                    // Navigate back to login after successful password reset
+                    navController.navigate("login") {
+                        popUpTo("email_verification") { inclusive = true }
                     }
                 }
             )

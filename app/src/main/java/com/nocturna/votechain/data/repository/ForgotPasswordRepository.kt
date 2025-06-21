@@ -1,9 +1,11 @@
 package com.nocturna.votechain.data.repository
 
+import android.R
 import android.content.Context
 import android.util.Log
 import com.nocturna.votechain.data.model.ApiResponse
 import com.nocturna.votechain.data.network.NetworkClient
+import com.nocturna.votechain.viewmodel.forgotpassword.ForgotPasswordViewModel.ForgotPasswordUiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -20,12 +22,14 @@ class ForgotPasswordRepository(private val context: Context) {
     /**
      * Send verification email with OTP to the user's email
      */
-    suspend fun sendVerificationEmail(email: String): Result<ApiResponse<Any>> = withContext(Dispatchers.IO) {
-        try {
+    suspend fun sendVerificationEmail(email: String, otp: String): Result<Any> {
+        return try {
             val jsonObject = JSONObject()
             jsonObject.put("email", email)
+            jsonObject.put("otp", otp)  // Add the OTP to the request
 
-            val requestBody = jsonObject.toString().toRequestBody("application/json".toMediaTypeOrNull())
+            val requestBody =
+                jsonObject.toString().toRequestBody("application/json".toMediaTypeOrNull())
             val response = networkManager.sendPasswordResetOTP(requestBody)
 
             Log.d(TAG, "Send verification email response: $response")
