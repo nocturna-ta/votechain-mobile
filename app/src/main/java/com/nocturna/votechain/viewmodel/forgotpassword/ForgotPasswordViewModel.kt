@@ -8,54 +8,42 @@ import com.nocturna.votechain.data.repository.ForgotPasswordRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlin.random.Random
 
 class ForgotPasswordViewModel(private val context: Context) : ViewModel() {
 
     private val repository = ForgotPasswordRepository(context)
 
-    // Store generated OTP locally for verification
-    private var receivedOtp: String? = null
-
+    // Remove local OTP storage - OTP will be handled server-side
     private val _uiState = MutableStateFlow<ForgotPasswordUiState>(ForgotPasswordUiState.Initial)
     val uiState: StateFlow<ForgotPasswordUiState> = _uiState
 
     /**
-     * Send OTP to the provided email address
+     * Send OTP to the provided email address via server
+     * Server will generate OTP and send email using open source email API
      */
     fun sendOtpToEmail(email: String) {
         viewModelScope.launch {
             try {
                 _uiState.value = ForgotPasswordUiState.Loading
 
-                // Generate a 4-digit numeric OTP
-                val generatedOtp = generateRandomOtp()
-                receivedOtp = generatedOtp
-
-                // Send email with the generated OTP
-                val result = repository.sendVerificationEmail(email, generatedOtp)
+                // Call server endpoint to generate OTP and send email
+                val result = repository.sendVerificationEmail(email)
 
                 if (result.isSuccess) {
                     val response = result.getOrNull()
-                    (if (response != null) response::class.java.getDeclaredField("message").get(response) as? String else null) ?: "Failed to send verification code. Please try again."
+                    // Check if the response indicates success
+                    _uiState.value = ForgotPasswordUiState.OtpSent(email)
                 } else {
                     _uiState.value = ForgotPasswordUiState.Error(
-                        result.exceptionOrNull()?.message ?: "Network error. Please check your connection."
+                        result.exceptionOrNull()?.message ?: "Failed to send verification code. Please check your email address and try again."
                     )
                 }
             } catch (e: Exception) {
                 _uiState.value = ForgotPasswordUiState.Error(
-                    e.message ?: "An unexpected error occurred"
+                    e.message ?: "Network error. Please check your connection and try again."
                 )
             }
         }
-    }
-
-    /**
-     * Generates a random 4-digit OTP
-     */
-    private fun generateRandomOtp(): String {
-        return String.format("%04d", Random.nextInt(10000))
     }
 
     /**
@@ -66,43 +54,51 @@ class ForgotPasswordViewModel(private val context: Context) : ViewModel() {
     }
 
     /**
-     * Verify the entered OTP locally without API call
+     * Verify the entered OTP with server
      */
     fun verifyOtp(email: String, otp: String) {
         viewModelScope.launch {
             try {
                 _uiState.value = ForgotPasswordUiState.Loading
 
-                // Local verification - compare the entered OTP with what was generated
-                if (otp == receivedOtp) {
-                    _uiState.value = ForgotPasswordUiState.OtpVerified(email, otp)
+                // Server-side verification
+                val result = repository.verifyOTP(email, otp)
+
+                if (result.isSuccess) {
+                    val response = result.getOrNull()
+                    if (response?.success == true) {
+                        _uiState.value = ForgotPasswordUiState.OtpVerified(email, otp)
+                    } else {
+                        _uiState.value = ForgotPasswordUiState.Error(
+                            response?.message ?: "Invalid verification code. Please try again."
+                        )
+                    }
                 } else {
                     _uiState.value = ForgotPasswordUiState.Error(
-                        "Invalid verification code. Please try again."
+                        result.exceptionOrNull()?.message ?: "Verification failed. Please try again."
                     )
                 }
             } catch (e: Exception) {
                 _uiState.value = ForgotPasswordUiState.Error(
-                    e.message ?: "An unexpected error occurred"
+                    e.message ?: "An unexpected error occurred during verification."
                 )
             }
         }
     }
 
     /**
-     * Reset password with verified OTP using the v1/user/forgot-password endpoint
+     * Reset password with verified OTP
      */
     fun resetPassword(email: String, otp: String, newPassword: String) {
         viewModelScope.launch {
             try {
                 _uiState.value = ForgotPasswordUiState.Loading
 
-                // Call API endpoint v1/user/forgot-password
                 val result = repository.resetPassword(email, otp, newPassword)
 
                 if (result.isSuccess) {
                     val response = result.getOrNull()
-                    if (response != null && response::class.java.getDeclaredField("success").get(response) as? Boolean == true) {
+                    if (response?.success == true) {
                         _uiState.value = ForgotPasswordUiState.PasswordResetSuccess
                     } else {
                         _uiState.value = ForgotPasswordUiState.Error(

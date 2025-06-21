@@ -22,7 +22,7 @@ object BlockchainManager {
     private const val TAG = "BlockchainManager"
 
     private val web3j: Web3j by lazy {
-        val nodeUrl = "https://eee3-36-69-141-188.ngrok-free.app"
+        val nodeUrl = "https://1f39-114-122-69-116.ngrok-free.app"
         Log.d(TAG, "Initializing Web3j connection to $nodeUrl")
         Web3j.build(HttpService(nodeUrl))
     }
