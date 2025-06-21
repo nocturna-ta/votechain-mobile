@@ -29,7 +29,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -107,14 +106,18 @@ fun ProfileScreen(
     val userLoginRepository = remember { UserLoginRepository(context) }
     val voterRepository = remember { VoterRepository(context) }
 
-    // State untuk profile data dengan real-time wallet info
+    // State untuk profile data
     var completeUserProfile by remember { mutableStateOf(userProfileRepository.getSavedCompleteProfile()) }
     var fallbackVoterData by remember { mutableStateOf(voterRepository.getVoterDataLocally()) }
     var walletInfo by remember { mutableStateOf(WalletInfo()) }
     var dataLoadError by remember { mutableStateOf<String?>(null) }
     var isLoadingWallet by remember { mutableStateOf(true) }
 
-// Refresh profile data dan wallet info saat screen dibuka
+//    // Get voter data from repository
+//    val voterRepository = remember { VoterRepository(context) }
+//    val walletInfo = voterRepository.getWalletInfo()
+
+    // Refresh profile data saat screen dibuka
     LaunchedEffect(Unit) {
         // Load profile data
         userProfileRepository.fetchCompleteUserProfileWithFallback().fold(
@@ -168,7 +171,7 @@ fun ProfileScreen(
                 TextButton(
                     onClick = {
                         showLogoutDialog = false
-                        loginViewModel.logout()
+                        loginViewModel.logoutUser()
                         onLogout()
                     },
                     colors = ButtonDefaults.textButtonColors(
@@ -238,13 +241,12 @@ fun ProfileScreen(
                         Column {
                             // Display voter full name or fallback
                             val displayName = when {
-                                voterData?.full_name?.isNotEmpty() == true -> voterData?.full_name
-//                                userEmail.isNotEmpty() -> userEmail.split("@").firstOrNull() ?: "User"
+                                voterData?.full_name?.isNotEmpty() == true -> voterData.full_name
                                 else -> "User"
                             }
 
                             Text(
-                                text = displayName.toString(),
+                                text = displayName,
                                 style = AppTypography.heading4Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -293,99 +295,6 @@ fun ProfileScreen(
                                 contentPadding = PaddingValues(horizontal = 3.dp, vertical = 4.dp),
                                 modifier = Modifier.height(26.dp),
                             ) {
-                                Text(strings.view, style = AppTypography.heading6Regular, color = NeutralColors.Neutral10)
-                                Icon(
-                                    painter = painterResource(id = R.drawable.right2),
-                                    contentDescription = null,
-                                    tint = NeutralColors.Neutral10,
-                                    modifier = Modifier
-                                        .padding(start = 4.dp)
-                                        .size(12.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Account Section dengan real wallet info
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = strings.account,
-                                style = AppTypography.heading5Bold,
-                                color = NeutralColors.Neutral90
-                            )
-
-                            // Balance display dengan loading state
-                            Text(
-                                text = if (isLoadingWallet) {
-                                    "Loading balance..."
-                                } else if (walletInfo.hasError) {
-                                    "Error loading balance"
-                                } else {
-                                    "${strings.balance}: ${walletInfo.balance} ETH"
-                                },
-                                style = AppTypography.paragraphRegular,
-                                color = if (walletInfo.hasError) {
-                                    Color.Red
-                                } else {
-                                    NeutralColors.Neutral70
-                                },
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-
-                            // Show last updated time
-                            if (!isLoadingWallet && !walletInfo.hasError) {
-                                val lastUpdated = remember(walletInfo.lastUpdated) {
-                                    java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
-                                        .format(java.util.Date(walletInfo.lastUpdated))
-                                }
-                                Text(
-                                    text = "Updated: $lastUpdated",
-                                    style = AppTypography.paragraphRegular,
-                                    color = NeutralColors.Neutral50,
-                                    modifier = Modifier.padding(top = 2.dp)
-                                )
-                            }
-                        }
-
-                        // View button dengan loading indicator
-                        Button(
-                            onClick = {
-                                if (!isLoadingWallet) {
-                                    showPasswordDialog = true
-                                }
-                            },
-                            enabled = !isLoadingWallet,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MainColors.Primary1
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 3.dp, vertical = 4.dp),
-                            modifier = Modifier.height(26.dp),
-                        ) {
-                            if (isLoadingWallet) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(12.dp),
-                                    strokeWidth = 1.dp,
-                                    color = NeutralColors.Neutral10
-                                )
-                            } else {
                                 Text(strings.view, style = AppTypography.heading6Regular, color = NeutralColors.Neutral10)
                                 Icon(
                                     painter = painterResource(id = R.drawable.right2),

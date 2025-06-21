@@ -57,7 +57,7 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
             Log.d(TAG, "✅ Keys stored securely in Android Keystore")
 
             // Step 3: Optional blockchain integration (non-blocking)
-            val blockchainResult = tryBlockchainIntegrationWithFunding(keyPairInfo.voterAddress)
+            val blockchainResult = tryBlockchainIntegration(keyPairInfo.voterAddress)
 
             // Step 4: Register user di server dengan generated voter address
             val registrationResult = userRepository.registerUser(
@@ -91,18 +91,19 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
                         isSuccess = true
                     )
 
-                    Log.d(TAG, "✅ Full integration registration completed successfully")
+                    Log.d(TAG, "✅ Registration completed successfully")
                     Result.success(result)
                 },
-                onFailure = { error ->
-                    Log.e(TAG, "❌ Server registration failed: ${error.message}")
+                onFailure = { exception ->
+                    Log.e(TAG, "❌ Server registration failed: ${exception.message}")
 
-                    // Clean up generated keys on server failure
+                    // Cleanup generated keys jika server registration gagal
                     cryptoKeyManager.clearStoredKeys()
 
-                    Result.failure(error)
+                    Result.failure(exception)
                 }
             )
+
         } catch (e: Exception) {
             Log.e(TAG, "❌ Registration failed with exception", e)
 
@@ -118,6 +119,101 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
     }
 
     /**
+     * Optional blockchain integration - tidak akan block registration jika gagal
+     */
+    private suspend fun tryBlockchainIntegration(voterAddress: String): BlockchainIntegrationResult {
+        return try {
+            Log.d(TAG, "🔗 Attempting blockchain integration...")
+
+            // Check blockchain connection
+            val isConnected = withContext(Dispatchers.IO) {
+                BlockchainManager.isConnected()
+            }
+
+            if (isConnected) {
+                Log.d(TAG, "✅ Blockchain connected")
+
+                // Try to fund the address
+                val fundingResult = tryFundingAddress(voterAddress)
+
+                // Try to register address on blockchain (jika ada method tersebut)
+                val registrationTxHash = tryRegisterOnBlockchain(voterAddress)
+
+                BlockchainIntegrationResult(
+                    isConnected = true,
+                    fundingTxHash = fundingResult,
+                    registrationTxHash = registrationTxHash,
+                    isSuccess = fundingResult.isNotEmpty() || registrationTxHash.isNotEmpty()
+                )
+            } else {
+                Log.w(TAG, "⚠️ Blockchain not connected, skipping integration")
+                BlockchainIntegrationResult(
+                    isConnected = false,
+                    fundingTxHash = "",
+                    registrationTxHash = "",
+                    isSuccess = false
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "⚠️ Blockchain integration failed (non-critical): ${e.message}")
+            BlockchainIntegrationResult(
+                isConnected = false,
+                fundingTxHash = "",
+                registrationTxHash = "",
+                isSuccess = false,
+                error = e.message
+            )
+        }
+    }
+
+    /**
+     * Try to fund the voter address dengan ETH untuk transaction fees
+     */
+    private suspend fun tryFundingAddress(voterAddress: String): String {
+        return try {
+            val txHash = withContext(Dispatchers.IO) {
+                BlockchainManager.fundVoterAddress(voterAddress)
+            }
+
+            if (txHash.isNotEmpty()) {
+                Log.d(TAG, "✅ Address funded successfully: $txHash")
+            } else {
+                Log.w(TAG, "⚠️ Address funding returned empty hash")
+            }
+
+            txHash
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Address funding failed: ${e.message}")
+            ""
+        }
+    }
+
+    /**
+     * Try to register address on blockchain smart contract (optional)
+     */
+    private suspend fun tryRegisterOnBlockchain(voterAddress: String): String {
+        return try {
+            // Implementasi spesifik untuk registrasi di smart contract
+            // Ini tergantung pada smart contract yang digunakan
+
+            Log.d(TAG, "🔗 Registering address on blockchain: $voterAddress")
+
+            // Placeholder - implementasi actual tergantung smart contract
+            // val txHash = BlockchainManager.registerVoterOnContract(voterAddress)
+            val txHash = "" // Untuk sementara kosong
+
+            if (txHash.isNotEmpty()) {
+                Log.d(TAG, "✅ Address registered on blockchain: $txHash")
+            }
+
+            txHash
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Blockchain registration failed: ${e.message}")
+            ""
+        }
+    }
+
+    /**
      * Enhanced login with complete user data loading
      */
     suspend fun enhancedLogin(email: String, password: String): Result<CompleteUserData> = withContext(Dispatchers.IO) {
@@ -125,7 +221,7 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
             Log.d(TAG, "Starting enhanced login for: $email")
 
             // Step 1: Authenticate with server
-            val loginResult = userLoginRepository.loginUserSecurely(email, password)
+            val loginResult = userLoginRepository.loginUser(email, password)
 
             loginResult.fold(
                 onSuccess = { loginResponse ->
@@ -181,12 +277,9 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
             }
 
             val completeData = CompleteUserData(
-                userProfile = userProfile?.let { UserProfile() } ?: null,
+                userProfile = userProfile as UserProfile?,
                 voterData = voterData,
-                walletInfo = walletInfo ?: WalletInfo(
-                    hasError = true,
-                    errorMessage = "Wallet data unavailable"
-                )
+                walletInfo = walletInfo
             )
 
             Log.d(TAG, "✅ Complete user data loaded successfully")
@@ -260,74 +353,6 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
     }
 
     /**
-     * Enhanced blockchain integration with funding
-     */
-    private suspend fun tryBlockchainIntegrationWithFunding(voterAddress: String): BlockchainIntegrationResult {
-        return try {
-            Log.d(TAG, "🔗 Attempting blockchain integration with funding...")
-
-            var fundingTxHash = ""
-            var registrationTxHash = ""
-            var isConnected = false
-
-            if (withContext(Dispatchers.IO) { BlockchainManager.isConnected() }) {
-                isConnected = true
-                Log.d(TAG, "✅ Blockchain connected")
-
-                try {
-                    // Fund the new address with small amount
-                    fundingTxHash = withContext(Dispatchers.IO) {
-                        BlockchainManager.fundVoterAddress(voterAddress)
-                    }
-
-                    if (fundingTxHash.isNotEmpty()) {
-                        Log.d(TAG, "✅ Address funded successfully: $fundingTxHash")
-
-                        // Store funding transaction
-                        storeBlockchainTransaction(voterAddress, fundingTxHash, "FUNDING")
-
-                        // Optionally register on voting contract
-                        try {
-                            registrationTxHash = withContext(Dispatchers.IO) {
-                                BlockchainManager.registerVoterOnContract(voterAddress)
-                            }
-
-                            if (registrationTxHash.isNotEmpty()) {
-                                Log.d(TAG, "✅ Voter registered on contract: $registrationTxHash")
-                                storeBlockchainTransaction(voterAddress, registrationTxHash, "REGISTRATION")
-                            }
-                        } catch (e: Exception) {
-                            Log.w(TAG, "⚠️ Contract registration failed (non-critical): ${e.message}")
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "⚠️ Funding failed (non-critical): ${e.message}")
-                }
-            } else {
-                Log.w(TAG, "⚠️ Blockchain not connected, skipping integration")
-            }
-
-            BlockchainIntegrationResult(
-                isConnected = isConnected,
-                fundingTxHash = fundingTxHash,
-                registrationTxHash = registrationTxHash,
-                isSuccess = isConnected && fundingTxHash.isNotEmpty(),
-                error = null
-            )
-
-        } catch (e: Exception) {
-            Log.e(TAG, "⚠️ Blockchain integration failed: ${e.message}")
-            BlockchainIntegrationResult(
-                isConnected = false,
-                fundingTxHash = "",
-                registrationTxHash = "",
-                isSuccess = false,
-                error = e.message
-            )
-        }
-    }
-
-    /**
      * Store blockchain transaction for audit trail
      */
     private fun storeBlockchainTransaction(voterAddress: String, txHash: String, type: String) {
@@ -353,7 +378,8 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
         keyPairInfo: CryptoKeyManager.KeyPairInfo
     ) {
         try {
-            val sharedPreferences = context.getSharedPreferences("VoteChainPrefs", Context.MODE_PRIVATE)
+            val sharedPreferences =
+                context.getSharedPreferences("VoteChainPrefs", Context.MODE_PRIVATE)
             with(sharedPreferences.edit()) {
                 putString("voter_nik", nik)
                 putString("voter_full_name", fullName)
@@ -413,7 +439,7 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
                 return Result.failure(Exception("No voter address found"))
             }
 
-            val result = tryBlockchainIntegrationWithFunding(voterAddress)
+            val result = tryBlockchainIntegration(voterAddress)
             Result.success(result)
         } catch (e: Exception) {
             Result.failure(e)
@@ -423,11 +449,11 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
     /**
      * Clear all user data (for logout)
      */
-    fun clearAllUserData() {
+    suspend fun clearAllUserData() {
         try {
             cryptoKeyManager.clearStoredKeys()
             voterRepository.clearVoterData()
-            userLoginRepository.clearStoredData()
+            userLoginRepository.logoutUser()
             userProfileRepository.clearProfileData()
 
             // Clear blockchain transactions

@@ -110,20 +110,24 @@ private fun determineStartDestination(
             Log.d(TAG, "User has pending registration, going to waiting screen")
             "waiting"
         }
+
         RegistrationStateManager.STATE_APPROVED -> {
             Log.d(TAG, "User has approved registration, going to accepted screen")
             "accepted"
         }
+
         RegistrationStateManager.STATE_REJECTED -> {
             Log.d(TAG, "User has rejected registration, clearing state and going to splash")
             // Clear rejected state automatically so user can register again
             registrationStateManager.clearRegistrationState()
             "splash"
         }
+
         RegistrationStateManager.STATE_NONE -> {
             Log.d(TAG, "No registration state, going to splash screen")
             "splash"
         }
+
         else -> {
             Log.d(TAG, "Unknown registration state: $registrationState, going to splash")
             "splash"

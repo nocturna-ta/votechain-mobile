@@ -19,19 +19,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import kotlinx.coroutines.coroutineScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
@@ -59,9 +52,9 @@ fun PasswordConfirmationDialog(
     var showPassword by remember { mutableStateOf(false) }
     var isError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+    val coroutineScope = rememberCoroutineScope()
 
     val strings = LanguageManager.getLocalizedStrings()
-    val coroutineScope = rememberCoroutineScope()
 
     if (isOpen) {
         Dialog(onDismissRequest = onCancel) {
@@ -172,10 +165,10 @@ fun PasswordConfirmationDialog(
                         Button(
                             onClick = {
                                 if (password.isNotEmpty()) {
-                                    // Verify password against stored hash
+                                    // Launch a coroutine to call the suspend function
                                     coroutineScope.launch {
                                         // Verify password against stored hash
-                                        if (userLoginRepository.verifyUserPassword(password)) {
+                                        if (userLoginRepository.verifyPassword(password)) {
                                             // Password is correct
                                             onSubmit(password)
                                             password = ""

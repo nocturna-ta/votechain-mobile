@@ -3,16 +3,16 @@ package com.nocturna.votechain.data.repository
 import android.content.Context
 import android.util.Log
 import com.nocturna.votechain.blockchain.BlockchainManager
+import com.nocturna.votechain.data.model.AccountDisplayData
 import com.nocturna.votechain.data.model.VoterData
 import com.nocturna.votechain.data.model.WalletInfo
-import com.nocturna.votechain.data.model.AccountDisplayData
 import com.nocturna.votechain.data.network.NetworkClient
 import com.nocturna.votechain.security.CryptoKeyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Enhanced VoterRepository with integrated cryptographic key management and real-time balance fetching
+ * Updated VoterRepository with integrated cryptographic key management
  */
 class VoterRepository(private val context: Context) {
     private val TAG = "VoterRepository"
@@ -23,15 +23,12 @@ class VoterRepository(private val context: Context) {
     private val KEY_VOTER_ADDRESS = "voter_address"
     private val KEY_VOTER_HAS_VOTED = "voter_has_voted"
     private val KEY_USER_ID = "user_id"
-    private val KEY_REGISTRATION_EMAIL = "registration_email"
     private val KEY_LAST_BALANCE_UPDATE = "last_balance_update"
     private val KEY_CACHED_BALANCE = "cached_balance"
 
     // API service and crypto manager
     private val apiService = NetworkClient.apiService
     private val cryptoKeyManager = CryptoKeyManager(context)
-    private val userLoginRepository = UserLoginRepository(context)
-
 
     /**
      * Fetch voter data from API and merge with locally stored cryptographic keys
@@ -69,7 +66,7 @@ class VoterRepository(private val context: Context) {
                             voter_address = cryptoKeyManager.getVoterAddress() ?: voterData.voter_address
                         )
 
-                        // Save voter data locally for offline access
+                        // Save merged data locally
                         saveVoterDataLocally(enhancedVoterData)
 
                         Log.d(TAG, "Voter data fetched and enhanced successfully")
@@ -93,31 +90,35 @@ class VoterRepository(private val context: Context) {
     }
 
     /**
-     * Verify login email matches registration email
-     */
-    fun verifyLoginEmail(loginEmail: String): Boolean {
-        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val registrationEmail = sharedPreferences.getString(KEY_REGISTRATION_EMAIL, null)
-
-        if (registrationEmail == null) {
-            Log.w(TAG, "No registration email found")
-            return true // Allow login if no registration email stored (backward compatibility)
-        }
-
-        val matches = registrationEmail.equals(loginEmail, ignoreCase = true)
-        if (!matches) {
-            Log.w(TAG, "Login email mismatch: expected $registrationEmail, got $loginEmail")
-        }
-
-        return matches
-    }
-
-    /**
      * Extract user_id from response header
      */
     private fun getUserIdFromResponse(headerValue: String?): String? {
         return headerValue?.takeIf { it.isNotEmpty() }?.also {
             Log.d(TAG, "Found user_id in header: $it")
+        }
+    }
+
+    /**
+     * Merge API voter data with locally stored cryptographic keys
+     */
+    private fun mergeWithStoredKeys(apiVoterData: VoterData): VoterData {
+        return try {
+            // Get stored voter address from crypto manager
+            val storedVoterAddress = cryptoKeyManager.getVoterAddress()
+
+            // Use stored voter address if available, otherwise use API data
+            val voterAddress = if (!storedVoterAddress.isNullOrEmpty()) {
+                Log.d(TAG, "Using stored voter address: $storedVoterAddress")
+                storedVoterAddress
+            } else {
+                Log.d(TAG, "Using API voter address: ${apiVoterData.voter_address}")
+                apiVoterData.voter_address
+            }
+
+            apiVoterData.copy(voter_address = voterAddress)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error merging stored keys, using API data as-is", e)
+            apiVoterData
         }
     }
 
@@ -332,11 +333,12 @@ class VoterRepository(private val context: Context) {
         }
     }
 
+
     /**
-     * Get wallet information (legacy method, now with real balance)
+     * Get wallet information with secure private key access
      */
     suspend fun getWalletInfo(): WalletInfo {
-        return getCompleteWalletInfo()
+        return WalletInfo()
     }
 
     /**
@@ -434,7 +436,15 @@ class VoterRepository(private val context: Context) {
     }
 
     /**
-     * Validate stored data integrity
+     * Get voting status from local storage
+     */
+    fun getVotingStatus(): Boolean {
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return sharedPreferences.getBoolean(KEY_VOTER_HAS_VOTED, false)
+    }
+
+    /**
+     * Validate that all stored voter data and keys are consistent and accessible
      */
     fun validateStoredData(): Boolean {
         return try {

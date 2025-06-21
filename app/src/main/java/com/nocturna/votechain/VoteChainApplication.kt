@@ -34,11 +34,11 @@ class VoteChainApplication : Application() {
         Log.d("VoteChainApp", "Application initialized")
 
         // Initialize CryptoKeyManager BouncyCastle provider
-//        try {
-//            CryptoKeyManager.initializeBouncyCastle()
-//        } catch (e: Exception) {
-//            Log.e("VoteChainApp", "Failed to initialize BouncyCastle", e)
-//        }
+        try {
+            CryptoKeyManager.initializeBouncyCastle()
+        } catch (e: Exception) {
+            Log.e("VoteChainApp", "Failed to initialize BouncyCastle", e)
+        }
 
         // Register BouncyCastle provider
         if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
@@ -57,10 +57,6 @@ class VoteChainApplication : Application() {
 
         // Initialize the ElectionNetworkClient with application context
         initializeElectionNetworkClient()
-
-        // Validate and sync tokens
-        val tokenManager = TokenManager(this)
-        TokenSyncUtil.validateAndSyncTokens(this, tokenManager)
 
     }
 

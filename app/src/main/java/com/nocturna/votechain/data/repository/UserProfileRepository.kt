@@ -396,51 +396,51 @@ class UserProfileRepository(private val context: Context) {
     /**
      * Debug function to help troubleshoot profile matching issues
      */
-//    suspend fun debugProfileMatching(): String = withContext(Dispatchers.IO) {
-//        val userEmail = userLoginRepository.getUserEmail()
-//        val userToken = userLoginRepository.getUserToken()
-//        val debugInfo = StringBuilder()
-//
-//        debugInfo.appendLine("=== PROFILE DEBUG INFO ===")
-//        debugInfo.appendLine("User Email: $userEmail")
-//        debugInfo.appendLine("Token Available: ${userToken.isNotEmpty()}")
-//
-//        if (userEmail.isNullOrEmpty() || userToken.isNullOrEmpty()) {
-//            try {
-//                // Get user profile
-//                val userProfileResult = getUserProfile(userEmail, userToken)
-//                userProfileResult.fold(
-//                    onSuccess = { userProfile ->
-//                        debugInfo.appendLine("User Profile ID: ${userProfile.id}")
-//                        debugInfo.appendLine("User Email: ${userProfile.email}")
-//                        debugInfo.appendLine("User Role: ${userProfile.role}")
-//
-//                        // Get all voter data
-//                        val response = apiService.getVoterData("Bearer $userToken")
-//                        if (response.isSuccessful) {
-//                            response.body()?.let { voterResponse ->
-//                                debugInfo.appendLine("Voter API Code: ${voterResponse.code}")
-//                                debugInfo.appendLine("Total Voters: ${voterResponse.data.size}")
-//
-//                                voterResponse.data.forEachIndexed { index, voter ->
-//                                    debugInfo.appendLine("Voter $index:")
-//                                    debugInfo.appendLine("  - ID: ${voter.id}")
-//                                    debugInfo.appendLine("  - User ID: '${voter.user_id}'")
-//                                    debugInfo.appendLine("  - Name: ${voter.full_name}")
-//                                    debugInfo.appendLine("  - Matches: ${voter.user_id == userProfile.id}")
-//                                }
-//                            }
-//                        }
-//                    },
-//                    onFailure = { error ->
-//                        debugInfo.appendLine("User Profile Error: ${error.message}")
-//                    }
-//                )
-//            } catch (e: Exception) {
-//                debugInfo.appendLine("Debug Exception: ${e.message}")
-//            }
-//        }
-//
-//        debugInfo.toString()
-//    }
+    suspend fun debugProfileMatching(): String = withContext(Dispatchers.IO) {
+        val userEmail = userLoginRepository.getUserEmail()
+        val userToken = userLoginRepository.getUserToken()
+        val debugInfo = StringBuilder()
+
+        debugInfo.appendLine("=== PROFILE DEBUG INFO ===")
+        debugInfo.appendLine("User Email: $userEmail")
+        debugInfo.appendLine("Token Available: ${userToken.isNotEmpty()}")
+
+        if (!userEmail.isNullOrEmpty() && !userToken.isNullOrEmpty()) {
+            try {
+                // Get user profile
+                val userProfileResult = getUserProfile(userEmail, userToken)
+                userProfileResult.fold(
+                    onSuccess = { userProfile ->
+                        debugInfo.appendLine("User Profile ID: ${userProfile.id}")
+                        debugInfo.appendLine("User Email: ${userProfile.email}")
+                        debugInfo.appendLine("User Role: ${userProfile.role}")
+
+                        // Get all voter data
+                        val response = apiService.getVoterData("Bearer $userToken")
+                        if (response.isSuccessful) {
+                            response.body()?.let { voterResponse ->
+                                debugInfo.appendLine("Voter API Code: ${voterResponse.code}")
+                                debugInfo.appendLine("Total Voters: ${voterResponse.data.size}")
+
+                                voterResponse.data.forEachIndexed { index, voter ->
+                                    debugInfo.appendLine("Voter $index:")
+                                    debugInfo.appendLine("  - ID: ${voter.id}")
+                                    debugInfo.appendLine("  - User ID: '${voter.user_id}'")
+                                    debugInfo.appendLine("  - Name: ${voter.full_name}")
+                                    debugInfo.appendLine("  - Matches: ${voter.user_id == userProfile.id}")
+                                }
+                            }
+                        }
+                    },
+                    onFailure = { error ->
+                        debugInfo.appendLine("User Profile Error: ${error.message}")
+                    }
+                )
+            } catch (e: Exception) {
+                debugInfo.appendLine("Debug Exception: ${e.message}")
+            }
+        }
+
+        debugInfo.toString()
+    }
 }

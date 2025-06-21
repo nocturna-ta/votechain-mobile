@@ -1,6 +1,5 @@
 package com.nocturna.votechain.viewmodel.login
 
-import android.content.ContentValues.TAG
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -27,6 +26,8 @@ class LoginViewModel(
     private val voterRepository: VoterRepository,
     private val context: Context
 ) : ViewModel() {
+    private val TAG = "LoginViewModel"
+
     // UI State
     private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Initial)
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
@@ -39,15 +40,15 @@ class LoginViewModel(
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
+    // Check initial login state
     init {
-        // Check if user is already logged in on initialization
         checkLoginState()
     }
 
     /**
-     * Enhanced login with complete user data loading
+     * Login user with email and password
      */
-    fun login(email: String, password: String) {
+    fun loginUser(email: String, password: String) {
         viewModelScope.launch {
             try {
                 _uiState.value = LoginUiState.Loading
@@ -55,7 +56,7 @@ class LoginViewModel(
                 Log.d(TAG, "Starting enhanced login for: $email")
 
                 // Step 1: Authenticate user
-                val loginResult = userLoginRepository.loginUserSecurely(email, password)
+                val loginResult = userLoginRepository.loginUser(email, password)
 
                 loginResult.fold(
                     onSuccess = { loginResponse ->
@@ -114,7 +115,7 @@ class LoginViewModel(
     }
 
     /**
-     * Check if the user is already logged in
+     * Check current login state and load data if already logged in
      */
     fun checkLoginState() {
         viewModelScope.launch {
@@ -209,50 +210,6 @@ class LoginViewModel(
     }
 
     /**
-     * Enhanced logout with complete data cleanup
-     */
-    fun logout() {
-        viewModelScope.launch {
-            try {
-                Log.d(TAG, "Starting enhanced logout...")
-
-                // Clear all user data
-                integratedUserRepository.clearAllUserData()
-
-                // Reset state
-                _completeUserData.value = null
-                _isLoggedIn.value = false
-                _uiState.value = LoginUiState.LoggedOut
-
-                Log.d(TAG, "✅ Enhanced logout completed")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error during logout: ${e.message}", e)
-                // Force logout even if there's an error
-                _completeUserData.value = null
-                _isLoggedIn.value = false
-                _uiState.value = LoginUiState.LoggedOut
-            }
-        }
-    }
-
-    /**
-     * Verify password for sensitive operations
-     */
-    fun verifyPassword(password: String, onResult: (Boolean) -> Unit) {
-        viewModelScope.launch {
-            try {
-                Log.d(TAG, "Verifying password for sensitive operation...")
-                val isValid = userLoginRepository.verifyUserPassword(password)
-                onResult(isValid)
-                Log.d(TAG, "Password verification result: $isValid")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error verifying password: ${e.message}", e)
-                onResult(false)
-            }
-        }
-    }
-
-    /**
      * Get current user session info
      */
     fun getUserSession() = userLoginRepository.getCompleteUserSession()
@@ -291,7 +248,48 @@ class LoginViewModel(
     }
 
     /**
-     * UI State definitions
+     * Reset the UI state to initial
+     */
+    fun resetState() {
+        _uiState.value = LoginUiState.Initial
+    }
+
+    /**
+     * Check if user is already logged in
+     */
+    fun isUserLoggedIn(): Boolean {
+        return userLoginRepository.isUserLoggedIn()
+    }
+
+    /**
+     * Log out the current user
+     */
+    fun logoutUser() {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Starting enhanced logout...")
+
+                // Clear all user data
+                integratedUserRepository.clearAllUserData()
+
+                // Reset state
+                _completeUserData.value = null
+                _isLoggedIn.value = false
+                _uiState.value = LoginUiState.LoggedOut
+
+                Log.d(TAG, "✅ Enhanced logout completed")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during logout: ${e.message}", e)
+                // Force logout even if there's an error
+                _completeUserData.value = null
+                _isLoggedIn.value = false
+                _uiState.value = LoginUiState.LoggedOut
+            }
+        }
+    }
+
+    /**
+     * UI State for Login Screen
      */
     sealed class LoginUiState {
         object Initial : LoginUiState()
@@ -305,7 +303,7 @@ class LoginViewModel(
     }
 
     /**
-     * Factory for creating LoginViewModel instances
+     * Factory for creating LoginViewModel
      */
     class Factory(private val context: Context) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")

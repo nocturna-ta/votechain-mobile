@@ -544,7 +544,7 @@ class RegisterViewModel(
 
                 if (hasKeys) {
                     // Validate stored keys
-                    val isValid = cryptoKeyManager.hasStoredKeyPair()
+                    val isValid = cryptoKeyManager.validateStoredKeys()
 
                     if (isValid) {
                         _keyGenerationState.value = KeyGenerationState.AlreadyExists

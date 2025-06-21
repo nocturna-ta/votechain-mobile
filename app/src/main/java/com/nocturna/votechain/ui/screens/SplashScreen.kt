@@ -1,5 +1,6 @@
 package com.nocturna.votechain.ui.screens
 
+import android.util.Log
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -23,9 +24,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nocturna.votechain.R
-import com.nocturna.votechain.data.repository.UserLoginRepository
 import com.nocturna.votechain.viewmodel.login.LoginViewModel
 import kotlinx.coroutines.delay
+
+private const val TAG = "SplashScreen"
 
 /**
  * Splash screen that appears after app initialization.
@@ -42,21 +44,25 @@ fun SplashScreen(
     val loginViewModel: LoginViewModel = viewModel(factory = LoginViewModel.Factory(context))
     val loginState by loginViewModel.uiState.collectAsState()
 
-    // Check for login state when screen loads
+    // Single LaunchedEffect to handle all splash screen logic
     LaunchedEffect(Unit) {
-        loginViewModel.checkLoginState()
+        Log.d(TAG, "SplashScreen started")
 
-        // Small delay to ensure smooth transition and let the view model check login state
-        delay(1500)
-        onSplashComplete()
-    }
+        try {
+            // Check login state
+            loginViewModel.checkLoginState()
 
-    // We skip the fade-in animation since the splash is already showing from the theme
-    // Just handle timing for navigation
-// Observe login state changes
-    LaunchedEffect(loginState) {
-        if (loginState is LoginViewModel.LoginUiState.AlreadyLoggedIn) {
-            // User is already logged in, we can navigate immediately
+            // Small delay to ensure smooth transition
+            delay(1000)
+
+            Log.d(TAG, "SplashScreen delay complete, login state: $loginState")
+
+            // Navigate to next screen
+            Log.d(TAG, "SplashScreen calling onSplashComplete()")
+            onSplashComplete()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in SplashScreen", e)
+            // Still navigate even if there's an error to prevent app from getting stuck
             onSplashComplete()
         }
     }

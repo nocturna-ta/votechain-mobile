@@ -62,6 +62,11 @@ fun AccountDetailsScreen(
     var showPasswordDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // State untuk profile data dengan fallback
+//    var completeUserProfile by remember { mutableStateOf(userProfileRepository.getSavedCompleteProfile()) }
+//    var fallbackVoterData by remember { mutableStateOf(voterRepository.getVoterDataLocally()) }
+//    var dataLoadError by remember { mutableStateOf<String?>(null) }
+
     // State for logout confirmation dialog
     var showLogoutDialog by remember { mutableStateOf(false) }
 
@@ -104,11 +109,6 @@ fun AccountDetailsScreen(
             isLoading = false
             isRefreshing = false
         }
-    }
-
-    // Load account data when screen opens
-    LaunchedEffect(Unit) {
-        loadAccountData()
     }
 
     // Function to refresh balance
@@ -187,7 +187,7 @@ fun AccountDetailsScreen(
                         scope.launch {
                             try {
                                 // Verify password with login repository
-                                val isValid = userLoginRepository.verifyUserPassword(password)
+                                val isValid = userLoginRepository.verifyPassword(password)
                                 if (isValid) {
                                     showPrivateKey = true
                                     showPasswordDialog = false
@@ -242,7 +242,7 @@ fun AccountDetailsScreen(
                     onClick = {
                         scope.launch {
                             try {
-                                loginViewModel.logout()
+                                loginViewModel.logoutUser()
                                 onLogout()
                             } catch (e: Exception) {
                                 // Handle logout error
@@ -260,6 +260,11 @@ fun AccountDetailsScreen(
                 }
             }
         )
+    }
+
+    // Load account data when screen opens
+    LaunchedEffect(Unit) {
+        loadAccountData()
     }
 
     Scaffold(
@@ -290,252 +295,211 @@ fun AccountDetailsScreen(
             SnackbarHost(hostState = snackbarHostState)
         }
     ) { innerPadding ->
-        if (isLoading) {
-            // Loading state
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    CircularProgressIndicator(color = MainColors.Primary1)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Loading account data...",
-                        style = AppTypography.paragraphRegular,
-                        color = NeutralColors.Neutral70
-                    )
-                }
-            }
-        } else {
-            Column(
-                modifier = modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 24.dp)
-                    .verticalScroll(scrollState)
-            ) {
-                // Error message if any
-                errorMessage?.let { message ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFFFF3CD)
-                        )
-                    ) {
-                        Text(
-                            text = message,
-                            style = AppTypography.paragraphRegular,
-                            color = Color(0xFF856404),
-                            modifier = Modifier.padding(16.dp)
-                        )
-                    }
-                }
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 24.dp)
+                .verticalScroll(scrollState)
+        ) {
+            // Balance
+            Text(
+                text = strings.balance,
+                style = AppTypography.heading5Regular,
+                color = NeutralColors.Neutral70,
+                modifier = Modifier.padding(bottom = 8.dp, top = 16.dp)
+            )
 
-                // Balance
-                Text(
-                    text = strings.balance,
-                    style = AppTypography.heading5Regular,
-                    color = NeutralColors.Neutral70,
-                    modifier = Modifier.padding(bottom = 8.dp, top = 16.dp)
-                )
+            OutlinedTextField(
+                value = "${accountData.ethBalance} ETH",
+                onValueChange = { },
+                readOnly = true,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = NeutralColors.Neutral30,
+                    unfocusedTextColor = NeutralColors.Neutral70,
+                    disabledBorderColor = NeutralColors.Neutral30,
+                    disabledTextColor = NeutralColors.Neutral70,
+                    focusedBorderColor = MainColors.Primary1,
+                    focusedTextColor = NeutralColors.Neutral70,
+                ),
+                textStyle = AppTypography.heading5Regular
+            )
 
-                OutlinedTextField(
-                    value = "${accountData.ethBalance} ETH",
-                    onValueChange = { },
-                    readOnly = true,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = NeutralColors.Neutral30,
-                        unfocusedTextColor = NeutralColors.Neutral70,
-                        disabledBorderColor = NeutralColors.Neutral30,
-                        disabledTextColor = NeutralColors.Neutral70,
-                        focusedBorderColor = MainColors.Primary1,
-                        focusedTextColor = NeutralColors.Neutral70,
-                    ),
-                    textStyle = AppTypography.heading5Regular
-                )
+            // NIK
+            Text(
+                text = strings.nik,
+                style = AppTypography.heading5Regular,
+                color = NeutralColors.Neutral70,
+                modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
+            )
 
-                // NIK
-                Text(
-                    text = strings.nik,
-                    style = AppTypography.heading5Regular,
-                    color = NeutralColors.Neutral70,
-                    modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
-                )
+            OutlinedTextField(
+                value = accountData.nik,
+                onValueChange = { },
+                readOnly = true,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = NeutralColors.Neutral30,
+                    unfocusedTextColor = NeutralColors.Neutral70,
+                    disabledBorderColor = NeutralColors.Neutral30,
+                    disabledTextColor = NeutralColors.Neutral70,
+                    focusedBorderColor = MainColors.Primary1,
+                    focusedTextColor = NeutralColors.Neutral70,
+                ),
+                textStyle = AppTypography.heading5Regular
+            )
 
-                OutlinedTextField(
-                    value = accountData.nik,
-                    onValueChange = { },
-                    readOnly = true,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = NeutralColors.Neutral30,
-                        unfocusedTextColor = NeutralColors.Neutral70,
-                        disabledBorderColor = NeutralColors.Neutral30,
-                        disabledTextColor = NeutralColors.Neutral70,
-                        focusedBorderColor = MainColors.Primary1,
-                        focusedTextColor = NeutralColors.Neutral70,
-                    ),
-                    textStyle = AppTypography.heading5Regular
-                )
+            // Full Name
+            Text(
+                text = "Full Name",
+                style = AppTypography.heading5Regular,
+                color = NeutralColors.Neutral70,
+                modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
+            )
 
-                // Full Name
-                Text(
-                    text = "Full Name",
-                    style = AppTypography.heading5Regular,
-                    color = NeutralColors.Neutral70,
-                    modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
-                )
+            OutlinedTextField(
+                value = accountData.fullName,
+                onValueChange = { },
+                readOnly = true,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = NeutralColors.Neutral30,
+                    unfocusedTextColor = NeutralColors.Neutral70,
+                    disabledBorderColor = NeutralColors.Neutral30,
+                    disabledTextColor = NeutralColors.Neutral70,
+                    focusedBorderColor = MainColors.Primary1,
+                    focusedTextColor = NeutralColors.Neutral70,
+                ),
+                textStyle = AppTypography.heading5Regular
+            )
 
-                OutlinedTextField(
-                    value = accountData.fullName,
-                    onValueChange = { },
-                    readOnly = true,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = NeutralColors.Neutral30,
-                        unfocusedTextColor = NeutralColors.Neutral70,
-                        disabledBorderColor = NeutralColors.Neutral30,
-                        disabledTextColor = NeutralColors.Neutral70,
-                        focusedBorderColor = MainColors.Primary1,
-                        focusedTextColor = NeutralColors.Neutral70,
-                    ),
-                    textStyle = AppTypography.heading5Regular
-                )
+            // Private Key
+            Text(
+                text = strings.privateKey,
+                style = AppTypography.heading5Regular,
+                color = NeutralColors.Neutral70,
+                modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
+            )
 
-                // Private Key
-                Text(
-                    text = strings.privateKey,
-                    style = AppTypography.heading5Regular,
-                    color = NeutralColors.Neutral70,
-                    modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
-                )
-
-                OutlinedTextField(
-                    value = if (showPrivateKey && accountData.privateKey.isNotEmpty()) {
+            OutlinedTextField(
+                value =
+                    if (showPrivateKey && accountData.privateKey.isNotEmpty()) {
                         accountData.privateKey
                     } else {
-                        "••••••••••••••••••••••••••••••••"
-                    },
-                    onValueChange = { },
-                    readOnly = true,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    visualTransformation = if (showPrivateKey) VisualTransformation.None else PasswordVisualTransformation(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = NeutralColors.Neutral30,
-                        unfocusedTextColor = NeutralColors.Neutral70,
-                        disabledBorderColor = NeutralColors.Neutral30,
-                        disabledTextColor = NeutralColors.Neutral70,
-                        focusedBorderColor = MainColors.Primary1,
-                        focusedTextColor = NeutralColors.Neutral70,
-                        unfocusedTrailingIconColor = NeutralColors.Neutral40,
-                        focusedTrailingIconColor = NeutralColors.Neutral40,
-                    ),
-                    textStyle = AppTypography.heading5Regular,
-                    trailingIcon = {
-                        IconButton(onClick = { showPrivateKey = !showPrivateKey }) {
-                            Icon(
-                                painter = painterResource(
-                                    id = if (showPrivateKey) R.drawable.show else R.drawable.hide
-                                ),
-                                contentDescription = if (showPrivateKey) "Hide private key" else "Show private key",
-                                tint = NeutralColors.Neutral40
-                            )
-                        }
-                    }
-                )
-
-                // Public Key
-                Text(
-                    text = strings.publicKey,
-                    style = AppTypography.heading5Regular,
-                    color = NeutralColors.Neutral70,
-                    modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
-                )
-
-                OutlinedTextField(
-                    value = accountData.publicKey,
-                    onValueChange = { },
-                    readOnly = true,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = NeutralColors.Neutral30,
-                        unfocusedTextColor = NeutralColors.Neutral70,
-                        disabledBorderColor = NeutralColors.Neutral30,
-                        disabledTextColor = NeutralColors.Neutral70,
-                        focusedBorderColor = MainColors.Primary1,
-                        focusedTextColor = NeutralColors.Neutral70,
-                        unfocusedTrailingIconColor = NeutralColors.Neutral40,
-                        focusedTrailingIconColor = NeutralColors.Neutral40,
-                    ),
-                    textStyle = AppTypography.heading5Regular,
-                    trailingIcon = {
-                        IconButton(onClick = {
-                            copyToClipboard(accountData.publicKey, "Public Key")
-                        }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.copy),
-                                contentDescription = "Copy public key",
-                                tint = NeutralColors.Neutral40
-                            )
-                        }
-                    }
-                )
-
-                // Add spacer at the bottom for better scrolling experience
-                Spacer(modifier = Modifier.height(40.dp))
-            }
-        }
-
-            // Logout Button - Fixed at bottom
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                Button(
-                    onClick = { showLogoutDialog = true },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                        .height(48.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFE53E3E),
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 0.dp,
-                        pressedElevation = 2.dp
-                    )
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Logout",
-                            style = AppTypography.paragraphRegular,
-                            color = Color.White
+                    "••••••••••••••••••••••••••••••••"
+                },
+                onValueChange = { },
+                readOnly = true,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+                visualTransformation = if (showPrivateKey) VisualTransformation.None else PasswordVisualTransformation(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = NeutralColors.Neutral30,
+                    unfocusedTextColor = NeutralColors.Neutral70,
+                    disabledBorderColor = NeutralColors.Neutral30,
+                    disabledTextColor = NeutralColors.Neutral70,
+                    focusedBorderColor = MainColors.Primary1,
+                    focusedTextColor = NeutralColors.Neutral70,
+                    unfocusedTrailingIconColor = NeutralColors.Neutral40,
+                    focusedTrailingIconColor = NeutralColors.Neutral40,
+                ),
+                textStyle = AppTypography.heading5Regular,
+                trailingIcon = {
+                    IconButton(onClick = { showPrivateKey = !showPrivateKey }) {
+                        Icon(
+                            painter = painterResource(
+                                id = if (showPrivateKey) R.drawable.show else R.drawable.hide
+                            ),
+                            contentDescription = if (showPrivateKey) "Hide private key" else "Show private key",
+                            tint = NeutralColors.Neutral40
                         )
                     }
+                }
+            )
+
+            // Public Key
+            Text(
+                text = strings.publicKey,
+                style = AppTypography.heading5Regular,
+                color = NeutralColors.Neutral70,
+                modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
+            )
+
+            OutlinedTextField(
+                value = accountData.publicKey,
+                onValueChange = { },
+                readOnly = true,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = NeutralColors.Neutral30,
+                    unfocusedTextColor = NeutralColors.Neutral70,
+                    disabledBorderColor = NeutralColors.Neutral30,
+                    disabledTextColor = NeutralColors.Neutral70,
+                    focusedBorderColor = MainColors.Primary1,
+                    focusedTextColor = NeutralColors.Neutral70,
+                    unfocusedTrailingIconColor = NeutralColors.Neutral40,
+                    focusedTrailingIconColor = NeutralColors.Neutral40,
+                ),
+                textStyle = AppTypography.heading5Regular,
+                trailingIcon = {
+                    IconButton(onClick = {
+                        copyToClipboard(accountData.publicKey, "Public Key")
+                    }) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.copy),
+                            contentDescription = "Copy public key",
+                            tint = NeutralColors.Neutral40
+                        )
+                    }
+                }
+            )
+
+            // Add spacer at the bottom for better scrolling experience
+            Spacer(modifier = Modifier.height(40.dp))
+        }
+
+        // Logout Button - Fixed at bottom
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Button(
+                onClick = { showLogoutDialog = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFE53E3E),
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(8.dp),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 0.dp,
+                    pressedElevation = 2.dp
+                )
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Logout",
+                        style = AppTypography.paragraphRegular,
+                        color = Color.White
+                    )
                 }
             }
         }
     }
-
+}
 
 @Preview(showBackground = true)
 @Composable

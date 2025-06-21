@@ -1,6 +1,8 @@
 package com.nocturna.votechain.blockchain
 
 import android.util.Log
+import com.nocturna.votechain.blockchain.BlockchainManager.getCurrentGasPrice
+import com.nocturna.votechain.blockchain.BlockchainManager.isConnected
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -19,6 +21,7 @@ import org.web3j.utils.Numeric
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.security.SecureRandom
+import kotlin.text.toLong
 
 /**
  * Singleton to manage Web3j connections and blockchain operations
@@ -79,8 +82,7 @@ object BlockchainManager {
      */
     suspend fun getAccountBalance(address: String): String = withContext(Dispatchers.IO) {
         try {
-            val balanceWei =
-                web3j.ethGetBalance(address, DefaultBlockParameterName.LATEST).send().balance
+            val balanceWei = web3j.ethGetBalance(address, DefaultBlockParameterName.LATEST).send().balance
             val balanceEth = Convert.fromWei(balanceWei.toString(), Convert.Unit.ETHER)
 
             // Format to 8 decimal places
@@ -97,99 +99,8 @@ object BlockchainManager {
      * @param voterAddress Address to fund
      * @return Transaction hash if successful, empty string if failed
      */
-    suspend fun fundVoterAddress(voterAddress: String): String = withContext(Dispatchers.IO) {
-        try {
-            // This would normally use the admin/funder private key
-            // For demo purposes, we'll use the first account from Ganache
-            val funderCredentials =
-                Credentials.create("0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d")
-
-            // Send 0.01 ETH to the new voter
-            val gasPrice = web3j.ethGasPrice().send().gasPrice
-            val gasLimit = BigInteger.valueOf(21000)
-            val value = Convert.toWei("0.01", Convert.Unit.ETHER).toBigInteger()
-
-            val transaction = web3j.ethSendTransaction(
-                org.web3j.protocol.core.methods.request.Transaction.createEtherTransaction(
-                    funderCredentials.address,
-                    null,
-                    gasPrice,
-                    gasLimit,
-                    voterAddress,
-                    value
-                )
-            ).send()
-
-            if (transaction.hasError()) {
-                Log.e(TAG, "Error funding address: ${transaction.error.message}")
-                return@withContext ""
-            }
-
-            val txHash = transaction.transactionHash
-            Log.d(TAG, "Funded $voterAddress with 0.01 ETH, tx hash: $txHash")
-            return@withContext txHash
-        } catch (e: Exception) {
-            Log.e(TAG, "Exception funding address: ${e.message}", e)
-            return@withContext ""
-        }
-    }
-
-    /**
-     * Enhanced connection checking with retry mechanism
-     */
-    suspend fun isConnectedWithRetry(maxRetries: Int = 3): Boolean = withContext(Dispatchers.IO) {
-        repeat(maxRetries) { attempt ->
-            try {
-                val isConnected = web3j.web3ClientVersion().send().web3ClientVersion.isNotEmpty()
-                if (isConnected) {
-                    Log.d(TAG, "✅ Blockchain connection successful on attempt ${attempt + 1}")
-                    return@withContext true
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Connection attempt ${attempt + 1} failed: ${e.message}")
-                if (attempt < maxRetries - 1) {
-//                    delay(1000 * (attempt + 1)) // Exponential backoff
-                }
-            }
-        }
-        Log.e(TAG, "❌ All connection attempts failed")
-        return@withContext false
-    }
-
-    /**
-     * Get account balance with retry mechanism and better error handling
-     */
-    suspend fun getAccountBalanceWithRetry(
-        address: String,
-        maxRetries: Int = 3
-    ): String = withContext(Dispatchers.IO) {
-        repeat(maxRetries) { attempt ->
-            try {
-                val balanceWei =
-                    web3j.ethGetBalance(address, DefaultBlockParameterName.LATEST).send().balance
-                val balanceEth = Convert.fromWei(balanceWei.toString(), Convert.Unit.ETHER)
-                val formattedBalance = String.format("%.8f", balanceEth.toDouble())
-
-                Log.d(TAG, "✅ Balance fetched successfully: $formattedBalance ETH for $address")
-                return@withContext formattedBalance
-            } catch (e: Exception) {
-                Log.w(TAG, "Balance fetch attempt ${attempt + 1} failed: ${e.message}")
-                if (attempt < maxRetries - 1) {
-//                    delay(500 * (attempt + 1))
-                }
-            }
-        }
-
-        Log.e(TAG, "❌ Failed to fetch balance after $maxRetries attempts")
-        return@withContext "0.00000000"
-    }
-
-    /**
-     * Enhanced fund voter address method
-     */
-    suspend fun fundVoterAddress(
-        voterAddress: String,
-        amount: String = "0.001"
+    suspend fun fundVoterAddress(voterAddress: String,
+                                 amount: String = "0.001"
     ): String = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "🔗 Attempting to fund voter address: $voterAddress with $amount ETH")
@@ -207,10 +118,7 @@ object BlockchainManager {
             val requiredAmount = amount.toDoubleOrNull() ?: 0.001
 
             if (fundingBalanceEth < requiredAmount) {
-                Log.w(
-                    TAG,
-                    "⚠️ Insufficient funding balance: $fundingBalanceEth ETH (required: $requiredAmount ETH)"
-                )
+                Log.w(TAG, "⚠️ Insufficient funding balance: $fundingBalanceEth ETH (required: $requiredAmount ETH)")
                 return@withContext ""
             }
 
@@ -230,8 +138,7 @@ object BlockchainManager {
                 amountWei
             )
 
-            val signedTransaction =
-                TransactionEncoder.signMessage(transaction, fundingAccount.credentials)
+            val signedTransaction = TransactionEncoder.signMessage(transaction, fundingAccount.credentials)
             val transactionHash = web3j.ethSendRawTransaction(
                 Numeric.toHexString(signedTransaction)
             ).send().transactionHash
@@ -257,36 +164,35 @@ object BlockchainManager {
     /**
      * Register voter on smart contract (if applicable)
      */
-    suspend fun registerVoterOnContract(voterAddress: String): String =
-        withContext(Dispatchers.IO) {
-            try {
-                Log.d(TAG, "📝 Registering voter on smart contract: $voterAddress")
+    suspend fun registerVoterOnContract(voterAddress: String): String = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "📝 Registering voter on smart contract: $voterAddress")
 
-                // This is a placeholder implementation
-                // Replace with your actual smart contract interaction
-                val contractAddress = getVotingContractAddress()
-                if (contractAddress.isEmpty()) {
-                    Log.w(TAG, "⚠️ No voting contract configured")
-                    return@withContext ""
-                }
-
-                // Simulate contract registration
-                // In a real implementation, you would:
-                // 1. Load your voting contract
-                // 2. Call the register voter function
-                // 3. Return the transaction hash
-
-                delay(1000) // Simulate network delay
-                val mockTxHash = "0x" + generateMockTransactionHash()
-
-                Log.d(TAG, "✅ Voter registration transaction: $mockTxHash")
-                return@withContext mockTxHash
-
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Error registering voter on contract: ${e.message}", e)
+            // This is a placeholder implementation
+            // Replace with your actual smart contract interaction
+            val contractAddress = getVotingContractAddress()
+            if (contractAddress.isEmpty()) {
+                Log.w(TAG, "⚠️ No voting contract configured")
                 return@withContext ""
             }
+
+            // Simulate contract registration
+            // In a real implementation, you would:
+            // 1. Load your voting contract
+            // 2. Call the register voter function
+            // 3. Return the transaction hash
+
+            delay(1000) // Simulate network delay
+            val mockTxHash = "0x" + generateMockTransactionHash()
+
+            Log.d(TAG, "✅ Voter registration transaction: $mockTxHash")
+            return@withContext mockTxHash
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error registering voter on contract: ${e.message}", e)
+            return@withContext ""
         }
+    }
 
     /**
      * Get gas price with fallback
@@ -312,10 +218,9 @@ object BlockchainManager {
         data: String = ""
     ): BigInteger = withContext(Dispatchers.IO) {
         try {
-            val transaction =
-                org.web3j.protocol.core.methods.request.Transaction.createEthCallTransaction(
-                    from, to, data
-                )
+            val transaction = org.web3j.protocol.core.methods.request.Transaction.createEthCallTransaction(
+                from, to, data
+            )
 
             val gasEstimate = web3j.ethEstimateGas(transaction).send().amountUsed
             Log.d(TAG, "Estimated gas: $gasEstimate")
@@ -341,10 +246,7 @@ object BlockchainManager {
                 if (receipt.transactionReceipt.isPresent) {
                     val txReceipt = receipt.transactionReceipt.get()
                     val success = txReceipt.status == "0x1"
-                    Log.d(
-                        TAG,
-                        "Transaction $transactionHash confirmed with status: ${txReceipt.status}"
-                    )
+                    Log.d(TAG, "Transaction $transactionHash confirmed with status: ${txReceipt.status}")
                     return@withContext success
                 }
             } catch (e: Exception) {
@@ -450,18 +352,14 @@ object BlockchainManager {
                     block.transactions.forEach { tx ->
                         val transaction = tx as? EthBlock.TransactionObject
                         if (transaction?.to?.equals(address, ignoreCase = true) == true ||
-                            transaction?.from?.equals(address, ignoreCase = true) == true
-                        ) {
+                            transaction?.from?.equals(address, ignoreCase = true) == true) {
 
                             transactions.add(
                                 TransactionInfo(
                                     hash = transaction.hash,
                                     from = transaction.from,
                                     to = transaction.to ?: "",
-                                    value = Convert.fromWei(
-                                        transaction.value.toString(),
-                                        Convert.Unit.ETHER
-                                    ).toString(),
+                                    value = Convert.fromWei(transaction.value.toString(), Convert.Unit.ETHER).toString(),
                                     blockNumber = transaction.blockNumber.toLong(),
                                     timestamp = System.currentTimeMillis() // Approximate
                                 )
@@ -481,31 +379,54 @@ object BlockchainManager {
         }
     }
 
-    // Data classes for enhanced functionality
-    data class FundingAccount(
-        val address: String,
-        val credentials: Credentials
-    )
-
-    data class TransactionInfo(
-        val hash: String,
-        val from: String,
-        val to: String,
-        val value: String,
-        val blockNumber: Long,
-        val timestamp: Long
-    )
+    /**
+     * Enhanced connection checking with retry mechanism
+     */
+    suspend fun isConnectedWithRetry(maxRetries: Int = 3): Boolean = withContext(Dispatchers.IO) {
+        repeat(maxRetries) { attempt ->
+            try {
+                val isConnected = web3j.web3ClientVersion().send().web3ClientVersion.isNotEmpty()
+                if (isConnected) {
+                    Log.d(TAG, "✅ Blockchain connection successful on attempt ${attempt + 1}")
+                    return@withContext true
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Connection attempt ${attempt + 1} failed: ${e.message}")
+                if (attempt < maxRetries - 1) {
+                    delay(1000L * (attempt + 1))
+                }
+            }
+        }
+        Log.e(TAG, "❌ All connection attempts failed")
+        return@withContext false
+    }
 
     /**
-     * Enhanced connection status with details
+     * Get account balance with retry mechanism and better error handling
      */
-    data class ConnectionStatus(
-        val isConnected: Boolean,
-        val networkId: String = "",
-        val latestBlock: Long = 0,
-        val gasPrice: String = "",
-        val error: String? = null
-    )
+    suspend fun getAccountBalanceWithRetry(
+        address: String,
+        maxRetries: Int = 3
+    ): String = withContext(Dispatchers.IO) {
+        repeat(maxRetries) { attempt ->
+            try {
+                val balanceWei = web3j.ethGetBalance(address, DefaultBlockParameterName.LATEST).send().balance
+                val balanceEth = Convert.fromWei(balanceWei.toString(), Convert.Unit.ETHER)
+                val formattedBalance = String.format("%.8f", balanceEth.toDouble())
+
+                Log.d(TAG, "✅ Balance fetched successfully: $formattedBalance ETH for $address")
+                return@withContext formattedBalance
+            } catch (e: Exception) {
+                Log.w(TAG, "Balance fetch attempt ${attempt + 1} failed: ${e.message}")
+                if (attempt < maxRetries - 1) {
+                    delay(500L * (attempt + 1))
+                }
+            }
+        }
+
+        Log.e(TAG, "❌ Failed to fetch balance after $maxRetries attempts")
+        return@withContext "0.00000000"
+    }
 
     /**
      * Get detailed connection status
@@ -535,3 +456,29 @@ object BlockchainManager {
         }
     }
 }
+
+// Data classes for enhanced functionality
+data class FundingAccount(
+    val address: String,
+    val credentials: Credentials
+)
+
+data class TransactionInfo(
+    val hash: String,
+    val from: String,
+    val to: String,
+    val value: String,
+    val blockNumber: Long,
+    val timestamp: Long
+)
+
+/**
+ * Enhanced connection status with details
+ */
+data class ConnectionStatus(
+    val isConnected: Boolean,
+    val networkId: String = "",
+    val latestBlock: Long = 0,
+    val gasPrice: String = "",
+    val error: String? = null
+)
