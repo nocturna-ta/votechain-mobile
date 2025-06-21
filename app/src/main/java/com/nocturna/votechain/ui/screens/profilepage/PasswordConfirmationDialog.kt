@@ -19,11 +19,19 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import kotlinx.coroutines.coroutineScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
@@ -38,6 +46,7 @@ import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.utils.LanguageManager
+import kotlinx.coroutines.launch
 
 @Composable
 fun PasswordConfirmationDialog(
@@ -52,6 +61,7 @@ fun PasswordConfirmationDialog(
     var errorMessage by remember { mutableStateOf("") }
 
     val strings = LanguageManager.getLocalizedStrings()
+    val coroutineScope = rememberCoroutineScope()
 
     if (isOpen) {
         Dialog(onDismissRequest = onCancel) {
@@ -163,16 +173,19 @@ fun PasswordConfirmationDialog(
                             onClick = {
                                 if (password.isNotEmpty()) {
                                     // Verify password against stored hash
-                                    if (userLoginRepository.verifyPassword(password)) {
-                                        // Password is correct
-                                        onSubmit(password)
-                                        password = ""
-                                        isError = false
-                                        errorMessage = ""
-                                    } else {
-                                        // Password is incorrect
-                                        isError = true
-                                        errorMessage = strings.passwordIncorrect
+                                    coroutineScope.launch {
+                                        // Verify password against stored hash
+                                        if (userLoginRepository.verifyUserPassword(password)) {
+                                            // Password is correct
+                                            onSubmit(password)
+                                            password = ""
+                                            isError = false
+                                            errorMessage = ""
+                                        } else {
+                                            // Password is incorrect
+                                            isError = true
+                                            errorMessage = strings.passwordIncorrect
+                                        }
                                     }
                                 } else {
                                     isError = true

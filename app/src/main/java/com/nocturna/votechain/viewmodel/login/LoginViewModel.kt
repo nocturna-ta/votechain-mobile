@@ -55,7 +55,7 @@ class LoginViewModel(
                 Log.d(TAG, "Starting enhanced login for: $email")
 
                 // Step 1: Authenticate user
-                val loginResult = userLoginRepository.loginUser(email, password)
+                val loginResult = userLoginRepository.loginUserSecurely(email, password)
 
                 loginResult.fold(
                     onSuccess = { loginResponse ->
@@ -242,7 +242,7 @@ class LoginViewModel(
         viewModelScope.launch {
             try {
                 Log.d(TAG, "Verifying password for sensitive operation...")
-                val isValid = userLoginRepository.verifyPassword(password)
+                val isValid = userLoginRepository.verifyUserPassword(password)
                 onResult(isValid)
                 Log.d(TAG, "Password verification result: $isValid")
             } catch (e: Exception) {

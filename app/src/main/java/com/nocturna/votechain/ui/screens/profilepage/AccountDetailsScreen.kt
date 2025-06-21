@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.nocturna.votechain.R
+import com.nocturna.votechain.data.model.AccountDisplayData
 import com.nocturna.votechain.data.repository.UserLoginRepository
 import com.nocturna.votechain.data.repository.UserProfileRepository
 import com.nocturna.votechain.data.repository.VoterRepository
@@ -69,11 +70,6 @@ fun AccountDetailsScreen(
     var showCopiedMessage by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Load account data when screen opens
-    LaunchedEffect(Unit) {
-        loadAccountData()
-    }
-
     // Function to load account data
     suspend fun loadAccountData() {
         try {
@@ -108,6 +104,11 @@ fun AccountDetailsScreen(
             isLoading = false
             isRefreshing = false
         }
+    }
+
+    // Load account data when screen opens
+    LaunchedEffect(Unit) {
+        loadAccountData()
     }
 
     // Function to refresh balance
@@ -186,7 +187,7 @@ fun AccountDetailsScreen(
                         scope.launch {
                             try {
                                 // Verify password with login repository
-                                val isValid = userLoginRepository.verifyPassword(password)
+                                val isValid = userLoginRepository.verifyUserPassword(password)
                                 if (isValid) {
                                     showPrivateKey = true
                                     showPasswordDialog = false

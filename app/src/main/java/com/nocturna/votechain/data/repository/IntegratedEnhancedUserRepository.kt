@@ -6,6 +6,7 @@ import android.util.Log
 import com.nocturna.votechain.blockchain.BlockchainManager
 import com.nocturna.votechain.data.model.ApiResponse
 import com.nocturna.votechain.data.model.CompleteUserData
+import com.nocturna.votechain.data.model.UserProfile
 import com.nocturna.votechain.data.model.UserRegistrationData
 import com.nocturna.votechain.data.model.WalletInfo
 import com.nocturna.votechain.security.CryptoKeyManager
@@ -124,7 +125,7 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
             Log.d(TAG, "Starting enhanced login for: $email")
 
             // Step 1: Authenticate with server
-            val loginResult = userLoginRepository.loginUser(email, password)
+            val loginResult = userLoginRepository.loginUserSecurely(email, password)
 
             loginResult.fold(
                 onSuccess = { loginResponse ->
@@ -180,7 +181,7 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
             }
 
             val completeData = CompleteUserData(
-                userProfile = userProfile?.toUserProfile(),
+                userProfile = userProfile?.let { UserProfile() } ?: null,
                 voterData = voterData,
                 walletInfo = walletInfo ?: WalletInfo(
                     hasError = true,
@@ -427,7 +428,7 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
             cryptoKeyManager.clearStoredKeys()
             voterRepository.clearVoterData()
             userLoginRepository.clearStoredData()
-            userProfileRepository.clearStoredProfile()
+            userProfileRepository.clearProfileData()
 
             // Clear blockchain transactions
             val sharedPreferences = context.getSharedPreferences("BlockchainTransactions", Context.MODE_PRIVATE)

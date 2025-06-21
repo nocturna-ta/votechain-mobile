@@ -27,7 +27,7 @@ object BlockchainManager {
     private const val TAG = "BlockchainManager"
 
     private val web3j: Web3j by lazy {
-        val nodeUrl = "https://1f39-114-122-69-116.ngrok-free.app"
+        val nodeUrl = "https://b9fa-36-69-141-188.ngrok-free.app"
         Log.d(TAG, "Initializing Web3j connection to $nodeUrl")
         Web3j.build(HttpService(nodeUrl))
     }
@@ -148,7 +148,7 @@ object BlockchainManager {
             } catch (e: Exception) {
                 Log.w(TAG, "Connection attempt ${attempt + 1} failed: ${e.message}")
                 if (attempt < maxRetries - 1) {
-                    delay(1000 * (attempt + 1)) // Exponential backoff
+//                    delay(1000 * (attempt + 1)) // Exponential backoff
                 }
             }
         }
@@ -175,7 +175,7 @@ object BlockchainManager {
             } catch (e: Exception) {
                 Log.w(TAG, "Balance fetch attempt ${attempt + 1} failed: ${e.message}")
                 if (attempt < maxRetries - 1) {
-                    delay(500 * (attempt + 1))
+//                    delay(500 * (attempt + 1))
                 }
             }
         }

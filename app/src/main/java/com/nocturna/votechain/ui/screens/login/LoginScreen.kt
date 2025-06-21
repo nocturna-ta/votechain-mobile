@@ -318,7 +318,7 @@ fun LoginScreen(
                                 if (validateEmail(email) && validatePassword(password) && email.isNotEmpty() && password.isNotEmpty()) {
                                     focusManager.clearFocus()
                                     keyboardController?.hide()
-                                    viewModel.loginUser(email, password)
+                                    viewModel.login(email, password)
                                 } else {
                                     isEmailValid = validateEmail(email) && email.isNotEmpty()
                                     isPasswordValid = validatePassword(password) && password.isNotEmpty()

@@ -168,7 +168,7 @@ fun ProfileScreen(
                 TextButton(
                     onClick = {
                         showLogoutDialog = false
-                        loginViewModel.logoutUser()
+                        loginViewModel.logout()
                         onLogout()
                     },
                     colors = ButtonDefaults.textButtonColors(
@@ -238,13 +238,13 @@ fun ProfileScreen(
                         Column {
                             // Display voter full name or fallback
                             val displayName = when {
-                                voterData?.full_name?.isNotEmpty() == true -> voterData.full_name
-                                userEmail.isNotEmpty() -> userEmail.split("@").firstOrNull() ?: "User"
+                                voterData?.full_name?.isNotEmpty() == true -> voterData?.full_name
+//                                userEmail.isNotEmpty() -> userEmail.split("@").firstOrNull() ?: "User"
                                 else -> "User"
                             }
 
                             Text(
-                                text = displayName,
+                                text = displayName.toString(),
                                 style = AppTypography.heading4Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )

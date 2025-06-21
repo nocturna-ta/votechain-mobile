@@ -23,12 +23,15 @@ class VoterRepository(private val context: Context) {
     private val KEY_VOTER_ADDRESS = "voter_address"
     private val KEY_VOTER_HAS_VOTED = "voter_has_voted"
     private val KEY_USER_ID = "user_id"
+    private val KEY_REGISTRATION_EMAIL = "registration_email"
     private val KEY_LAST_BALANCE_UPDATE = "last_balance_update"
     private val KEY_CACHED_BALANCE = "cached_balance"
 
     // API service and crypto manager
     private val apiService = NetworkClient.apiService
     private val cryptoKeyManager = CryptoKeyManager(context)
+    private val userLoginRepository = UserLoginRepository(context)
+
 
     /**
      * Fetch voter data from API and merge with locally stored cryptographic keys
@@ -87,6 +90,26 @@ class VoterRepository(private val context: Context) {
             Log.e(TAG, "Error fetching voter data", e)
             return@withContext Result.failure(e)
         }
+    }
+
+    /**
+     * Verify login email matches registration email
+     */
+    fun verifyLoginEmail(loginEmail: String): Boolean {
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val registrationEmail = sharedPreferences.getString(KEY_REGISTRATION_EMAIL, null)
+
+        if (registrationEmail == null) {
+            Log.w(TAG, "No registration email found")
+            return true // Allow login if no registration email stored (backward compatibility)
+        }
+
+        val matches = registrationEmail.equals(loginEmail, ignoreCase = true)
+        if (!matches) {
+            Log.w(TAG, "Login email mismatch: expected $registrationEmail, got $loginEmail")
+        }
+
+        return matches
     }
 
     /**
