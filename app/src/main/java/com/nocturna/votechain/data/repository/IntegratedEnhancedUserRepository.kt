@@ -5,7 +5,9 @@ import android.net.Uri
 import android.util.Log
 import com.nocturna.votechain.blockchain.BlockchainManager
 import com.nocturna.votechain.data.model.ApiResponse
+import com.nocturna.votechain.data.model.CompleteUserData
 import com.nocturna.votechain.data.model.UserRegistrationData
+import com.nocturna.votechain.data.model.WalletInfo
 import com.nocturna.votechain.security.CryptoKeyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,11 +17,14 @@ import kotlinx.coroutines.withContext
  * 1. Secure local key generation (CryptoKeyManager)
  * 2. Blockchain integration (BlockchainManager)
  * 3. Server registration (UserRepository)
+ * 4. Complete user data management
  */
 class IntegratedEnhancedUserRepository(private val context: Context) {
     private val userRepository = UserRepository(context)
     private val cryptoKeyManager = CryptoKeyManager(context)
     private val voterRepository = VoterRepository(context)
+    private val userProfileRepository = UserProfileRepository(context)
+    private val userLoginRepository = UserLoginRepository(context)
     private val TAG = "IntegratedEnhancedUserRepository"
 
     /**
@@ -51,7 +56,7 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
             Log.d(TAG, "✅ Keys stored securely in Android Keystore")
 
             // Step 3: Optional blockchain integration (non-blocking)
-            val blockchainResult = tryBlockchainIntegration(keyPairInfo.voterAddress)
+            val blockchainResult = tryBlockchainIntegrationWithFunding(keyPairInfo.voterAddress)
 
             // Step 4: Register user di server dengan generated voter address
             val registrationResult = userRepository.registerUser(
@@ -74,34 +79,37 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
                     // Step 5: Store voter data locally
                     storeVoterKeysLocally(nik, fullName, keyPairInfo)
 
+                    // Step 6: Initialize wallet with balance
+                    val initialWalletInfo = initializeUserWallet(keyPairInfo.voterAddress)
+
                     val result = RegistrationResult(
                         serverResponse = response,
                         keyPairInfo = keyPairInfo,
                         blockchainIntegration = blockchainResult,
+                        walletInfo = initialWalletInfo,
                         isSuccess = true
                     )
 
-                    Log.d(TAG, "✅ Registration completed successfully")
+                    Log.d(TAG, "✅ Full integration registration completed successfully")
                     Result.success(result)
                 },
-                onFailure = { exception ->
-                    Log.e(TAG, "❌ Server registration failed: ${exception.message}")
+                onFailure = { error ->
+                    Log.e(TAG, "❌ Server registration failed: ${error.message}")
 
-                    // Cleanup generated keys jika server registration gagal
+                    // Clean up generated keys on server failure
                     cryptoKeyManager.clearStoredKeys()
 
-                    Result.failure(exception)
+                    Result.failure(error)
                 }
             )
-
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Unexpected error during registration", e)
+            Log.e(TAG, "❌ Registration failed with exception", e)
 
-            // Cleanup keys on any error
+            // Clean up on any failure
             try {
                 cryptoKeyManager.clearStoredKeys()
-            } catch (cleanupException: Exception) {
-                Log.e(TAG, "Failed to cleanup keys", cleanupException)
+            } catch (cleanupError: Exception) {
+                Log.e(TAG, "Error during cleanup", cleanupError)
             }
 
             Result.failure(e)
@@ -109,43 +117,205 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
     }
 
     /**
-     * Optional blockchain integration - tidak akan block registration jika gagal
+     * Enhanced login with complete user data loading
      */
-    private suspend fun tryBlockchainIntegration(voterAddress: String): BlockchainIntegrationResult {
-        return try {
-            Log.d(TAG, "🔗 Attempting blockchain integration...")
+    suspend fun enhancedLogin(email: String, password: String): Result<CompleteUserData> = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "Starting enhanced login for: $email")
 
-            // Check blockchain connection
-            val isConnected = withContext(Dispatchers.IO) {
-                BlockchainManager.isConnected()
+            // Step 1: Authenticate with server
+            val loginResult = userLoginRepository.loginUser(email, password)
+
+            loginResult.fold(
+                onSuccess = { loginResponse ->
+                    // Step 2: Get complete user data
+                    val completeUserData = getCompleteUserData()
+
+                    Log.d(TAG, "✅ Enhanced login completed successfully")
+                    Result.success(completeUserData)
+                },
+                onFailure = { error ->
+                    Log.e(TAG, "❌ Login failed: ${error.message}")
+                    Result.failure(error)
+                }
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Enhanced login failed with exception", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Get complete user data for session management
+     */
+    suspend fun getCompleteUserData(): CompleteUserData = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "Loading complete user data")
+
+            // Get user profile (with fallback)
+            val userProfile = try {
+                userProfileRepository.fetchCompleteUserProfile().getOrNull()?.userProfile
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to fetch fresh profile, using saved: ${e.message}")
+                userProfileRepository.getSavedCompleteProfile()?.userProfile
             }
 
-            if (isConnected) {
+            // Get voter data (with fallback)
+            val voterData = try {
+                voterRepository.getVoterDataLocally()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to get voter data: ${e.message}")
+                null
+            }
+
+            // Get wallet info with real-time balance
+            val walletInfo = try {
+                voterRepository.getCompleteWalletInfo()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to get wallet info: ${e.message}")
+                WalletInfo(
+                    hasError = true,
+                    errorMessage = e.message ?: "Unknown wallet error"
+                )
+            }
+
+            val completeData = CompleteUserData(
+                userProfile = userProfile?.toUserProfile(),
+                voterData = voterData,
+                walletInfo = walletInfo ?: WalletInfo(
+                    hasError = true,
+                    errorMessage = "Wallet data unavailable"
+                )
+            )
+
+            Log.d(TAG, "✅ Complete user data loaded successfully")
+            return@withContext completeData
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading complete user data", e)
+            return@withContext CompleteUserData(
+                walletInfo = WalletInfo(
+                    hasError = true,
+                    errorMessage = e.message ?: "Failed to load user data"
+                )
+            )
+        }
+    }
+
+    /**
+     * Initialize user wallet with balance checking
+     */
+    suspend fun initializeUserWallet(voterAddress: String): WalletInfo = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "Initializing wallet for address: $voterAddress")
+
+            // Get initial balance
+            val balance = try {
+                BlockchainManager.getAccountBalance(voterAddress)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to get initial balance: ${e.message}")
+                "0.00000000"
+            }
+
+            val walletInfo = WalletInfo(
+                balance = balance,
+                privateKey = cryptoKeyManager.getPrivateKey() ?: "",
+                publicKey = cryptoKeyManager.getPublicKey() ?: "",
+                voterAddress = voterAddress,
+                lastUpdated = System.currentTimeMillis(),
+                isLoading = false,
+                hasError = false
+            )
+
+            Log.d(TAG, "✅ Wallet initialized with balance: $balance ETH")
+            return@withContext walletInfo
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initializing wallet", e)
+            return@withContext WalletInfo(
+                voterAddress = voterAddress,
+                hasError = true,
+                errorMessage = e.message ?: "Failed to initialize wallet"
+            )
+        }
+    }
+
+    /**
+     * Refresh complete user data
+     */
+    suspend fun refreshCompleteUserData(): Result<CompleteUserData> = withContext(Dispatchers.IO) {
+        try {
+            // Refresh user profile from server
+            userProfileRepository.fetchCompleteUserProfile()
+
+            // Get updated complete data
+            val completeData = getCompleteUserData()
+
+            Result.success(completeData)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error refreshing complete user data", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Enhanced blockchain integration with funding
+     */
+    private suspend fun tryBlockchainIntegrationWithFunding(voterAddress: String): BlockchainIntegrationResult {
+        return try {
+            Log.d(TAG, "🔗 Attempting blockchain integration with funding...")
+
+            var fundingTxHash = ""
+            var registrationTxHash = ""
+            var isConnected = false
+
+            if (withContext(Dispatchers.IO) { BlockchainManager.isConnected() }) {
+                isConnected = true
                 Log.d(TAG, "✅ Blockchain connected")
 
-                // Try to fund the address
-                val fundingResult = tryFundingAddress(voterAddress)
+                try {
+                    // Fund the new address with small amount
+                    fundingTxHash = withContext(Dispatchers.IO) {
+                        BlockchainManager.fundVoterAddress(voterAddress)
+                    }
 
-                // Try to register address on blockchain (jika ada method tersebut)
-                val registrationTxHash = tryRegisterOnBlockchain(voterAddress)
+                    if (fundingTxHash.isNotEmpty()) {
+                        Log.d(TAG, "✅ Address funded successfully: $fundingTxHash")
 
-                BlockchainIntegrationResult(
-                    isConnected = true,
-                    fundingTxHash = fundingResult,
-                    registrationTxHash = registrationTxHash,
-                    isSuccess = fundingResult.isNotEmpty() || registrationTxHash.isNotEmpty()
-                )
+                        // Store funding transaction
+                        storeBlockchainTransaction(voterAddress, fundingTxHash, "FUNDING")
+
+                        // Optionally register on voting contract
+                        try {
+                            registrationTxHash = withContext(Dispatchers.IO) {
+                                BlockchainManager.registerVoterOnContract(voterAddress)
+                            }
+
+                            if (registrationTxHash.isNotEmpty()) {
+                                Log.d(TAG, "✅ Voter registered on contract: $registrationTxHash")
+                                storeBlockchainTransaction(voterAddress, registrationTxHash, "REGISTRATION")
+                            }
+                        } catch (e: Exception) {
+                            Log.w(TAG, "⚠️ Contract registration failed (non-critical): ${e.message}")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "⚠️ Funding failed (non-critical): ${e.message}")
+                }
             } else {
                 Log.w(TAG, "⚠️ Blockchain not connected, skipping integration")
-                BlockchainIntegrationResult(
-                    isConnected = false,
-                    fundingTxHash = "",
-                    registrationTxHash = "",
-                    isSuccess = false
-                )
             }
+
+            BlockchainIntegrationResult(
+                isConnected = isConnected,
+                fundingTxHash = fundingTxHash,
+                registrationTxHash = registrationTxHash,
+                isSuccess = isConnected && fundingTxHash.isNotEmpty(),
+                error = null
+            )
+
         } catch (e: Exception) {
-            Log.e(TAG, "⚠️ Blockchain integration failed (non-critical): ${e.message}")
+            Log.e(TAG, "⚠️ Blockchain integration failed: ${e.message}")
             BlockchainIntegrationResult(
                 isConnected = false,
                 fundingTxHash = "",
@@ -157,54 +327,24 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
     }
 
     /**
-     * Try to fund the voter address dengan ETH untuk transaction fees
+     * Store blockchain transaction for audit trail
      */
-    private suspend fun tryFundingAddress(voterAddress: String): String {
-        return try {
-            val txHash = withContext(Dispatchers.IO) {
-                BlockchainManager.fundVoterAddress(voterAddress)
+    private fun storeBlockchainTransaction(voterAddress: String, txHash: String, type: String) {
+        try {
+            val sharedPreferences = context.getSharedPreferences("BlockchainTransactions", Context.MODE_PRIVATE)
+            with(sharedPreferences.edit()) {
+                putString("${voterAddress}_${type}_tx", txHash)
+                putLong("${voterAddress}_${type}_timestamp", System.currentTimeMillis())
+                apply()
             }
-
-            if (txHash.isNotEmpty()) {
-                Log.d(TAG, "✅ Address funded successfully: $txHash")
-            } else {
-                Log.w(TAG, "⚠️ Address funding returned empty hash")
-            }
-
-            txHash
+            Log.d(TAG, "Blockchain transaction stored: $type - $txHash")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Address funding failed: ${e.message}")
-            ""
+            Log.e(TAG, "Error storing blockchain transaction", e)
         }
     }
 
     /**
-     * Try to register address on blockchain smart contract (optional)
-     */
-    private suspend fun tryRegisterOnBlockchain(voterAddress: String): String {
-        return try {
-            // Implementasi spesifik untuk registrasi di smart contract
-            // Ini tergantung pada smart contract yang digunakan
-
-            Log.d(TAG, "🔗 Registering address on blockchain: $voterAddress")
-
-            // Placeholder - implementasi actual tergantung smart contract
-            // val txHash = BlockchainManager.registerVoterOnContract(voterAddress)
-            val txHash = "" // Untuk sementara kosong
-
-            if (txHash.isNotEmpty()) {
-                Log.d(TAG, "✅ Address registered on blockchain: $txHash")
-            }
-
-            txHash
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Blockchain registration failed: ${e.message}")
-            ""
-        }
-    }
-
-    /**
-     * Store voter keys locally untuk quick access
+     * Store voter data securely with crypto reference
      */
     private fun storeVoterKeysLocally(
         nik: String,
@@ -216,20 +356,19 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
             with(sharedPreferences.edit()) {
                 putString("voter_nik", nik)
                 putString("voter_full_name", fullName)
-                putString("voter_public_key", keyPairInfo.publicKey)
                 putString("voter_address", keyPairInfo.voterAddress)
-                putBoolean("voter_has_voted", false)
-                // Note: Private key TIDAK disimpan di sini, hanya di secure Android Keystore
+                putString("voter_public_key", keyPairInfo.publicKey)
+                putLong("key_generation_timestamp", System.currentTimeMillis())
                 apply()
             }
-            Log.d(TAG, "✅ Voter data stored locally (private key remains in secure keystore)")
+            Log.d(TAG, "✅ Voter data stored locally")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Failed to store voter data locally", e)
+            Log.e(TAG, "Error storing voter data locally", e)
         }
     }
 
     /**
-     * Get registration result dengan semua informasi
+     * Get registration summary for UI
      */
     fun getRegistrationSummary(): RegistrationSummary? {
         return try {
@@ -273,10 +412,30 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
                 return Result.failure(Exception("No voter address found"))
             }
 
-            val result = tryBlockchainIntegration(voterAddress)
+            val result = tryBlockchainIntegrationWithFunding(voterAddress)
             Result.success(result)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    /**
+     * Clear all user data (for logout)
+     */
+    fun clearAllUserData() {
+        try {
+            cryptoKeyManager.clearStoredKeys()
+            voterRepository.clearVoterData()
+            userLoginRepository.clearStoredData()
+            userProfileRepository.clearStoredProfile()
+
+            // Clear blockchain transactions
+            val sharedPreferences = context.getSharedPreferences("BlockchainTransactions", Context.MODE_PRIVATE)
+            sharedPreferences.edit().clear().apply()
+
+            Log.d(TAG, "✅ All user data cleared")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error clearing user data", e)
         }
     }
 
@@ -289,6 +448,7 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
         val serverResponse: ApiResponse<UserRegistrationData>,
         val keyPairInfo: CryptoKeyManager.KeyPairInfo,
         val blockchainIntegration: BlockchainIntegrationResult,
+        val walletInfo: WalletInfo,
         val isSuccess: Boolean
     )
 
@@ -324,11 +484,6 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
     fun hasStoredKeys(): Boolean = cryptoKeyManager.hasStoredKeyPair()
     fun validateStoredKeys(): Boolean = voterRepository.validateStoredData()
 
-    fun getWalletInfo(): com.nocturna.votechain.data.model.WalletInfo = voterRepository.getWalletInfo()
-    fun getWalletInfoWithPrivateKey(): com.nocturna.votechain.data.model.WalletInfo = voterRepository.getWalletInfoWithPrivateKey()
-
-    fun clearAllKeys() {
-        cryptoKeyManager.clearStoredKeys()
-        voterRepository.clearVoterData()
-    }
+    suspend fun getWalletInfo(): WalletInfo = voterRepository.getCompleteWalletInfo()
+    suspend fun getWalletInfoWithPrivateKey(): WalletInfo = voterRepository.getCompleteWalletInfo()
 }

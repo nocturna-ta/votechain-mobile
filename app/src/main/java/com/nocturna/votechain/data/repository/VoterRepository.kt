@@ -2,15 +2,17 @@ package com.nocturna.votechain.data.repository
 
 import android.content.Context
 import android.util.Log
+import com.nocturna.votechain.blockchain.BlockchainManager
 import com.nocturna.votechain.data.model.VoterData
 import com.nocturna.votechain.data.model.WalletInfo
+import com.nocturna.votechain.data.model.AccountDisplayData
 import com.nocturna.votechain.data.network.NetworkClient
 import com.nocturna.votechain.security.CryptoKeyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Updated VoterRepository with integrated cryptographic key management
+ * Enhanced VoterRepository with integrated cryptographic key management and real-time balance fetching
  */
 class VoterRepository(private val context: Context) {
     private val TAG = "VoterRepository"
@@ -21,6 +23,8 @@ class VoterRepository(private val context: Context) {
     private val KEY_VOTER_ADDRESS = "voter_address"
     private val KEY_VOTER_HAS_VOTED = "voter_has_voted"
     private val KEY_USER_ID = "user_id"
+    private val KEY_LAST_BALANCE_UPDATE = "last_balance_update"
+    private val KEY_CACHED_BALANCE = "cached_balance"
 
     // API service and crypto manager
     private val apiService = NetworkClient.apiService
@@ -57,59 +61,36 @@ class VoterRepository(private val context: Context) {
                         // Save user ID for future reference
                         saveUserId(userId ?: voterData.user_id)
 
-                        // Merge API data with locally stored cryptographic keys
-                        val enhancedVoterData = mergeWithStoredKeys(voterData)
+                        // Merge with locally stored cryptographic data
+                        val enhancedVoterData = voterData.copy(
+                            voter_address = cryptoKeyManager.getVoterAddress() ?: voterData.voter_address
+                        )
 
-                        // Save merged data locally
+                        // Save voter data locally for offline access
                         saveVoterDataLocally(enhancedVoterData)
 
-                        Log.d(TAG, "Voter data fetched and merged successfully")
-                        Result.success(enhancedVoterData)
+                        Log.d(TAG, "Voter data fetched and enhanced successfully")
+                        return@withContext Result.success(enhancedVoterData)
                     } else {
-                        Log.e(TAG, "No voter data found in response")
-                        Result.failure(Exception("No voter data found"))
+                        Log.w(TAG, "Empty voter data received")
+                        return@withContext Result.failure(Exception("No voter data found"))
                     }
                 } ?: run {
-                    Log.e(TAG, "Response body is null")
-                    Result.failure(Exception("Empty response body"))
+                    Log.e(TAG, "Null response body")
+                    return@withContext Result.failure(Exception("Invalid response"))
                 }
             } else {
-                val errorMessage = "API call failed with code: ${response.code()}"
-                Log.e(TAG, errorMessage)
-                Result.failure(Exception(errorMessage))
+                Log.e(TAG, "API call failed: ${response.code()} - ${response.message()}")
+                return@withContext Result.failure(Exception("API call failed: ${response.message()}"))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error fetching voter data: ${e.message}", e)
-            Result.failure(e)
+            Log.e(TAG, "Error fetching voter data", e)
+            return@withContext Result.failure(e)
         }
     }
 
     /**
-     * Merge API voter data with locally stored cryptographic keys
-     */
-    private fun mergeWithStoredKeys(apiVoterData: VoterData): VoterData {
-        return try {
-            // Get stored voter address from crypto manager
-            val storedVoterAddress = cryptoKeyManager.getVoterAddress()
-
-            // Use stored voter address if available, otherwise use API data
-            val voterAddress = if (!storedVoterAddress.isNullOrEmpty()) {
-                Log.d(TAG, "Using stored voter address: $storedVoterAddress")
-                storedVoterAddress
-            } else {
-                Log.d(TAG, "Using API voter address: ${apiVoterData.voter_address}")
-                apiVoterData.voter_address
-            }
-
-            apiVoterData.copy(voter_address = voterAddress)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error merging stored keys, using API data as-is", e)
-            apiVoterData
-        }
-    }
-
-    /**
-     * Get user ID from response header
+     * Extract user_id from response header
      */
     private fun getUserIdFromResponse(headerValue: String?): String? {
         return headerValue?.takeIf { it.isNotEmpty() }?.also {
@@ -186,26 +167,161 @@ class VoterRepository(private val context: Context) {
     }
 
     /**
-     * Get wallet information with secure private key access
+     * Get complete wallet information with real-time balance fetching
      */
-    fun getWalletInfo(): WalletInfo {
-        return WalletInfo(
-            balance = "0.0000", // TODO: Implement balance checking from blockchain
-            privateKey = "", // Private key not exposed here for security
-            publicKey = cryptoKeyManager.getPublicKey() ?: ""
-        )
+    suspend fun getCompleteWalletInfo(): WalletInfo = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "Fetching complete wallet information")
+
+            val voterAddress = cryptoKeyManager.getVoterAddress()
+            val publicKey = cryptoKeyManager.getPublicKey()
+            val privateKey = cryptoKeyManager.getPrivateKey()
+
+            if (voterAddress.isNullOrEmpty()) {
+                Log.w(TAG, "No voter address found")
+                return@withContext WalletInfo(
+                    hasError = true,
+                    errorMessage = "No voter address found"
+                )
+            }
+
+            // Try to get fresh balance from blockchain
+            val currentBalance = try {
+                Log.d(TAG, "Fetching balance for address: $voterAddress")
+                val balance = BlockchainManager.getAccountBalance(voterAddress)
+
+                // Cache the balance with timestamp
+                cacheBalance(balance)
+
+                Log.d(TAG, "Balance fetched successfully: $balance ETH")
+                balance
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to fetch live balance, using cached: ${e.message}")
+                getCachedBalance()
+            }
+
+            return@withContext WalletInfo(
+                balance = currentBalance,
+                privateKey = privateKey ?: "",
+                publicKey = publicKey ?: "",
+                voterAddress = voterAddress,
+                lastUpdated = System.currentTimeMillis(),
+                isLoading = false,
+                hasError = false
+            )
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting complete wallet info", e)
+            return@withContext WalletInfo(
+                balance = getCachedBalance(),
+                hasError = true,
+                errorMessage = e.message ?: "Unknown error"
+            )
+        }
+    }
+
+    /**
+     * Refresh balance from blockchain
+     */
+    suspend fun refreshBalance(): String = withContext(Dispatchers.IO) {
+        try {
+            val voterAddress = cryptoKeyManager.getVoterAddress()
+            if (voterAddress.isNullOrEmpty()) {
+                return@withContext "0.00000000"
+            }
+
+            val balance = BlockchainManager.getAccountBalance(voterAddress)
+            cacheBalance(balance)
+            return@withContext balance
+        } catch (e: Exception) {
+            Log.e(TAG, "Error refreshing balance", e)
+            return@withContext getCachedBalance()
+        }
+    }
+
+    /**
+     * Get account display data for UI
+     */
+    suspend fun getAccountDisplayData(): AccountDisplayData = withContext(Dispatchers.IO) {
+        try {
+            val voterData = getVoterDataLocally()
+            val walletInfo = getCompleteWalletInfo()
+
+            return@withContext AccountDisplayData(
+                fullName = voterData?.full_name ?: "N/A",
+                nik = voterData?.nik ?: "N/A",
+                email = "", // This should come from user profile
+                ethBalance = walletInfo.balance,
+                publicKey = walletInfo.publicKey,
+                privateKey = walletInfo.privateKey,
+                voterAddress = walletInfo.voterAddress,
+                hasVoted = voterData?.has_voted ?: false,
+                isDataLoading = false,
+                errorMessage = if (walletInfo.hasError) walletInfo.errorMessage else null
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting account display data", e)
+            return@withContext AccountDisplayData(
+                isDataLoading = false,
+                errorMessage = e.message
+            )
+        }
+    }
+
+    /**
+     * Cache balance with timestamp
+     */
+    private fun cacheBalance(balance: String) {
+        try {
+            val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            with(sharedPreferences.edit()) {
+                putString(KEY_CACHED_BALANCE, balance)
+                putLong(KEY_LAST_BALANCE_UPDATE, System.currentTimeMillis())
+                apply()
+            }
+            Log.d(TAG, "Balance cached: $balance")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error caching balance", e)
+        }
+    }
+
+    /**
+     * Get cached balance
+     */
+    private fun getCachedBalance(): String {
+        return try {
+            val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val cachedBalance = sharedPreferences.getString(KEY_CACHED_BALANCE, "0.00000000") ?: "0.00000000"
+            val lastUpdate = sharedPreferences.getLong(KEY_LAST_BALANCE_UPDATE, 0)
+
+            // Check if cache is not too old (5 minutes)
+            val cacheAge = System.currentTimeMillis() - lastUpdate
+            if (cacheAge < 5 * 60 * 1000) {
+                Log.d(TAG, "Using cached balance: $cachedBalance")
+                cachedBalance
+            } else {
+                Log.d(TAG, "Cache expired, returning default balance")
+                "0.00000000"
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting cached balance", e)
+            "0.00000000"
+        }
+    }
+
+    /**
+     * Get wallet information (legacy method, now with real balance)
+     */
+    suspend fun getWalletInfo(): WalletInfo {
+        return getCompleteWalletInfo()
     }
 
     /**
      * Get wallet information including private key (use only when absolutely necessary)
      * This method should only be called when private key is explicitly needed for transactions
      */
-    fun getWalletInfoWithPrivateKey(): WalletInfo {
-        return WalletInfo(
-            balance = "0.0000",
-            privateKey = cryptoKeyManager.getPrivateKey() ?: "",
-            publicKey = cryptoKeyManager.getPublicKey() ?: ""
-        )
+    suspend fun getWalletInfoWithPrivateKey(): WalletInfo {
+        return getCompleteWalletInfo()
     }
 
     /**
@@ -259,6 +375,8 @@ class VoterRepository(private val context: Context) {
             remove(KEY_VOTER_ADDRESS)
             remove(KEY_VOTER_HAS_VOTED)
             remove(KEY_USER_ID)
+            remove(KEY_CACHED_BALANCE)
+            remove(KEY_LAST_BALANCE_UPDATE)
             apply()
         }
 
@@ -293,35 +411,15 @@ class VoterRepository(private val context: Context) {
     }
 
     /**
-     * Get voting status from local storage
-     */
-    fun getVotingStatus(): Boolean {
-        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return sharedPreferences.getBoolean(KEY_VOTER_HAS_VOTED, false)
-    }
-
-    /**
-     * Validate that all stored voter data and keys are consistent and accessible
+     * Validate stored data integrity
      */
     fun validateStoredData(): Boolean {
         return try {
             val hasVoterData = hasStoredVoterData()
             val hasValidKeys = cryptoKeyManager.hasStoredKeyPair()
-            val canAccessPrivateKey = cryptoKeyManager.getPrivateKey() != null
-            val canAccessPublicKey = cryptoKeyManager.getPublicKey() != null
-            val canAccessVoterAddress = cryptoKeyManager.getVoterAddress() != null
+            val voterAddress = cryptoKeyManager.getVoterAddress()
 
-            val isValid = hasVoterData && hasValidKeys && canAccessPrivateKey &&
-                    canAccessPublicKey && canAccessVoterAddress
-
-            Log.d(TAG, "Data validation result: $isValid")
-            if (!isValid) {
-                Log.w(TAG, "Validation details - VoterData: $hasVoterData, Keys: $hasValidKeys, " +
-                        "PrivateKey: $canAccessPrivateKey, PublicKey: $canAccessPublicKey, " +
-                        "VoterAddress: $canAccessVoterAddress")
-            }
-
-            isValid
+            hasVoterData && hasValidKeys && !voterAddress.isNullOrEmpty()
         } catch (e: Exception) {
             Log.e(TAG, "Error validating stored data", e)
             false

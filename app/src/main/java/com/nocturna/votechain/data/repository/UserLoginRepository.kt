@@ -10,6 +10,7 @@ import com.nocturna.votechain.data.model.LoginRequest
 import com.nocturna.votechain.data.model.UserLoginData
 import com.nocturna.votechain.data.network.ElectionNetworkClient
 import com.nocturna.votechain.data.network.NetworkClient
+import com.nocturna.votechain.security.CryptoKeyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.security.MessageDigest
@@ -76,11 +77,15 @@ class UserLoginRepository(private val context: Context) {
 
                         // Fetch voter data after successful login
                         try {
-                            val voterResult = voterRepository.fetchVoterData(loginResponse.data.token)
+                            val voterResult =
+                                voterRepository.fetchVoterData(loginResponse.data.token)
                             if (voterResult.isSuccess) {
                                 Log.d(TAG, "Voter data fetched successfully")
                             } else {
-                                Log.w(TAG, "Failed to fetch voter data: ${voterResult.exceptionOrNull()?.message}")
+                                Log.w(
+                                    TAG,
+                                    "Failed to fetch voter data: ${voterResult.exceptionOrNull()?.message}"
+                                )
                             }
                         } catch (e: Exception) {
                             Log.w(TAG, "Exception while fetching voter data", e)
@@ -150,23 +155,23 @@ class UserLoginRepository(private val context: Context) {
     /**
      * Verify password against stored hash
      */
-    fun verifyPassword(password: String): Boolean {
-        return try {
-            val storedHash = encryptedSharedPreferences.getString(KEY_USER_PASSWORD_HASH, null)
-            if (storedHash != null) {
-                val inputHash = hashPassword(password)
-                val isValid = storedHash == inputHash
-                Log.d(TAG, "Password verification: ${if (isValid) "SUCCESS" else "FAILED"}")
-                isValid
-            } else {
-                Log.w(TAG, "No stored password hash found")
-                false
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error during password verification", e)
-            false
-        }
-    }
+//    fun verifyPassword(password: String): Boolean {
+//        return try {
+//            val storedHash = encryptedSharedPreferences.getString(KEY_USER_PASSWORD_HASH, null)
+//            if (storedHash != null) {
+//                val inputHash = hashPassword(password)
+//                val isValid = storedHash == inputHash
+//                Log.d(TAG, "Password verification: ${if (isValid) "SUCCESS" else "FAILED"}")
+//                isValid
+//            } else {
+//                Log.w(TAG, "No stored password hash found")
+//                false
+//            }
+//        } catch (e: Exception) {
+//            Log.e(TAG, "Error during password verification", e)
+//            false
+//        }
+//    }
 
     /**
      * Hash password using SHA-256 with salt
@@ -206,10 +211,10 @@ class UserLoginRepository(private val context: Context) {
     /**
      * Get saved user email from SharedPreferences
      */
-    fun getUserEmail(): String {
-        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return sharedPreferences.getString(KEY_USER_EMAIL, "") ?: ""
-    }
+//    fun getUserEmail(): String {
+//        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+//        return sharedPreferences.getString(KEY_USER_EMAIL, "") ?: ""
+//    }
 
     /**
      * Check if user is logged in (has a valid token)
@@ -312,4 +317,175 @@ class UserLoginRepository(private val context: Context) {
             "isExpired" to isTokenExpired().toString()
         )
     }
+
+    /**
+     * Verify user password for security confirmation
+     * Used for sensitive operations like viewing private key
+     */
+    suspend fun verifyPassword(password: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val userEmail = getUserEmail()
+            if (userEmail.isNullOrEmpty()) {
+                Log.w(TAG, "No user email found for password verification")
+                return@withContext false
+            }
+
+            // Try to login with current email and provided password
+            val loginResult = loginUser(userEmail, password)
+
+            return@withContext loginResult.fold(
+                onSuccess = {
+                    Log.d(TAG, "Password verification successful")
+                    true
+                },
+                onFailure = {
+                    Log.d(TAG, "Password verification failed")
+                    false
+                }
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error verifying password", e)
+            return@withContext false
+        }
+    }
+
+    /**
+     * Get stored user email for password verification
+     */
+    fun getUserEmail(): String? {
+        return try {
+            val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val email = sharedPreferences.getString(KEY_USER_EMAIL, null)
+            Log.d(TAG, "Retrieved user email for verification: ${email?.take(3)}***")
+            email
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting user email", e)
+            null
+        }
+    }
+
+    /**
+     * Enhanced logout method that clears all user data
+     */
+    suspend fun enhancedLogout(): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            // Clear login data
+            clearStoredData()
+
+            // Clear voter data
+            val voterRepository = VoterRepository(context)
+            voterRepository.clearVoterData()
+
+            // Clear user profile data
+            val userProfileRepository = UserProfileRepository(context)
+            userProfileRepository.clearStoredProfile()
+
+            // Clear crypto keys
+            val cryptoKeyManager = CryptoKeyManager(context)
+            cryptoKeyManager.clearStoredKeys()
+
+            Log.d(TAG, "Enhanced logout completed successfully")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during enhanced logout", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Check if user session is still valid
+     */
+    suspend fun isSessionValid(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val token = getStoredToken()
+            if (token.isNullOrEmpty()) {
+                return@withContext false
+            }
+
+            // Try to validate token with server
+            val response = apiService.getVoterDataWithToken("Bearer $token")
+            return@withContext response.isSuccessful
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking session validity", e)
+            return@withContext false
+        }
+    }
+
+    /**
+     * Store complete user session data
+     */
+    fun storeCompleteUserSession(
+        userToken: String,
+        userEmail: String,
+        userId: String? = null,
+        refreshToken: String? = null
+    ) {
+        try {
+            val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            with(sharedPreferences.edit()) {
+                putString(KEY_USER_TOKEN, userToken)
+                putString(KEY_USER_EMAIL, userEmail)
+                userId?.let { putString(KEY_USER_ID, it) }
+                refreshToken?.let { putString(KEY_REFRESH_TOKEN, it) }
+                putLong(KEY_LOGIN_TIMESTAMP, System.currentTimeMillis())
+                apply()
+            }
+            Log.d(TAG, "Complete user session stored")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error storing complete user session", e)
+        }
+    }
+
+    /**
+     * Get complete user session data
+     */
+    fun getCompleteUserSession(): UserSession? {
+        return try {
+            val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+            val token = sharedPreferences.getString(KEY_USER_TOKEN, null)
+            val email = sharedPreferences.getString(KEY_USER_EMAIL, null)
+            val userId = sharedPreferences.getString(KEY_USER_ID, null)
+            val refreshToken = sharedPreferences.getString(KEY_REFRESH_TOKEN, null)
+            val loginTimestamp = sharedPreferences.getLong(KEY_LOGIN_TIMESTAMP, 0)
+
+            if (token != null && email != null) {
+                UserSession(
+                    token = token,
+                    email = email,
+                    userId = userId,
+                    refreshToken = refreshToken,
+                    loginTimestamp = loginTimestamp
+                )
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting complete user session", e)
+            null
+        }
+    }
+
+
+    companion object {
+        private const val TAG = "UserLoginRepository"
+        private const val PREFS_NAME = "UserLoginPrefs"
+        private const val KEY_USER_TOKEN = "user_token"
+        private const val KEY_USER_EMAIL = "user_email"
+        private const val KEY_USER_ID = "user_id"
+        private const val KEY_REFRESH_TOKEN = "refresh_token"
+        private const val KEY_LOGIN_TIMESTAMP = "login_timestamp"
+    }
 }
+
+// Add this data class:
+/**
+ * Complete user session data
+ */
+data class UserSession(
+    val token: String,
+    val email: String,
+    val userId: String? = null,
+    val refreshToken: String? = null,
+    val loginTimestamp: Long = 0
+)

@@ -29,6 +29,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -61,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.nocturna.votechain.data.model.WalletInfo
 import com.nocturna.votechain.data.repository.UserLoginRepository
 import com.nocturna.votechain.data.repository.UserProfileRepository
 import com.nocturna.votechain.data.repository.VoterRepository
@@ -105,27 +107,37 @@ fun ProfileScreen(
     val userLoginRepository = remember { UserLoginRepository(context) }
     val voterRepository = remember { VoterRepository(context) }
 
-    // State untuk profile data
+    // State untuk profile data dengan real-time wallet info
     var completeUserProfile by remember { mutableStateOf(userProfileRepository.getSavedCompleteProfile()) }
     var fallbackVoterData by remember { mutableStateOf(voterRepository.getVoterDataLocally()) }
+    var walletInfo by remember { mutableStateOf(WalletInfo()) }
     var dataLoadError by remember { mutableStateOf<String?>(null) }
+    var isLoadingWallet by remember { mutableStateOf(true) }
 
-//    // Get voter data from repository
-//    val voterRepository = remember { VoterRepository(context) }
-//    val walletInfo = voterRepository.getWalletInfo()
-
-    // Refresh profile data saat screen dibuka
+// Refresh profile data dan wallet info saat screen dibuka
     LaunchedEffect(Unit) {
+        // Load profile data
         userProfileRepository.fetchCompleteUserProfileWithFallback().fold(
             onSuccess = { profile ->
-                // Handle successful profile load
                 completeUserProfile = profile
             },
             onFailure = { error ->
-                // Handle error but still try to use cached data
                 completeUserProfile = userProfileRepository.getSavedCompleteProfile()
             }
         )
+
+        // Load real-time wallet info
+        try {
+            isLoadingWallet = true
+            walletInfo = voterRepository.getCompleteWalletInfo()
+            dataLoadError = null
+        } catch (e: Exception) {
+            dataLoadError = "Failed to load wallet info: ${e.message}"
+            // Use cached wallet info as fallback
+            walletInfo = voterRepository.getWalletInfo()
+        } finally {
+            isLoadingWallet = false
+        }
     }
 
     // Extract voter data dari complete profile
@@ -281,6 +293,99 @@ fun ProfileScreen(
                                 contentPadding = PaddingValues(horizontal = 3.dp, vertical = 4.dp),
                                 modifier = Modifier.height(26.dp),
                             ) {
+                                Text(strings.view, style = AppTypography.heading6Regular, color = NeutralColors.Neutral10)
+                                Icon(
+                                    painter = painterResource(id = R.drawable.right2),
+                                    contentDescription = null,
+                                    tint = NeutralColors.Neutral10,
+                                    modifier = Modifier
+                                        .padding(start = 4.dp)
+                                        .size(12.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Account Section dengan real wallet info
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = strings.account,
+                                style = AppTypography.heading5Bold,
+                                color = NeutralColors.Neutral90
+                            )
+
+                            // Balance display dengan loading state
+                            Text(
+                                text = if (isLoadingWallet) {
+                                    "Loading balance..."
+                                } else if (walletInfo.hasError) {
+                                    "Error loading balance"
+                                } else {
+                                    "${strings.balance}: ${walletInfo.balance} ETH"
+                                },
+                                style = AppTypography.paragraphRegular,
+                                color = if (walletInfo.hasError) {
+                                    Color.Red
+                                } else {
+                                    NeutralColors.Neutral70
+                                },
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+
+                            // Show last updated time
+                            if (!isLoadingWallet && !walletInfo.hasError) {
+                                val lastUpdated = remember(walletInfo.lastUpdated) {
+                                    java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+                                        .format(java.util.Date(walletInfo.lastUpdated))
+                                }
+                                Text(
+                                    text = "Updated: $lastUpdated",
+                                    style = AppTypography.paragraphRegular,
+                                    color = NeutralColors.Neutral50,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+                        }
+
+                        // View button dengan loading indicator
+                        Button(
+                            onClick = {
+                                if (!isLoadingWallet) {
+                                    showPasswordDialog = true
+                                }
+                            },
+                            enabled = !isLoadingWallet,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MainColors.Primary1
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 3.dp, vertical = 4.dp),
+                            modifier = Modifier.height(26.dp),
+                        ) {
+                            if (isLoadingWallet) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(12.dp),
+                                    strokeWidth = 1.dp,
+                                    color = NeutralColors.Neutral10
+                                )
+                            } else {
                                 Text(strings.view, style = AppTypography.heading6Regular, color = NeutralColors.Neutral10)
                                 Icon(
                                     painter = painterResource(id = R.drawable.right2),

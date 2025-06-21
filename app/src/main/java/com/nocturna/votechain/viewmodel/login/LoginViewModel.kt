@@ -1,14 +1,18 @@
 package com.nocturna.votechain.viewmodel.login
 
+import android.content.ContentValues.TAG
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.nocturna.votechain.data.model.ApiResponse
+import com.nocturna.votechain.data.model.CompleteUserData
 import com.nocturna.votechain.data.model.UserLoginData
+import com.nocturna.votechain.data.repository.IntegratedEnhancedUserRepository
 import com.nocturna.votechain.data.repository.RegistrationStateManager
 import com.nocturna.votechain.data.repository.UserLoginRepository
+import com.nocturna.votechain.data.repository.VoterRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,147 +23,304 @@ import kotlinx.coroutines.launch
  */
 class LoginViewModel(
     private val userLoginRepository: UserLoginRepository,
+    private val integratedUserRepository: IntegratedEnhancedUserRepository,
+    private val voterRepository: VoterRepository,
     private val context: Context
 ) : ViewModel() {
-    private val TAG = "LoginViewModel"
-    private val registrationStateManager = RegistrationStateManager(context)
-
+    // UI State
     private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Initial)
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
-    // Check initial login state
+    // Complete User Data State
+    private val _completeUserData = MutableStateFlow<CompleteUserData?>(null)
+    val completeUserData: StateFlow<CompleteUserData?> = _completeUserData.asStateFlow()
+
+    // Session State
+    private val _isLoggedIn = MutableStateFlow(false)
+    val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
+
     init {
+        // Check if user is already logged in on initialization
         checkLoginState()
+    }
+
+    /**
+     * Enhanced login with complete user data loading
+     */
+    fun login(email: String, password: String) {
+        viewModelScope.launch {
+            try {
+                _uiState.value = LoginUiState.Loading
+
+                Log.d(TAG, "Starting enhanced login for: $email")
+
+                // Step 1: Authenticate user
+                val loginResult = userLoginRepository.loginUser(email, password)
+
+                loginResult.fold(
+                    onSuccess = { loginResponse ->
+                        Log.d(TAG, "Login successful, loading complete user data...")
+
+                        // Step 2: Load complete user data including real-time balance
+                        loadCompleteUserData()
+                    },
+                    onFailure = { error ->
+                        Log.e(TAG, "Login failed: ${error.message}")
+                        _uiState.value = LoginUiState.Error(error.message ?: "Login failed")
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Login exception: ${e.message}", e)
+                _uiState.value = LoginUiState.Error(e.message ?: "An unexpected error occurred")
+            }
+        }
+    }
+
+    /**
+     * Load complete user data after successful authentication
+     */
+    private suspend fun loadCompleteUserData() {
+        try {
+            Log.d(TAG, "Loading complete user data...")
+
+            // Load complete user data with wallet info
+            val completeData = integratedUserRepository.getCompleteUserData()
+
+            _completeUserData.value = completeData
+            _isLoggedIn.value = true
+
+            // Check if we have all required data
+            val hasRequiredData = completeData.voterData != null &&
+                    completeData.walletInfo.voterAddress.isNotEmpty()
+
+            if (hasRequiredData) {
+                _uiState.value = LoginUiState.Success(completeData)
+                Log.d(TAG, "✅ Login completed with complete user data")
+
+                // Log success details (without sensitive info)
+                Log.d(TAG, "User data loaded:")
+                Log.d(TAG, "- Voter: ${completeData.voterData?.full_name}")
+                Log.d(TAG, "- Balance: ${completeData.walletInfo.balance} ETH")
+                Log.d(TAG, "- Address: ${completeData.walletInfo.voterAddress.take(10)}...")
+            } else {
+                Log.w(TAG, "Login successful but missing some user data")
+                _uiState.value = LoginUiState.PartialSuccess(completeData, "Some account data may be incomplete")
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading complete user data: ${e.message}", e)
+            _uiState.value = LoginUiState.Error("Login successful but failed to load account data: ${e.message}")
+        }
     }
 
     /**
      * Check if the user is already logged in
      */
     fun checkLoginState() {
-        if (userLoginRepository.isUserLoggedIn()) {
-            // If user is already logged in, clear any registration state
-            clearRegistrationStateIfLoggedIn()
-            _uiState.value = LoginUiState.AlreadyLoggedIn
-        }
-    }
-
-    /**
-     * Login user with email and password
-     */
-    fun loginUser(email: String, password: String) {
-        if (email.isBlank() || password.isBlank()) {
-            _uiState.value = LoginUiState.Error("Email and password cannot be empty")
-            return
-        }
-
-        _uiState.value = LoginUiState.Loading
-
         viewModelScope.launch {
             try {
-                val result = userLoginRepository.loginUser(email, password)
+                val isSessionValid = userLoginRepository.isSessionValid()
 
-                result.fold(
-                    onSuccess = { response ->
-                        if (response.code == 200 && response.data?.is_active == true) {
-                            Log.d(TAG, "Login successful and user is active")
-                            // Save token for persistent login
-                            response.data.token?.let { token ->
-                                userLoginRepository.saveUserToken(token)
-                            }
-
-                            // Clear any existing registration state since user has successfully logged in
-                            clearRegistrationStateAfterLogin()
-
-                            _uiState.value = LoginUiState.Success(response)
-                        } else if (response.code == 400 || response.code == 401) {
-                            Log.e(TAG, "Login failed: Invalid credentials")
-                            _uiState.value = LoginUiState.Error("Invalid email or password. Please try again.")
-                        } else if (response.data?.is_active == false) {
-                            Log.e(TAG, "Login failed: User account is not active")
-                            _uiState.value = LoginUiState.Error("Your account is not active. Please contact support.")
-                        } else {
-                            Log.e(TAG, "Login failed: ${response.message}")
-                            _uiState.value = LoginUiState.Error(response.message)
-                        }
-                    },
-                    onFailure = { exception ->
-                        Log.e(TAG, "Login failed: ${exception.message}", exception)
-                        _uiState.value = LoginUiState.Error(exception.message ?: "Failed to connect to server. Please check your internet connection.")
-                    }
-                )
+                if (isSessionValid) {
+                    Log.d(TAG, "Valid session found, loading user data...")
+                    _uiState.value = LoginUiState.Loading
+                    loadCompleteUserData()
+                } else {
+                    Log.d(TAG, "No valid session found")
+                    _uiState.value = LoginUiState.Initial
+                    _isLoggedIn.value = false
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Exception during login: ${e.message}", e)
-                _uiState.value = LoginUiState.Error(e.message ?: "An unexpected error occurred. Please try again.")
+                Log.e(TAG, "Error checking login state: ${e.message}", e)
+                _uiState.value = LoginUiState.Initial
+                _isLoggedIn.value = false
             }
         }
     }
 
     /**
-     * Clear registration state when user successfully logs in
-     * This ensures that if they logout and try to register again, they won't be stuck in old states
+     * Refresh user data (for pull-to-refresh functionality)
      */
-    private fun clearRegistrationStateAfterLogin() {
-        val currentState = registrationStateManager.getRegistrationState()
-        if (currentState != RegistrationStateManager.STATE_NONE) {
-            Log.d(TAG, "Clearing registration state after successful login. Previous state: $currentState")
-            registrationStateManager.clearRegistrationState()
+    fun refreshUserData() {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Refreshing user data...")
+
+                val refreshedData = integratedUserRepository.refreshCompleteUserData()
+
+                refreshedData.fold(
+                    onSuccess = { data ->
+                        _completeUserData.value = data
+                        _uiState.value = LoginUiState.Success(data)
+                        Log.d(TAG, "✅ User data refreshed successfully")
+                    },
+                    onFailure = { error ->
+                        Log.w(TAG, "Failed to refresh user data: ${error.message}")
+                        // Keep existing data but show warning
+                        _uiState.value = LoginUiState.RefreshError(
+                            _completeUserData.value ?: CompleteUserData(),
+                            "Failed to refresh: ${error.message}"
+                        )
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Error refreshing user data: ${e.message}", e)
+            }
         }
     }
 
     /**
-     * Clear registration state if user is already logged in
-     * Called during initialization
+     * Refresh only wallet balance
      */
-    private fun clearRegistrationStateIfLoggedIn() {
-        val currentState = registrationStateManager.getRegistrationState()
-        if (currentState != RegistrationStateManager.STATE_NONE) {
-            Log.d(TAG, "User is already logged in, clearing existing registration state: $currentState")
-            registrationStateManager.clearRegistrationState()
+    fun refreshBalance() {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Refreshing balance...")
+
+                val newBalance = voterRepository.refreshBalance()
+
+                // Update the wallet info in complete user data
+                _completeUserData.value?.let { currentData ->
+                    val updatedWalletInfo = currentData.walletInfo.copy(
+                        balance = newBalance,
+                        lastUpdated = System.currentTimeMillis(),
+                        hasError = false,
+                        errorMessage = ""
+                    )
+                    val updatedData = currentData.copy(walletInfo = updatedWalletInfo)
+                    _completeUserData.value = updatedData
+
+                    Log.d(TAG, "✅ Balance refreshed: $newBalance ETH")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error refreshing balance: ${e.message}", e)
+
+                // Update wallet info with error
+                _completeUserData.value?.let { currentData ->
+                    val errorWalletInfo = currentData.walletInfo.copy(
+                        hasError = true,
+                        errorMessage = e.message ?: "Failed to refresh balance"
+                    )
+                    val updatedData = currentData.copy(walletInfo = errorWalletInfo)
+                    _completeUserData.value = updatedData
+                }
+            }
         }
     }
 
     /**
-     * Reset the UI state to initial
+     * Enhanced logout with complete data cleanup
      */
-    fun resetState() {
-        _uiState.value = LoginUiState.Initial
+    fun logout() {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Starting enhanced logout...")
+
+                // Clear all user data
+                integratedUserRepository.clearAllUserData()
+
+                // Reset state
+                _completeUserData.value = null
+                _isLoggedIn.value = false
+                _uiState.value = LoginUiState.LoggedOut
+
+                Log.d(TAG, "✅ Enhanced logout completed")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during logout: ${e.message}", e)
+                // Force logout even if there's an error
+                _completeUserData.value = null
+                _isLoggedIn.value = false
+                _uiState.value = LoginUiState.LoggedOut
+            }
+        }
     }
 
     /**
-     * Check if user is already logged in
+     * Verify password for sensitive operations
      */
-    fun isUserLoggedIn(): Boolean {
-        return userLoginRepository.isUserLoggedIn()
+    fun verifyPassword(password: String, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Verifying password for sensitive operation...")
+                val isValid = userLoginRepository.verifyPassword(password)
+                onResult(isValid)
+                Log.d(TAG, "Password verification result: $isValid")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error verifying password: ${e.message}", e)
+                onResult(false)
+            }
+        }
     }
 
     /**
-     * Log out the current user
+     * Get current user session info
      */
-    fun logoutUser() {
-        userLoginRepository.logoutUser()
-        _uiState.value = LoginUiState.Initial
+    fun getUserSession() = userLoginRepository.getCompleteUserSession()
+
+    /**
+     * Check if blockchain is connected
+     */
+    fun checkBlockchainConnection() {
+        viewModelScope.launch {
+            try {
+                val isConnected = integratedUserRepository.checkBlockchainConnection()
+                Log.d(TAG, "Blockchain connection status: $isConnected")
+
+                // Update wallet info with connection status
+                _completeUserData.value?.let { currentData ->
+                    val updatedWalletInfo = currentData.walletInfo.copy(
+                        hasError = !isConnected,
+                        errorMessage = if (!isConnected) "Blockchain not connected" else ""
+                    )
+                    val updatedData = currentData.copy(walletInfo = updatedWalletInfo)
+                    _completeUserData.value = updatedData
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking blockchain connection: ${e.message}", e)
+            }
+        }
     }
 
     /**
-     * UI State for Login Screen
+     * Clear error state
+     */
+    fun clearError() {
+        if (_uiState.value is LoginUiState.Error) {
+            _uiState.value = LoginUiState.Initial
+        }
+    }
+
+    /**
+     * UI State definitions
      */
     sealed class LoginUiState {
-        data object Initial : LoginUiState()
-        data object Loading : LoginUiState()
-        data object AlreadyLoggedIn : LoginUiState()
-        data class Success(val data: ApiResponse<UserLoginData>) : LoginUiState()
+        object Initial : LoginUiState()
+        object Loading : LoginUiState()
+        data class Success(val userData: CompleteUserData) : LoginUiState()
+        data class PartialSuccess(val userData: CompleteUserData, val warning: String) : LoginUiState()
         data class Error(val message: String) : LoginUiState()
+        data class RefreshError(val userData: CompleteUserData, val message: String) : LoginUiState()
+        object AlreadyLoggedIn : LoginUiState()
+        object LoggedOut : LoginUiState()
     }
 
     /**
-     * Factory for creating LoginViewModel
+     * Factory for creating LoginViewModel instances
      */
     class Factory(private val context: Context) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(LoginViewModel::class.java)) {
                 val userLoginRepository = UserLoginRepository(context)
-                return LoginViewModel(userLoginRepository, context) as T
+                val integratedUserRepository = IntegratedEnhancedUserRepository(context)
+                val voterRepository = VoterRepository(context)
+
+                return LoginViewModel(
+                    userLoginRepository,
+                    integratedUserRepository,
+                    voterRepository,
+                    context
+                ) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }

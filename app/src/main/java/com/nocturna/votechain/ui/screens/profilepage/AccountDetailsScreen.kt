@@ -43,6 +43,7 @@ fun AccountDetailsScreen(
     val strings = LanguageManager.getLocalizedStrings()
     val scrollState = rememberScrollState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     // Repository instances
     val userProfileRepository = remember { UserProfileRepository(context) }
@@ -52,51 +53,170 @@ fun AccountDetailsScreen(
     // Get LoginViewModel instance
     val loginViewModel: LoginViewModel = viewModel(factory = LoginViewModel.Factory(context))
 
-    // State untuk profile data dengan fallback
-    var completeUserProfile by remember { mutableStateOf(userProfileRepository.getSavedCompleteProfile()) }
-    var fallbackVoterData by remember { mutableStateOf(voterRepository.getVoterDataLocally()) }
-    var dataLoadError by remember { mutableStateOf<String?>(null) }
+    // State for account data
+    var accountData by remember { mutableStateOf(AccountDisplayData()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    var showPrivateKey by remember { mutableStateOf(false) }
+    var showPasswordDialog by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // State for logout confirmation dialog
     var showLogoutDialog by remember { mutableStateOf(false) }
-
-    // Refresh profile data saat screen dibuka
-    LaunchedEffect(Unit) {
-        userProfileRepository.fetchCompleteUserProfile().fold(
-            onSuccess = { profile ->
-                completeUserProfile = profile
-                dataLoadError = null
-            },
-            onFailure = { error ->
-                dataLoadError = error.message
-                // Gunakan saved profile sebagai fallback
-                completeUserProfile = userProfileRepository.getSavedCompleteProfile()
-
-                // Jika masih tidak ada, gunakan local voter data
-                if (completeUserProfile?.voterProfile == null) {
-                    fallbackVoterData = voterRepository.getVoterDataLocally()
-                }
-            }
-        )
-    }
-
-    // Extract data dari complete profile
-    val voterData = completeUserProfile?.voterProfile
-    val userProfile = completeUserProfile?.userProfile
-
-    // Data dari voter atau default values
-    val balance = "0.0000" // Placeholder balance
-    val nik = voterData?.nik ?: "No NIK available"
-    val privateKey = "Not available yet" // Placeholder private key
-    val publicKey = voterData?.voter_address ?: "No public key available"
-
-    var showPrivateKey by remember { mutableStateOf(false) }
 
     // For copy to clipboard functionality
     val clipboardManager = LocalClipboardManager.current
     var showCopiedMessage by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+
+    // Load account data when screen opens
+    LaunchedEffect(Unit) {
+        loadAccountData()
+    }
+
+    // Function to load account data
+    suspend fun loadAccountData() {
+        try {
+            isLoading = true
+            errorMessage = null
+
+            // Get complete user profile first
+            userProfileRepository.fetchCompleteUserProfile().fold(
+                onSuccess = { profile ->
+                    // Profile loaded successfully, now get account data
+                    val displayData = voterRepository.getAccountDisplayData()
+                    accountData = displayData.copy(
+                        email = profile.userProfile?.email ?: ""
+                    )
+                },
+                onFailure = { error ->
+                    // Use fallback data if profile fetch fails
+                    val displayData = voterRepository.getAccountDisplayData()
+                    accountData = displayData.copy(
+                        email = userLoginRepository.getUserEmail() ?: ""
+                    )
+                    errorMessage = "Some data may be outdated: ${error.message}"
+                }
+            )
+        } catch (e: Exception) {
+            errorMessage = "Failed to load account data: ${e.message}"
+            // Set default values on error
+            accountData = AccountDisplayData(
+                errorMessage = errorMessage
+            )
+        } finally {
+            isLoading = false
+            isRefreshing = false
+        }
+    }
+
+    // Function to refresh balance
+    fun refreshBalance() {
+        scope.launch {
+            try {
+                isRefreshing = true
+                val newBalance = voterRepository.refreshBalance()
+                accountData = accountData.copy(
+                    ethBalance = newBalance,
+                    errorMessage = null
+                )
+
+                // Show success message
+                snackbarHostState.showSnackbar("Balance updated successfully")
+            } catch (e: Exception) {
+                snackbarHostState.showSnackbar("Failed to refresh balance: ${e.message}")
+            } finally {
+                isRefreshing = false
+            }
+        }
+    }
+
+    // Function to copy text to clipboard
+    fun copyToClipboard(text: String, label: String) {
+        clipboardManager.setText(AnnotatedString(text))
+        scope.launch {
+            snackbarHostState.showSnackbar("$label copied to clipboard")
+        }
+    }
+
+    // Password confirmation dialog for private key access
+    if (showPasswordDialog) {
+        var password by remember { mutableStateOf("") }
+        var passwordError by remember { mutableStateOf<String?>(null) }
+
+        AlertDialog(
+            onDismissRequest = {
+                showPasswordDialog = false
+                password = ""
+                passwordError = null
+            },
+            title = {
+                Text(
+                    text = "Security Confirmation",
+                    style = AppTypography.heading4Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Enter your password to view private key",
+                        style = AppTypography.paragraphRegular,
+                        color = NeutralColors.Neutral70,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = {
+                            password = it
+                            passwordError = null
+                        },
+                        label = { Text("Password") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        isError = passwordError != null,
+                        supportingText = passwordError?.let { { Text(it) } },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            try {
+                                // Verify password with login repository
+                                val isValid = userLoginRepository.verifyPassword(password)
+                                if (isValid) {
+                                    showPrivateKey = true
+                                    showPasswordDialog = false
+                                    password = ""
+                                    passwordError = null
+                                } else {
+                                    passwordError = "Incorrect password"
+                                }
+                            } catch (e: Exception) {
+                                passwordError = "Failed to verify password"
+                            }
+                        }
+                    }
+                ) {
+                    Text("Confirm")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showPasswordDialog = false
+                        password = ""
+                        passwordError = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     // Logout Dialog
     if (showLogoutDialog) {
@@ -113,35 +233,31 @@ fun AccountDetailsScreen(
                 Text(
                     text = "Are you sure you want to logout from your account?",
                     style = AppTypography.paragraphRegular,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = NeutralColors.Neutral70
                 )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
+                        scope.launch {
+                            try {
+                                loginViewModel.logout()
+                                onLogout()
+                            } catch (e: Exception) {
+                                // Handle logout error
+                            }
+                        }
                         showLogoutDialog = false
-                        loginViewModel.logoutUser()
-                        onLogout()
-                    },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = NeutralColors.Neutral40
-                    )
+                    }
                 ) {
-                    Text("Logout")
+                    Text("Yes, Logout", color = Color(0xFFE53E3E))
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = { showLogoutDialog = false },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                ) {
+                TextButton(onClick = { showLogoutDialog = false }) {
                     Text("Cancel")
                 }
-            },
-            containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(16.dp)
+            }
         )
     }
 
@@ -173,210 +289,252 @@ fun AccountDetailsScreen(
             SnackbarHost(hostState = snackbarHostState)
         }
     ) { innerPadding ->
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 24.dp)
-                .verticalScroll(scrollState)
-        ) {
-            // Balance
-            Text(
-                text = strings.balance,
-                style = AppTypography.heading5Regular,
-                color = NeutralColors.Neutral70,
-                modifier = Modifier.padding(bottom = 8.dp, top = 16.dp)
-            )
-
-            OutlinedTextField(
-                value = balance,
-                onValueChange = { },
-                readOnly = true,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = NeutralColors.Neutral30,
-                    unfocusedTextColor = NeutralColors.Neutral70,
-                    disabledBorderColor = NeutralColors.Neutral30,
-                    disabledTextColor = NeutralColors.Neutral70,
-                    focusedBorderColor = MainColors.Primary1,
-                    focusedTextColor = NeutralColors.Neutral70,
-                ),
-                textStyle = AppTypography.heading5Regular
-            )
-
-            // NIK
-            Text(
-                text = strings.nik,
-                style = AppTypography.heading5Regular,
-                color = NeutralColors.Neutral70,
-                modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
-            )
-
-            OutlinedTextField(
-                value = nik,
-                onValueChange = { },
-                readOnly = true,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = NeutralColors.Neutral30,
-                    unfocusedTextColor = NeutralColors.Neutral70,
-                    disabledBorderColor = NeutralColors.Neutral30,
-                    disabledTextColor = NeutralColors.Neutral70,
-                    focusedBorderColor = MainColors.Primary1,
-                    focusedTextColor = NeutralColors.Neutral70,
-                ),
-                textStyle = AppTypography.heading5Regular
-            )
-
-            // Full Name
-            Text(
-                text = "Full Name",
-                style = AppTypography.heading5Regular,
-                color = NeutralColors.Neutral70,
-                modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
-            )
-
-            OutlinedTextField(
-                value = voterData?.full_name ?: "No name available",
-                onValueChange = { },
-                readOnly = true,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = NeutralColors.Neutral30,
-                    unfocusedTextColor = NeutralColors.Neutral70,
-                    disabledBorderColor = NeutralColors.Neutral30,
-                    disabledTextColor = NeutralColors.Neutral70,
-                    focusedBorderColor = MainColors.Primary1,
-                    focusedTextColor = NeutralColors.Neutral70,
-                ),
-                textStyle = AppTypography.heading5Regular
-            )
-
-            // Private Key
-            Text(
-                text = strings.privateKey,
-                style = AppTypography.heading5Regular,
-                color = NeutralColors.Neutral70,
-                modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
-            )
-
-            OutlinedTextField(
-                value = privateKey,
-                onValueChange = { },
-                readOnly = true,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth(),
-                visualTransformation = if (showPrivateKey) VisualTransformation.None else PasswordVisualTransformation(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = NeutralColors.Neutral30,
-                    unfocusedTextColor = NeutralColors.Neutral70,
-                    disabledBorderColor = NeutralColors.Neutral30,
-                    disabledTextColor = NeutralColors.Neutral70,
-                    focusedBorderColor = MainColors.Primary1,
-                    focusedTextColor = NeutralColors.Neutral70,
-                    unfocusedTrailingIconColor = NeutralColors.Neutral40,
-                    focusedTrailingIconColor = NeutralColors.Neutral40,
-                ),
-                textStyle = AppTypography.heading5Regular,
-                trailingIcon = {
-                    IconButton(onClick = { showPrivateKey = !showPrivateKey }) {
-                        Icon(
-                            painter = painterResource(
-                                id = if (showPrivateKey) R.drawable.show else R.drawable.hide
-                            ),
-                            contentDescription = if (showPrivateKey) "Hide private key" else "Show private key",
-                            tint = NeutralColors.Neutral40
-                        )
-                    }
+        if (isLoading) {
+            // Loading state
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator(color = MainColors.Primary1)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Loading account data...",
+                        style = AppTypography.paragraphRegular,
+                        color = NeutralColors.Neutral70
+                    )
                 }
-            )
-
-            // Public Key
-            Text(
-                text = strings.publicKey,
-                style = AppTypography.heading5Regular,
-                color = NeutralColors.Neutral70,
-                modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
-            )
-
-            OutlinedTextField(
-                value = publicKey,
-                onValueChange = { },
-                readOnly = true,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth(),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = NeutralColors.Neutral30,
-                    unfocusedTextColor = NeutralColors.Neutral70,
-                    disabledBorderColor = NeutralColors.Neutral30,
-                    disabledTextColor = NeutralColors.Neutral70,
-                    focusedBorderColor = MainColors.Primary1,
-                    focusedTextColor = NeutralColors.Neutral70,
-                    unfocusedTrailingIconColor = NeutralColors.Neutral40,
-                    focusedTrailingIconColor = NeutralColors.Neutral40,
-                ),
-                textStyle = AppTypography.heading5Regular,
-                trailingIcon = {
-                    IconButton(
-                        onClick = {
-                            clipboardManager.setText(AnnotatedString(publicKey))
-                            scope.launch {
-                                showCopiedMessage = true
-                                snackbarHostState.showSnackbar(
-                                    message = "Public Key copied to clipboard",
-                                    duration = SnackbarDuration.Short
-                                )
-                                delay(2000)
-                                showCopiedMessage = false
-                            }
-                        }
+            }
+        } else {
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 24.dp)
+                    .verticalScroll(scrollState)
+            ) {
+                // Error message if any
+                errorMessage?.let { message ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFFFF3CD)
+                        )
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.copy),
-                            contentDescription = "Copy public key",
-                            tint = NeutralColors.Neutral40
+                        Text(
+                            text = message,
+                            style = AppTypography.paragraphRegular,
+                            color = Color(0xFF856404),
+                            modifier = Modifier.padding(16.dp)
                         )
                     }
                 }
-            )
 
-            // Add spacer at the bottom for better scrolling experience
-            Spacer(modifier = Modifier.height(40.dp))
+                // Balance
+                Text(
+                    text = strings.balance,
+                    style = AppTypography.heading5Regular,
+                    color = NeutralColors.Neutral70,
+                    modifier = Modifier.padding(bottom = 8.dp, top = 16.dp)
+                )
+
+                OutlinedTextField(
+                    value = "${accountData.ethBalance} ETH",
+                    onValueChange = { },
+                    readOnly = true,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = NeutralColors.Neutral30,
+                        unfocusedTextColor = NeutralColors.Neutral70,
+                        disabledBorderColor = NeutralColors.Neutral30,
+                        disabledTextColor = NeutralColors.Neutral70,
+                        focusedBorderColor = MainColors.Primary1,
+                        focusedTextColor = NeutralColors.Neutral70,
+                    ),
+                    textStyle = AppTypography.heading5Regular
+                )
+
+                // NIK
+                Text(
+                    text = strings.nik,
+                    style = AppTypography.heading5Regular,
+                    color = NeutralColors.Neutral70,
+                    modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
+                )
+
+                OutlinedTextField(
+                    value = accountData.nik,
+                    onValueChange = { },
+                    readOnly = true,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = NeutralColors.Neutral30,
+                        unfocusedTextColor = NeutralColors.Neutral70,
+                        disabledBorderColor = NeutralColors.Neutral30,
+                        disabledTextColor = NeutralColors.Neutral70,
+                        focusedBorderColor = MainColors.Primary1,
+                        focusedTextColor = NeutralColors.Neutral70,
+                    ),
+                    textStyle = AppTypography.heading5Regular
+                )
+
+                // Full Name
+                Text(
+                    text = "Full Name",
+                    style = AppTypography.heading5Regular,
+                    color = NeutralColors.Neutral70,
+                    modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
+                )
+
+                OutlinedTextField(
+                    value = accountData.fullName,
+                    onValueChange = { },
+                    readOnly = true,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = NeutralColors.Neutral30,
+                        unfocusedTextColor = NeutralColors.Neutral70,
+                        disabledBorderColor = NeutralColors.Neutral30,
+                        disabledTextColor = NeutralColors.Neutral70,
+                        focusedBorderColor = MainColors.Primary1,
+                        focusedTextColor = NeutralColors.Neutral70,
+                    ),
+                    textStyle = AppTypography.heading5Regular
+                )
+
+                // Private Key
+                Text(
+                    text = strings.privateKey,
+                    style = AppTypography.heading5Regular,
+                    color = NeutralColors.Neutral70,
+                    modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
+                )
+
+                OutlinedTextField(
+                    value = if (showPrivateKey && accountData.privateKey.isNotEmpty()) {
+                        accountData.privateKey
+                    } else {
+                        "••••••••••••••••••••••••••••••••"
+                    },
+                    onValueChange = { },
+                    readOnly = true,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    visualTransformation = if (showPrivateKey) VisualTransformation.None else PasswordVisualTransformation(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = NeutralColors.Neutral30,
+                        unfocusedTextColor = NeutralColors.Neutral70,
+                        disabledBorderColor = NeutralColors.Neutral30,
+                        disabledTextColor = NeutralColors.Neutral70,
+                        focusedBorderColor = MainColors.Primary1,
+                        focusedTextColor = NeutralColors.Neutral70,
+                        unfocusedTrailingIconColor = NeutralColors.Neutral40,
+                        focusedTrailingIconColor = NeutralColors.Neutral40,
+                    ),
+                    textStyle = AppTypography.heading5Regular,
+                    trailingIcon = {
+                        IconButton(onClick = { showPrivateKey = !showPrivateKey }) {
+                            Icon(
+                                painter = painterResource(
+                                    id = if (showPrivateKey) R.drawable.show else R.drawable.hide
+                                ),
+                                contentDescription = if (showPrivateKey) "Hide private key" else "Show private key",
+                                tint = NeutralColors.Neutral40
+                            )
+                        }
+                    }
+                )
+
+                // Public Key
+                Text(
+                    text = strings.publicKey,
+                    style = AppTypography.heading5Regular,
+                    color = NeutralColors.Neutral70,
+                    modifier = Modifier.padding(bottom = 8.dp, top = 24.dp)
+                )
+
+                OutlinedTextField(
+                    value = accountData.publicKey,
+                    onValueChange = { },
+                    readOnly = true,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = NeutralColors.Neutral30,
+                        unfocusedTextColor = NeutralColors.Neutral70,
+                        disabledBorderColor = NeutralColors.Neutral30,
+                        disabledTextColor = NeutralColors.Neutral70,
+                        focusedBorderColor = MainColors.Primary1,
+                        focusedTextColor = NeutralColors.Neutral70,
+                        unfocusedTrailingIconColor = NeutralColors.Neutral40,
+                        focusedTrailingIconColor = NeutralColors.Neutral40,
+                    ),
+                    textStyle = AppTypography.heading5Regular,
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            copyToClipboard(accountData.publicKey, "Public Key")
+                        }) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.copy),
+                                contentDescription = "Copy public key",
+                                tint = NeutralColors.Neutral40
+                            )
+                        }
+                    }
+                )
+
+                // Add spacer at the bottom for better scrolling experience
+                Spacer(modifier = Modifier.height(40.dp))
+            }
         }
 
-        // Logout Button - Fixed at bottom
-        Button(
-            onClick = { showLogoutDialog = true },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .height(48.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFE53E3E),
-                contentColor = Color.White
-            ),
-            shape = RoundedCornerShape(8.dp),
-            elevation = ButtonDefaults.buttonElevation(
-                defaultElevation = 0.dp,
-                pressedElevation = 2.dp
-            )
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+            // Logout Button - Fixed at bottom
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.BottomCenter
             ) {
-                Text(
-                    text = "Logout",
-                    style = AppTypography.paragraphRegular,
-                    color = Color.White
-                )
+                Button(
+                    onClick = { showLogoutDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .height(48.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFE53E3E),
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 0.dp,
+                        pressedElevation = 2.dp
+                    )
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Logout",
+                            style = AppTypography.paragraphRegular,
+                            color = Color.White
+                        )
+                    }
+                }
             }
         }
     }
-}
+
 
 @Preview(showBackground = true)
 @Composable
