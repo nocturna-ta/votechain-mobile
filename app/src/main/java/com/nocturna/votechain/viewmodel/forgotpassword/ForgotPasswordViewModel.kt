@@ -66,7 +66,7 @@ class ForgotPasswordViewModel(private val context: Context) : ViewModel() {
 
                 if (result.isSuccess) {
                     val response = result.getOrNull()
-                    if (response?.success == true) {
+                    if (response != null) {
                         _uiState.value = ForgotPasswordUiState.OtpVerified(email, otp)
                     } else {
                         _uiState.value = ForgotPasswordUiState.Error(
@@ -98,7 +98,7 @@ class ForgotPasswordViewModel(private val context: Context) : ViewModel() {
 
                 if (result.isSuccess) {
                     val response = result.getOrNull()
-                    if (response?.success == true) {
+                    if (response != null) {
                         _uiState.value = ForgotPasswordUiState.PasswordResetSuccess
                     } else {
                         _uiState.value = ForgotPasswordUiState.Error(

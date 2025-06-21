@@ -202,7 +202,7 @@ fun VisionMissionScreen(
 
                                 // Display "Data tidak ada" when no work programs
                                 Text(
-                                    text = "Data tidak ada",
+                                    text = strings.dataNotAvailable,
                                     style = AppTypography.paragraphRegular,
                                     color = NeutralColors.Neutral80,
                                     textAlign = TextAlign.Center,
@@ -253,13 +253,25 @@ private fun VisionSection(vision: String) {
         Spacer(modifier = Modifier.height(16.dp))
 
         // Vision Content
-        Text(
-            text = if (vision.isBlank() || vision == "\"\"") "Data tidak tersedia" else vision,
-            style = AppTypography.paragraphMedium,
-            color = NeutralColors.Neutral80,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
+        if (vision.contains(strings.visionNotAvailable, ignoreCase = true) ||
+            vision.contains(strings.visionNotAvailable, ignoreCase = true)) {
+            // Jika mission adalah "data tidak tersedia", tampilkan sebagai teks biasa
+            Text(
+                text = vision,
+                style = AppTypography.paragraphRegular,
+                color = NeutralColors.Neutral80,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        } else {
+            Text(
+                text = vision,
+                style = AppTypography.paragraphMedium,
+                color = NeutralColors.Neutral80,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }
 
@@ -281,44 +293,53 @@ private fun MissionSection(mission: String) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Mission Content - parse numbered list if it contains mission points
-        val missionText = if (mission.isBlank()) "Data tidak ada" else mission
-
-        // Split mission text by numbered points (1., 2., 3., etc.)
-        val missionPoints = missionText.split(Regex("\\d+\\.\\s*")).filter { it.isNotBlank() }
-
-        if (missionPoints.size > 1 && mission.isNotBlank()) {
-            // Display as numbered list
-            missionPoints.forEachIndexed { index, point ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Text(
-                        text = "${index + 1}. ",
-                        style = AppTypography.paragraphRegular,
-                        color = NeutralColors.Neutral80
-                    )
-                    Text(
-                        text = point.trim(),
-                        style = AppTypography.paragraphRegular,
-                        color = NeutralColors.Neutral80,
-                        textAlign = TextAlign.Justify,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-        } else {
-            // Display as single text block
+        if (mission.contains(strings.missionNotAvailable, ignoreCase = true) ||
+            mission.contains(strings.missionNotAvailable, ignoreCase = true)) {
+            // Jika mission adalah "data tidak tersedia", tampilkan sebagai teks biasa
             Text(
-                text = missionText,
+                text = mission,
                 style = AppTypography.paragraphRegular,
                 color = NeutralColors.Neutral80,
-                textAlign = TextAlign.Justify,
+                textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
+        } else {
+            // Parse numbered list jika mission berisi data valid
+            val missionPoints = mission.split(Regex("\\d+\\.\\s*")).filter { it.isNotBlank() }
+
+            if (missionPoints.size > 1) {
+                // Display as numbered list
+                missionPoints.forEachIndexed { index, point ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Text(
+                            text = "${index + 1}. ",
+                            style = AppTypography.paragraphRegular,
+                            color = NeutralColors.Neutral80
+                        )
+                        Text(
+                            text = point.trim(),
+                            style = AppTypography.paragraphRegular,
+                            color = NeutralColors.Neutral80,
+                            textAlign = TextAlign.Justify,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            } else {
+                // Display as single text block
+                Text(
+                    text = mission,
+                    style = AppTypography.paragraphRegular,
+                    color = NeutralColors.Neutral80,
+                    textAlign = TextAlign.Justify,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 }
@@ -341,10 +362,21 @@ private fun WorkProgramsSection(programs: List<WorkProgram>) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        programs.forEachIndexed { index, program ->
-            WorkProgramItem(program = program, index = index + 1)
-            if (index < programs.size - 1) {
-                Spacer(modifier = Modifier.height(16.dp))
+        if (programs.isEmpty()) {
+            // Gunakan localized string untuk konsistensi
+            Text(
+                text = strings.dataNotAvailable, // Menggunakan localized string
+                style = AppTypography.paragraphRegular,
+                color = NeutralColors.Neutral80,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        } else {
+            programs.forEachIndexed { index, program ->
+                WorkProgramItem(program = program, index = index + 1)
+                if (index < programs.size - 1) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
             }
         }
     }
@@ -467,7 +499,7 @@ private fun MoreInformationCard(
 
                 Text(
                     text = if (programDocs == null || programDocs.isBlank())
-                           "Data dokumen tidak ada"
+                           strings.workProgramNotAvailable
                            else strings.cardDescription,
                     style = AppTypography.paragraphRegular.copy(lineHeight = 18.sp),
                     color = NeutralColors.Neutral10

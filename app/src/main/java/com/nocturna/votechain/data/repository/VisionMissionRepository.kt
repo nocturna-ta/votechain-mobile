@@ -62,16 +62,39 @@ class VisionMissionRepositoryImpl : VisionMissionRepository {
                     if (data != null) {
                         Log.d(TAG, "Successfully fetched vision mission detail")
 
+                        // Check if vision is empty or null, use "data tidak tersedia" as fallback
+                        val vision = if (data.vision.isNullOrBlank()) {
+                            "Data tidak tersedia"
+                        } else {
+                            data.vision
+                        }
+
+                        // Check if mission is empty or null, use "data tidak tersedia" as fallback
+                        val mission = if (data.mission.isNullOrBlank()) {
+                            "Data tidak tersedia"
+                        } else {
+                            data.mission
+                        }
+
                         // Convert API work programs to UI work programs
-                        val workPrograms = data.work_program.map { workProgramResponse ->
-                            WorkProgram(
-                                programName = workProgramResponse.program_name,
-                                programPhoto = workProgramResponse.program_photo?.takeIf { it.isNotBlank() }?.let {
-                                    // Build full URL for program photo if available
-                                    if (it.startsWith("http")) it else "${ElectionNetworkClient.BASE_URL}/$it"
-                                },
-                                programDesc = workProgramResponse.program_desc
-                            )
+                        // If work_program is null or empty, create empty list
+                        val workPrograms = if (data.work_program.isNullOrEmpty()) {
+                            emptyList()
+                        } else {
+                            data.work_program.map { workProgramResponse ->
+                                WorkProgram(
+                                    programName = workProgramResponse.program_name.ifBlank { "Data tidak tersedia" },
+                                    programPhoto = workProgramResponse.program_photo?.takeIf { it.isNotBlank() }?.let {
+                                        // Build full URL for program photo if available
+                                        if (it.startsWith("http")) it else "${ElectionNetworkClient.BASE_URL}/$it"
+                                    },
+                                    programDesc = if (workProgramResponse.program_desc.isNullOrEmpty()) {
+                                        listOf("Data tidak tersedia")
+                                    } else {
+                                        workProgramResponse.program_desc
+                                    }
+                                )
+                            }
                         }
 
                         // Build full URL for program docs if available
@@ -90,33 +113,59 @@ class VisionMissionRepositoryImpl : VisionMissionRepository {
                         return@withContext VisionMissionDetailModel(
                             id = data.id,
                             electionPairId = data.election_pair_id,
-                            vision = data.vision,
-                            mission = data.mission,
+                            vision = vision,
+                            mission = mission,
                             workPrograms = workPrograms,
                             programDocs = programDocsUrl
                         )
                     } else {
                         Log.e(TAG, "API returned null data")
-                        throw Exception("No data available for this candidate pair")
+                        // Return model with "data tidak tersedia" instead of throwing exception
+                        return@withContext VisionMissionDetailModel(
+                            id = pairId,
+                            electionPairId = pairId,
+                            vision = "Data tidak tersedia",
+                            mission = "Data tidak tersedia",
+                            workPrograms = emptyList(),
+                            programDocs = null
+                        )
                     }
                 } else {
                     val errorMsg = responseBody?.error?.error_message ?: "Unknown error occurred"
                     Log.e(TAG, "API returned error: $errorMsg")
-                    throw Exception(errorMsg)
+                    // Return model with "data tidak tersedia" instead of throwing exception
+                    return@withContext VisionMissionDetailModel(
+                        id = pairId,
+                        electionPairId = pairId,
+                        vision = "Data tidak tersedia",
+                        mission = "Data tidak tersedia",
+                        workPrograms = emptyList(),
+                        programDocs = null
+                    )
                 }
             } else {
                 Log.e(TAG, "API call failed with code: ${response.code()}")
-
-                // If API fails, fallback to hardcoded data based on pair ID
-                Log.w(TAG, "API is unavailable, falling back to hardcoded data")
-                return@withContext getFallbackVisionMissionData(pairId)
+                // Return model with "data tidak tersedia" instead of using fallback hardcoded data
+                return@withContext VisionMissionDetailModel(
+                    id = pairId,
+                    electionPairId = pairId,
+                    vision = "Data tidak tersedia",
+                    mission = "Data tidak tersedia",
+                    workPrograms = emptyList(),
+                    programDocs = null
+                )
             }
         } catch (e: Exception) {
             Log.e(TAG, "Exception while fetching vision mission detail: ${e.message}", e)
-
-            // Fallback to hardcoded data when API is unavailable
-            Log.w(TAG, "Using fallback data due to API exception")
-            return@withContext getFallbackVisionMissionData(pairId)
+            // Return model with "data tidak tersedia" instead of using fallback hardcoded data
+            return@withContext VisionMissionDetailModel(
+                id = pairId,
+                electionPairId = pairId,
+                vision = "Data tidak tersedia",
+                mission = "Data tidak tersedia",
+                workPrograms = emptyList(),
+                programDocs = null
+            )
         }
     }
 

@@ -196,6 +196,12 @@ data class LocalizedStrings(
     val passwordConfirmationSubmit: String,
     val passwordIncorrect: String,
     val passwordEmpty: String,
+
+    // Data availability
+    val dataNotAvailable: String,
+    val visionNotAvailable: String,
+    val missionNotAvailable: String,
+    val workProgramNotAvailable: String,
 )
 
 /**
@@ -405,6 +411,12 @@ private fun getIndonesianStrings(): LocalizedStrings {
         passwordConfirmationSubmit = "Kirim",
         passwordIncorrect = "Kata sandi salah. Silahkan coba lagi",
         passwordEmpty = "Kata sandi tidak boleh kosong",
+
+        // Data availability
+        dataNotAvailable = "Data tidak tersedia",
+        visionNotAvailable = "Visi tidak tersedia",
+        missionNotAvailable = "Misi tidak tersedia",
+        workProgramNotAvailable = "Program kerja tidak tersedia",
     )
 }
 
@@ -605,5 +617,11 @@ private fun getEnglishStrings(): LocalizedStrings {
         passwordConfirmationSubmit = "Submit",
         passwordIncorrect = "Incorrect password. Please try again",
         passwordEmpty = "Password cannot be empty",
+
+        // Data availability
+        dataNotAvailable = "Data not available",
+        visionNotAvailable = "Vision not available",
+        missionNotAvailable = "Mission not available",
+        workProgramNotAvailable = "Work program not available",
     )
 }
