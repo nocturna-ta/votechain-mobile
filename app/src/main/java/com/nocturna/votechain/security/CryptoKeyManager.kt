@@ -229,7 +229,7 @@ class CryptoKeyManager(private val context: Context) {
                 val privateKeyHex = Numeric.toHexStringNoPrefix(ecKeyPair.privateKey)
                 val publicKeyHex = Numeric.toHexStringWithPrefix(ecKeyPair.publicKey)
                 val addressHex = Keys.getAddress(ecKeyPair)
-                val address = "0x" + addressHex
+                val address = Keys.toChecksumAddress("0x" + addressHex)
 
                 Log.d(TAG, "✅ EC key generation successful with BC, address: $address")
 
@@ -269,7 +269,7 @@ class CryptoKeyManager(private val context: Context) {
             val privateKeyHex = Numeric.toHexStringNoPrefix(ecKeyPair.privateKey)
             val publicKeyHex = Numeric.toHexStringWithPrefix(ecKeyPair.publicKey)
             val addressHex = Keys.getAddress(ecKeyPair)
-            val address = "0x" + addressHex
+            val address = Keys.toChecksumAddress("0x" + addressHex)
 
             Log.d(TAG, "✅ EC key generation with AndroidOpenSSL successful")
 
@@ -296,7 +296,7 @@ class CryptoKeyManager(private val context: Context) {
             val privateKeyHex = Numeric.toHexStringNoPrefix(ecKeyPair.privateKey)
             val publicKeyHex = Numeric.toHexStringWithPrefix(ecKeyPair.publicKey)
             val addressHex = Keys.getAddress(ecKeyPair)
-            val address = "0x" + addressHex
+            val address = Keys.toChecksumAddress("0x" + addressHex)
 
             Log.d(TAG, "✅ EC key generation with SecureRandom successful")
 
@@ -453,7 +453,7 @@ class CryptoKeyManager(private val context: Context) {
             val privateKeyHex = Numeric.toHexStringWithPrefix(ecKeyPair.privateKey)
             val publicKeyHex = Numeric.toHexStringWithPrefix(ecKeyPair.publicKey)
             val addressHex = Keys.getAddress(ecKeyPair)
-            val voterAddressWithPrefix = "0x" + addressHex
+            val voterAddressWithPrefix = Keys.toChecksumAddress("0x" + addressHex)
 
             Log.d(TAG, "✅ Method 3 successful")
 

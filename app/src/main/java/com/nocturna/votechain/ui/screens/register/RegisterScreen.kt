@@ -51,6 +51,8 @@ import org.web3j.crypto.Keys
 import org.web3j.utils.Numeric
 import java.security.SecureRandom
 import android.util.Log
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.EaseInOutCubic
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nocturna.votechain.ui.theme.PrimaryColors
 import com.nocturna.votechain.ui.theme.SuccessColors
@@ -58,14 +60,18 @@ import com.nocturna.votechain.utils.LanguageManager
 import androidx.compose.material3.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import com.nocturna.votechain.ui.theme.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.nocturna.votechain.viewmodel.register.KeyGenerationState
 
 // Data class to manage validation state for each field
@@ -1226,104 +1232,384 @@ fun CryptoKeyStatusCard(
             // Show info about crypto security
             Card(
                 modifier = modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MainColors.Primary1.copy(alpha = 0.1f))
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFF8FAFC)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(20.dp)
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.back),
-                        contentDescription = null,
-                        tint = MainColors.Primary1,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    // Header Section
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Modern crypto icon with gradient background
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(
+                                            MainColors.Primary1,
+                                            MainColors.Primary1.copy(alpha = 0.7f)
+                                        )
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.lock),
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
 
-                    Column {
-                        Text(
-                            text = "Kunci Kriptografi",
-                            style = Typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MainColors.Primary1
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = "Blockchain Security",
+                                style = AppTypography.heading6Bold,
+                                color = Color(0xFF1E293B)
+                            )
+                            Text(
+                                text = "Cryptographic key protection",
+                                style = AppTypography.paragraphRegular,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+
+                        // Connection status indicator
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .background(
+                                    color = if (nodeConnected) Color(0xFF10B981) else Color(0xFFEF4444),
+                                    shape = CircleShape
+                                )
                         )
-                        Text(
-                            text = if (nodeConnected)
-                                "Koneksi blockchain siap untuk registrasi"
-                            else
-                                "Koneksi blockchain tidak tersedia",
-                            style = Typography.bodySmall,
-                            color = PrimaryColors.Primary50
-                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Status Bar Section
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Connection Status",
+                                style = AppTypography.paragraphRegular,
+                                color = Color(0xFF475569),
+                                fontWeight = FontWeight.Medium
+                            )
+
+                            Text(
+                                text = if (nodeConnected) "Ready" else "Unavailable",
+                                style = AppTypography.paragraphRegular,
+                                color = if (nodeConnected) Color(0xFF10B981) else Color(0xFFEF4444),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Modern Progress Bar
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .background(
+                                    color = Color(0xFFE2E8F0),
+                                    shape = RoundedCornerShape(3.dp)
+                                )
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(if (nodeConnected) 1f else 0.3f)
+                                    .background(
+                                        brush = if (nodeConnected) {
+                                            Brush.horizontalGradient(
+                                                colors = listOf(
+                                                    Color(0xFF10B981),
+                                                    Color(0xFF059669)
+                                                )
+                                            )
+                                        } else {
+                                            Brush.horizontalGradient(
+                                                colors = listOf(
+                                                    Color(0xFFEF4444),
+                                                    Color(0xFFDC2626)
+                                                )
+                                            )
+                                        },
+                                        shape = RoundedCornerShape(3.dp)
+                                    )
+                                    .animateContentSize(
+                                        animationSpec = tween(
+                                            durationMillis = 600,
+                                            easing = EaseInOutCubic
+                                        )
+                                    )
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Status Message
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Icon(
+                                painter = painterResource(
+                                    id = if (nodeConnected) R.drawable.tickcircle else R.drawable.dangercircle
+                                ),
+                                contentDescription = null,
+                                tint = if (nodeConnected) Color(0xFF10B981) else Color(0xFFF59E0B),
+                                modifier = Modifier.size(16.dp)
+                            )
+
+                            Text(
+                                text = if (nodeConnected)
+                                    "Blockchain network is connected and ready for secure registration. Your cryptographic keys will be protected."
+                                else
+                                    "Blockchain network connection is currently unavailable. Please check your internet connection and try again.",
+                                style = AppTypography.paragraphRegular,
+                                color = Color(0xFF64748B),
+                                lineHeight = 18.sp
+                            )
+                        }
                     }
                 }
             }
         }
+
         KeyGenerationState.Generating -> {
+            // Enhanced generating state card
             Card(
                 modifier = modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MainColors.Primary1.copy(alpha = 0.1f))
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFF0F9FF)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(20.dp)
                 ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = MainColors.Primary1,
-                        strokeWidth = 2.dp
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Animated progress indicator
+                        Box(
+                            modifier = Modifier.size(48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(48.dp),
+                                color = MainColors.Primary1,
+                                strokeWidth = 3.dp,
+                                strokeCap = StrokeCap.Round
+                            )
+
+                            Icon(
+                                painter = painterResource(id = R.drawable.lock), // Replace with key icon
+                                contentDescription = null,
+                                tint = MainColors.Primary1,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = "Generating Cryptographic Keys",
+                                style = AppTypography.heading6Bold,
+                                color = Color(0xFF1E293B)
+                            )
+
+                            Text(
+                                text = "Creating secure key pair for blockchain registration...",
+                                style = AppTypography.paragraphRegular,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Animated progress bar for generation
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .background(
+                                color = Color(0xFFE0F2FE),
+                                shape = RoundedCornerShape(3.dp)
+                            )
+                    ) {
+                        var progress by remember { mutableStateOf(0f) }
+
+                        LaunchedEffect(Unit) {
+                            while (progress < 1f) {
+                                progress += 0.01f
+                                delay(50)
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(progress)
+                                .background(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(
+                                            MainColors.Primary1,
+                                            MainColors.Primary1.copy(alpha = 0.8f)
+                                        )
+                                    ),
+                                    shape = RoundedCornerShape(3.dp)
+                                )
+                                .animateContentSize()
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Please wait while we generate your secure cryptographic keys. This process ensures maximum security for your blockchain transactions.",
+                        style = AppTypography.paragraphRegular,
+                        color = Color(0xFF64748B),
+                        lineHeight = 18.sp
                     )
-                    Column {
-                        Text(
-                            text = "Membuat Kunci Kriptografi",
-                            style = Typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MainColors.Primary1
-                        )
-                        Text(
-                            text = "Mohon tunggu sebentar...",
-                            style = Typography.bodySmall,
-                            color = PrimaryColors.Primary50
-                        )
-                    }
                 }
             }
         }
-        is KeyGenerationState.Generated -> {
+
+        KeyGenerationState.Generated -> {
+            // Success state card
             Card(
                 modifier = modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MainColors.Primary1.copy(alpha = 0.1f))
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFF0FDF4)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        .padding(20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = "Kunci Kriptografi Berhasil Dibuat",
-                            style = Typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MainColors.Primary1
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(
+                                color = Color(0xFF10B981),
+                                shape = RoundedCornerShape(12.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.tickcircle), // Replace with check icon
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
                         )
+                    }
+
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
                         Text(
-                            text = "Data Anda akan disimpan dengan aman",
-                            style = Typography.bodySmall,
-                            color = PrimaryColors.Primary50
+                            text = "Keys Generated Successfully",
+                            style = AppTypography.heading6Bold,
+                            color = Color(0xFF059669)
+                        )
+
+                        Text(
+                            text = "Your cryptographic keys are ready for secure blockchain registration",
+                            style = AppTypography.paragraphRegular,
+                            color = Color(0xFF047857)
                         )
                     }
                 }
             }
         }
+
         else -> {
-            // Nothing to show for other states
+            // Fallback for any other states
+            Card(
+                modifier = modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFFEF2F2)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(
+                                color = Color(0xFFEF4444),
+                                shape = RoundedCornerShape(12.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.dangercircle), // Replace with error icon
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = "Key Generation Failed",
+                            style = AppTypography.heading6Bold,
+                            color = Color(0xFFDC2626)
+                        )
+
+                        Text(
+                            text = "There was an error generating cryptographic keys. Please try again.",
+                            style = AppTypography.paragraphRegular,
+                            color = Color(0xFFB91C1C)
+                        )
+                    }
+                }
+            }
         }
     }
 }

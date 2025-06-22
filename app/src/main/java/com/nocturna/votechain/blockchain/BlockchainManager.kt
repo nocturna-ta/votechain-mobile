@@ -65,7 +65,7 @@ object BlockchainManager {
             val keyPair = ECKeyPair.create(privateKey)
 
             // Get Ethereum address from key pair
-            val address = "0x" + Keys.getAddress(keyPair)
+            val address = Keys.toChecksumAddress("0x" + Keys.getAddress(keyPair))
             Log.d(TAG, "Generated new Ethereum address: $address")
             return address
         } catch (e: Exception) {
