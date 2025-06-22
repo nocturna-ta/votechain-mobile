@@ -11,6 +11,7 @@ import com.nocturna.votechain.data.network.VoteApiService
 import com.nocturna.votechain.data.network.ElectionNetworkClient
 import com.nocturna.votechain.security.CryptoKeyManager
 import com.nocturna.votechain.utils.TokenManager
+import com.nocturna.votechain.utils.VoteValidationHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -91,71 +92,115 @@ class VotingRepository(
      */
     fun castVote(electionPairId: String, region: String): Flow<Result<VoteCastResponse>> = flow {
         try {
-            Log.d(TAG, "Starting vote casting process for pair: $electionPairId")
+            Log.d(TAG, "🗳️ Starting vote casting process for pair: $electionPairId")
 
-            // Get authentication token with fallback
+            // Step 1: Comprehensive validation
+            val validationResult = VoteValidationHelper.validateVotePrerequisites(
+                context, cryptoKeyManager, tokenManager
+            )
+
+            if (!validationResult.isValid) {
+                Log.e(TAG, "❌ Vote validation failed")
+                Log.e(TAG, validationResult.getErrorMessage())
+                emit(Result.failure(Exception("Vote validation failed: ${validationResult.getErrorMessage()}")))
+                return@flow
+            }
+
+            Log.d(TAG, "✅ All vote prerequisites validated successfully")
+
+            // Step 2: Get authentication token with fallback
             val token = getAuthToken()
             if (token.isNullOrEmpty()) {
-                Log.e(TAG, "No authentication token available from any source")
+                Log.e(TAG, "❌ No authentication token available from any source")
                 emit(Result.failure(Exception("Authentication required")))
                 return@flow
             }
 
-            Log.d(TAG, "✅ Authentication token found, proceeding with vote")
-
-            // Get voter ID from stored data
+            // Step 3: Get voter ID from stored data
             val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val voterId = sharedPreferences.getString("user_id", "") ?: ""
 
-            if (voterId.isEmpty()) {
-                Log.e(TAG, "No voter ID found in preferences")
-                emit(Result.failure(Exception("Voter ID not found")))
+            // Step 4: Create signed transaction
+            val dataToSign = "$electionPairId:$voterId:$region"
+            Log.d(TAG, "📝 Preparing to sign data: $dataToSign")
+
+            val signedTransaction = cryptoKeyManager.signData(dataToSign)
+
+
+// Step 5: Validate signed transaction
+            if (signedTransaction.isNullOrEmpty()) {
+                Log.e(TAG, "❌ Failed to generate signed transaction")
+                Log.e(TAG, "This indicates a problem with the cryptographic signing process")
+
+                // Additional debugging
+                Log.d(TAG, "🔍 Debugging signing failure:")
+                Log.d(TAG, "  - Has key pair: ${cryptoKeyManager.hasStoredKeyPair()}")
+                Log.d(TAG, "  - Can sign data: ${cryptoKeyManager.canSignData()}")
+
+                emit(Result.failure(Exception("Failed to sign vote data. Cryptographic signing failed.")))
                 return@flow
             }
 
-            Log.d(TAG, "Voter ID: $voterId")
+            // Step 6: Log detailed request information
+            VoteValidationHelper.logVoteRequestDetails(electionPairId, region, voterId, signedTransaction)
 
-    // Create vote request
-    // Generate signed transaction for the vote
-            val dataToSign = "$electionPairId:$voterId:$region"
-            val signedTransaction = cryptoKeyManager.signData(dataToSign)
-
+            // Step 7: Create vote request
             val voteRequest = VoteCastRequest(
                 election_pair_id = electionPairId,
                 voter_id = voterId,
                 region = region,
-                signed_transaction = signedTransaction ?: ""
+                signed_transaction = signedTransaction
             )
 
-            Log.d(TAG, "Making API call to cast vote")
+            Log.d(TAG, "🌐 Making API call to cast vote")
 
-            // Make API call
+            // Step 8: Make API call
             val response = voteApiService.castVote(
                 token = "Bearer $token",
                 request = voteRequest
             )
 
-            Log.d(TAG, "Vote API response received - Code: ${response.code()}")
+            Log.d(TAG, "📡 Vote API response received - Code: ${response.code()}")
 
             if (response.isSuccessful) {
                 val voteResponse = response.body()
                 if (voteResponse != null) {
-                    Log.d(TAG, "✅ Vote cast successfully")
+                    Log.d(TAG, "✅ Vote cast successfully!")
+                    Log.d(TAG, "📋 Response details:")
+                    Log.d(TAG, "  - Code: ${voteResponse.code}")
+                    Log.d(TAG, "  - Message: ${voteResponse.message}")
+                    voteResponse.data?.let { data ->
+                        Log.d(TAG, "  - Vote ID: ${data.id}")
+                        Log.d(TAG, "  - Status: ${data.status}")
+                        Log.d(TAG, "  - TX Hash: ${data.tx_hash}")
+                    }
+
                     // Mark as voted
                     markAsVoted()
                     emit(Result.success(voteResponse))
                 } else {
-                    Log.e(TAG, "Vote response body is null")
+                    Log.e(TAG, "❌ Vote response body is null")
                     emit(Result.failure(Exception("Invalid response from server")))
                 }
             } else {
                 val errorBody = response.errorBody()?.string()
-                Log.e(TAG, "Vote failed - HTTP ${response.code()}: $errorBody")
+                Log.e(TAG, "❌ Vote failed - HTTP ${response.code()}: $errorBody")
+
+                // Enhanced error logging
+                when (response.code()) {
+                    400 -> Log.e(TAG, "Bad Request - Check if all required fields are present and valid")
+                    401 -> Log.e(TAG, "Unauthorized - Authentication token may be invalid or expired")
+                    403 -> Log.e(TAG, "Forbidden - User may not have permission to vote")
+                    409 -> Log.e(TAG, "Conflict - User may have already voted")
+                    422 -> Log.e(TAG, "Unprocessable Entity - Validation error on server side")
+                    500 -> Log.e(TAG, "Internal Server Error - Server-side issue")
+                }
+
                 emit(Result.failure(Exception("Vote failed: ${response.code()} - $errorBody")))
             }
 
         } catch (e: Exception) {
-            Log.e(TAG, "Exception during vote casting", e)
+            Log.e(TAG, "💥 Exception during vote casting: ${e.message}", e)
             emit(Result.failure(e))
         }
     }.flowOn(Dispatchers.IO)

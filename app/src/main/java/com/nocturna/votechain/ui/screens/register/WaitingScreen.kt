@@ -134,12 +134,12 @@ fun WaitingScreen(
                     onClick = {
                         when (source) {
                             "register" -> {
-                                // From register flow - return to register page without clearing state
+                                // From register flow - let ViewModel handle navigation to login
                                 viewModel?.onWaitingScreenClose()
-                                onClose()
+                                // DON'T call onClose() here to avoid navigation conflict
                             }
                             "login" -> {
-                                // From login flow - this shouldn't happen, but if it does, go back to login
+                                // From login flow - use onClose callback to return to login
                                 onClose()
                             }
                             else -> {

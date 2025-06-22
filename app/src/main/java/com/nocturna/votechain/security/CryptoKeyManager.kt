@@ -1150,28 +1150,53 @@ class CryptoKeyManager(private val context: Context) {
 
     fun signData(data: String): String? {
         return try {
-            val privateKey = getPrivateKey()
-            if (privateKey != null) {
-                // Implement actual signing logic here
-                // This is a placeholder - replace with actual cryptographic signing
-                val signature = MessageDigest.getInstance("SHA-256")
-                    .digest(data.toByteArray())
-                    .joinToString("") { "%02x".format(it) }
-                signature
-            } else {
-                null
+            Log.d(TAG, "Attempting to sign data of length: ${data.length}")
+
+            // Validate input
+            if (data.isEmpty()) {
+                Log.w(TAG, "Cannot sign empty data")
+                return null
             }
+
+            // Get private key
+            val privateKey = getPrivateKey()
+            if (privateKey.isNullOrEmpty()) {
+                Log.e(TAG, "No private key available for signing")
+                return null
+            }
+
+            Log.d(TAG, "Private key available for signing (length: ${privateKey.length})")
+
+            // For now, create a deterministic signature using SHA-256 with private key salt
+            // TODO: Replace with proper ECDSA signing when implementing real blockchain integration
+            val dataWithSalt = "$data:$privateKey"
+            val signature = MessageDigest.getInstance("SHA-256")
+                .digest(dataWithSalt.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+
+            Log.d(TAG, "✅ Data signed successfully (signature length: ${signature.length})")
+            return signature
+
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Security error during signing: ${e.message}", e)
+            return null
         } catch (e: Exception) {
-            Log.e("CryptoKeyManager", "Error signing data", e)
-            null
+            Log.e(TAG, "Unexpected error during signing: ${e.message}", e)
+            return null
         }
     }
 
-//    /**
-//     * Data class for encrypted data storage
-//     */
-//    private data class EncryptedData(
-//        val encryptedData: String,
-//        val iv: String
-//    )
+    /**
+     * Validate that signing capabilities are available
+     * @return true if the manager can sign data, false otherwise
+     */
+    fun canSignData(): Boolean {
+        return try {
+            val privateKey = getPrivateKey()
+            !privateKey.isNullOrEmpty()
+        } catch (e: Exception) {
+            Log.w(TAG, "Cannot validate signing capability: ${e.message}")
+            false
+        }
+    }
 }

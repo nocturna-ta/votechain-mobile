@@ -203,12 +203,7 @@ fun VotechainNavGraph(
             WaitingScreen(
                 source = "register",
                 viewModel = registerViewModel,
-                onClose = {
-                    // Return to register page
-                    navController.navigate("register") {
-                        popUpTo("register") { inclusive = true }
-                    }
-                }
+                onClose = {}
             )
         }
 
