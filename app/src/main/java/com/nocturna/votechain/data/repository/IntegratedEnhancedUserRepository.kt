@@ -42,6 +42,7 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
         residentialAddress: String,
         region: String,
         role: String = "voter",
+        telephone: String,
         ktpFileUri: Uri? = null
     ): Result<RegistrationResult> = withContext(Dispatchers.IO) {
         try {
@@ -72,7 +73,8 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
                 region = region,
                 role = role,
                 voterAddress = keyPairInfo.voterAddress,
-                ktpFileUri = ktpFileUri
+                ktpFileUri = ktpFileUri,
+                telephone = telephone
             )
 
             registrationResult.fold(

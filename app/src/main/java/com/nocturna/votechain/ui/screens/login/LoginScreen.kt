@@ -208,7 +208,7 @@ fun LoginScreen(
                                 .onFocusChanged { isEmailFocused = it.isFocused },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MainColors.Primary1,
-                                unfocusedBorderColor = NeutralColors.Neutral30,
+                                unfocusedBorderColor = NeutralColors.Neutral20,
                                 focusedTextColor = NeutralColors.Neutral70,
                                 unfocusedTextColor = NeutralColors.Neutral70,
 //                                focusedLabelColor = MainColors.Primary1,
@@ -235,7 +235,7 @@ fun LoginScreen(
                             }
                         )
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
 
                         // Password field with enhanced feedback
                         OutlinedTextField(
@@ -253,7 +253,7 @@ fun LoginScreen(
                                 .onFocusChanged { isPasswordFocused = it.isFocused },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MainColors.Primary1,
-                                unfocusedBorderColor = NeutralColors.Neutral30,
+                                unfocusedBorderColor = NeutralColors.Neutral20,
                                 focusedTextColor = NeutralColors.Neutral70,
                                 unfocusedTextColor = NeutralColors.Neutral70,
 //                                focusedLabelColor = MainColors.Primary1,

@@ -35,6 +35,7 @@ class EnhancedUserRepository(private val context: Context) {
         residentialAddress: String,
         region: String,
         role: String = "voter",
+        telephone: String,
         ktpFileUri: Uri? = null
     ): Result<ApiResponse<UserRegistrationData>> {
         try {
@@ -57,7 +58,8 @@ class EnhancedUserRepository(private val context: Context) {
                 residentialAddress = residentialAddress,
                 region = region,
                 role = role,
-                voterAddress = voterAddress, // Pass the generated address
+                voterAddress = voterAddress,
+                telephone = telephone,
                 ktpFileUri = ktpFileUri
             )
         } catch (e: Exception) {

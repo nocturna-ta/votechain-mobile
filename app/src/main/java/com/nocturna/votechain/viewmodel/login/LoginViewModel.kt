@@ -109,17 +109,7 @@ class LoginViewModel(
      */
     private suspend fun checkRegistrationStatusAfterLogin(email: String, loginData: UserLoginData?) {
         try {
-            // First check local state
-            val localState = registrationStateManager.getRegistrationState()
-            val savedEmail = registrationStateManager.getSavedEmail()
-
-            if (localState != RegistrationStateManager.STATE_NONE && savedEmail == email) {
-                Log.d(TAG, "Found local registration state: $localState")
-                handleRegistrationState(localState, email)
-                return
-            }
-
-            // Check with API
+            // Always check with API first to get the most up-to-date status
             val response = withContext(Dispatchers.IO) {
                 apiService.getVerificationStatus(email)
             }
@@ -138,10 +128,12 @@ class LoginViewModel(
                             _uiState.value = LoginUiState.NavigateToWaiting
                         }
                         "approved", "accepted" -> {
+                            // Clear waiting state since they're approved now
                             registrationStateManager.saveRegistrationState(
                                 RegistrationStateManager.STATE_APPROVED, email, ""
                             )
-                            _uiState.value = LoginUiState.NavigateToAccepted
+                            // Proceed to home instead of showing the accepted screen again
+                            proceedToHome(loginData)
                         }
                         "denied", "rejected" -> {
                             registrationStateManager.saveRegistrationState(
@@ -151,6 +143,10 @@ class LoginViewModel(
                         }
                         else -> {
                             // User is approved/no pending registration - proceed to home
+                            // Clear any previous registration state
+                            registrationStateManager.saveRegistrationState(
+                                RegistrationStateManager.STATE_NONE, email, ""
+                            )
                             proceedToHome(loginData)
                         }
                     }
@@ -159,12 +155,29 @@ class LoginViewModel(
                     proceedToHome(loginData)
                 }
             } else {
-                // API call failed - proceed to home (fallback)
-                proceedToHome(loginData)
+                // API call failed - fall back to local state
+                fallbackToLocalState(email, loginData)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error checking registration status: ${e.message}")
-            // On error, proceed to home (fallback)
+            // On error, fall back to local state
+            fallbackToLocalState(email, loginData)
+        }
+    }
+
+    /**
+     * Fall back to local registration state when API call fails
+     */
+    private suspend fun fallbackToLocalState(email: String, loginData: UserLoginData?) {
+        val localState = registrationStateManager.getRegistrationState()
+        val savedEmail = registrationStateManager.getSavedEmail()
+
+        Log.d(TAG, "Falling back to local state: $localState for email: $savedEmail")
+
+        if (localState != RegistrationStateManager.STATE_NONE && savedEmail == email) {
+            handleRegistrationState(localState, email)
+        } else {
+            // No local state or mismatch email - proceed to home (fallback)
             proceedToHome(loginData)
         }
     }

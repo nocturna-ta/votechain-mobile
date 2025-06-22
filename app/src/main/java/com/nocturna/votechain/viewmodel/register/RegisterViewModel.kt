@@ -332,6 +332,7 @@ class RegisterViewModel(
         address: String,
         region: String,
         role: String = "voter",
+        telephone: String,
         ktpFileUri: Uri?
     ) {
         _uiState.value = RegisterUiState.Loading
@@ -369,6 +370,7 @@ class RegisterViewModel(
                     residentialAddress = address,
                     region = region,
                     role = role,
+                    telephone = telephone,
                     ktpFileUri = ktpFileUri
                 )
 
@@ -743,7 +745,8 @@ class RegisterViewModel(
         region: String,
         gender: String,
         ktpFileUri: Uri?,
-        role: String
+        role: String,
+        telephone: String
     ) {
         // This is the existing registration logic
         // Copy your existing registerUser implementation here
@@ -783,7 +786,8 @@ class RegisterViewModel(
                     residentialAddress = address,
                     region = region,
                     role = role,
-                    ktpFileUri = ktpFileUri
+                    ktpFileUri = ktpFileUri,
+                    telephone = telephone
                 )
 
                 result.fold(
@@ -854,6 +858,7 @@ class RegisterViewModel(
         nationalId: String,
         fullName: String,
         email: String,
+        telephone: String,
         password: String,
         birthPlace: String,
         birthDate: String,
@@ -868,7 +873,7 @@ class RegisterViewModel(
             if (shouldProceed) {
                 // Proceed with secure registration with key generation
                 proceedWithSecureRegistration(
-                    nationalId, fullName, email, password, birthPlace,
+                    nationalId, fullName, email, telephone, password, birthPlace,
                     birthDate, address, region, gender, ktpFileUri, role
                 )
             }
@@ -882,6 +887,7 @@ class RegisterViewModel(
         nationalId: String,
         fullName: String,
         email: String,
+        telephone: String,
         password: String,
         birthPlace: String,
         birthDate: String,
@@ -896,8 +902,7 @@ class RegisterViewModel(
             if (shouldProceed) {
                 // Proceed with secure registration
                 proceedWithSecureRegistration(
-                    nationalId, fullName, email, password, birthPlace,
-                    birthDate, address, region, gender, ktpFileUri, role
+                    nationalId, fullName, email, telephone, password, birthPlace, birthDate, address, region, gender, ktpFileUri, role
                 )
             }
         }
@@ -913,6 +918,7 @@ class RegisterViewModel(
         nationalId: String,
         fullName: String,
         email: String,
+        telephone: String,
         password: String,
         birthPlace: String,
         birthDate: String,
@@ -961,6 +967,7 @@ class RegisterViewModel(
                     email = email,
                     password = password,
                     nik = nationalId,
+                    telephone = telephone,
                     fullName = fullName,
                     gender = gender,
                     birthPlace = birthPlace,

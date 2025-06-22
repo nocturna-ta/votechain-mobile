@@ -199,11 +199,26 @@ fun VotechainNavGraph(
 
         composable("waiting") {
             val registerViewModel: RegisterViewModel = viewModel(factory = RegisterViewModel.Factory(context))
+            val registerState = registerViewModel.uiState.collectAsState().value
+
+            // Observe UI state changes for navigation
+            LaunchedEffect(registerState) {
+                if (registerState == RegisterViewModel.RegisterUiState.NavigateToLogin) {
+                    navController.navigate("login") {
+                        popUpTo("register") { inclusive = true }
+                    }
+                }
+            }
 
             WaitingScreen(
                 source = "register",
                 viewModel = registerViewModel,
-                onClose = {}
+                onClose = {
+                    // As a fallback, also provide direct navigation
+                    navController.navigate("login") {
+                        popUpTo("register") { inclusive = true }
+                    }
+                }
             )
         }
 

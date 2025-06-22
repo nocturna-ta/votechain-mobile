@@ -105,6 +105,7 @@ fun RegisterScreen(
     var nationalId by remember { mutableStateOf("") }
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
+    var telephone by remember { mutableStateOf("") }
     var birthPlace by remember { mutableStateOf("") }
     var birthDate by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
@@ -131,6 +132,7 @@ fun RegisterScreen(
     var nationalIdValidation by remember { mutableStateOf(ValidationState()) }
     var fullNameValidation by remember { mutableStateOf(ValidationState()) }
     var emailValidation by remember { mutableStateOf(ValidationState()) }
+    var telephoneValidation by remember { mutableStateOf(ValidationState()) }
     var birthPlaceValidation by remember { mutableStateOf(ValidationState()) }
     var birthDateValidation by remember { mutableStateOf(ValidationState()) }
     var addressValidation by remember { mutableStateOf(ValidationState()) }
@@ -231,6 +233,17 @@ fun RegisterScreen(
                     ValidationState(false, "")
                 }
             }
+            "telephone" -> {
+                if (value.isEmpty()) {
+                    ValidationState(true, "Phone number is required")
+                } else if (!value.all { it.isDigit() || it == '+' }) {
+                    ValidationState(true, "Phone number should contain only digits and + symbol")
+                } else if (value.length < 10 || value.length > 15) {
+                    ValidationState(true, "Phone number should be 10-15 digits")
+                } else {
+                    ValidationState(false, "")
+                }
+            }
             "birthPlace" -> {
                 if (value.isEmpty()) {
                     ValidationState(true, "Birth place is required")
@@ -291,6 +304,7 @@ fun RegisterScreen(
         nationalIdValidation = validateField("nationalId", nationalId)
         fullNameValidation = validateField("fullName", fullName)
         emailValidation = validateField("email", email)
+        telephoneValidation = validateField("telephone", telephone)
         birthPlaceValidation = validateField("birthPlace", birthPlace)
         birthDateValidation = validateField("birthDate", birthDate)
         addressValidation = validateField("address", address)
@@ -308,6 +322,7 @@ fun RegisterScreen(
         return !nationalIdValidation.hasError &&
                 !fullNameValidation.hasError &&
                 !emailValidation.hasError &&
+                !telephoneValidation.hasError &&
                 !birthPlaceValidation.hasError &&
                 !birthDateValidation.hasError &&
                 !addressValidation.hasError &&
@@ -320,12 +335,13 @@ fun RegisterScreen(
 
     // Check if the form is valid (all fields filled correctly)
     val isFormValid = remember(
-        nationalId, fullName, email, birthPlace, birthDate, address,
+        nationalId, fullName, email, telephone, birthPlace, birthDate, address,
         selectedProvince, selectedRegion, selectedGender, password,
         isFileSelected
     ) {
         nationalId.isNotEmpty() && fullName.isNotEmpty() &&
                 email.isNotEmpty() && email.matches(emailRegex) &&
+                telephone.isNotEmpty() && telephone.length >= 10 &&
                 birthPlace.isNotEmpty() && birthDate.isNotEmpty() &&
                 address.isNotEmpty() && selectedProvince.isNotEmpty() &&
                 selectedRegion.isNotEmpty() && selectedGender.isNotEmpty() &&
@@ -421,7 +437,7 @@ fun RegisterScreen(
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = if (nationalIdValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                        unfocusedBorderColor = if (nationalIdValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
+                        unfocusedBorderColor = if (nationalIdValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral20,
                         focusedTextColor = NeutralColors.Neutral70,
                         unfocusedTextColor = NeutralColors.Neutral70,
                         focusedLabelColor = if (fullNameValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
@@ -440,10 +456,11 @@ fun RegisterScreen(
                             )
                         }
                     },
-                    isError = nationalIdValidation.hasError
+                    isError = nationalIdValidation.hasError,
+                    shape = RoundedCornerShape(4.dp) // Ubah shape menjadi 4dp
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // Full Name Field
                 OutlinedTextField(
@@ -457,7 +474,7 @@ fun RegisterScreen(
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = if (fullNameValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                        unfocusedBorderColor = if (fullNameValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
+                        unfocusedBorderColor = if (fullNameValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral20,
                         focusedTextColor = NeutralColors.Neutral70,
                         unfocusedTextColor = NeutralColors.Neutral70,
                         focusedLabelColor = if (fullNameValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
@@ -476,10 +493,11 @@ fun RegisterScreen(
                             )
                         }
                     },
-                    isError = fullNameValidation.hasError
+                    isError = fullNameValidation.hasError,
+                    shape = RoundedCornerShape(4.dp) // Ubah shape menjadi 4dp
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // Email Field
                 OutlinedTextField(
@@ -493,7 +511,7 @@ fun RegisterScreen(
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = if (emailValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                        unfocusedBorderColor = if (emailValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
+                        unfocusedBorderColor = if (emailValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral20,
                         focusedTextColor = NeutralColors.Neutral70,
                         unfocusedTextColor = NeutralColors.Neutral70,
                         focusedLabelColor = if (emailValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
@@ -512,10 +530,48 @@ fun RegisterScreen(
                             )
                         }
                     },
-                    isError = emailValidation.hasError
+                    isError = emailValidation.hasError,
+                    shape = RoundedCornerShape(4.dp) // Ubah shape menjadi 4dp
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Telephone Field
+                OutlinedTextField(
+                    value = telephone,
+                    onValueChange = {
+                        telephone = it
+                        telephoneValidation = validateField("telephone", it)
+                    },
+                    label = { Text("Telephone Number") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = if (telephoneValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
+                        unfocusedBorderColor = if (telephoneValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral20,
+                        focusedTextColor = NeutralColors.Neutral70,
+                        unfocusedTextColor = NeutralColors.Neutral70,
+                        focusedLabelColor = if (telephoneValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
+                        unfocusedLabelColor = if (telephoneValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
+                    ),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Phone,
+                        imeAction = ImeAction.Next
+                    ),
+                    supportingText = {
+                        if (telephoneValidation.hasError) {
+                            Text(
+                                text = telephoneValidation.errorMessage,
+                                color = DangerColors.Danger50,
+                                style = AppTypography.paragraphRegular
+                            )
+                        }
+                    },
+                    isError = telephoneValidation.hasError,
+                    shape = RoundedCornerShape(4.dp) // Ubah shape menjadi 4dp
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // Birth Place and Date Row
                 Row(
@@ -534,7 +590,7 @@ fun RegisterScreen(
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = if (birthPlaceValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                            unfocusedBorderColor = if (birthPlaceValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
+                            unfocusedBorderColor = if (birthPlaceValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral20,
                             focusedTextColor = NeutralColors.Neutral70,
                             unfocusedTextColor = NeutralColors.Neutral70,
                             focusedLabelColor = if (birthPlaceValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
@@ -553,7 +609,8 @@ fun RegisterScreen(
                                 )
                             }
                         },
-                        isError = birthPlaceValidation.hasError
+                        isError = birthPlaceValidation.hasError,
+                        shape = RoundedCornerShape(4.dp) // Ubah shape menjadi 4dp
                     )
 
                     // Birth Date Field (with date picker icon)
@@ -588,7 +645,7 @@ fun RegisterScreen(
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = if (birthDateValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                            unfocusedBorderColor = if (birthDateValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
+                            unfocusedBorderColor = if (birthDateValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral20,
                             focusedTextColor = NeutralColors.Neutral70,
                             unfocusedTextColor = NeutralColors.Neutral70,
                             focusedLabelColor = if (birthDateValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
@@ -617,11 +674,12 @@ fun RegisterScreen(
                                 )
                             }
                         },
-                        isError = birthDateValidation.hasError
+                        isError = birthDateValidation.hasError,
+                        shape = RoundedCornerShape(4.dp) // Ubah shape menjadi 4dp
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // Address Field
                 OutlinedTextField(
@@ -635,7 +693,7 @@ fun RegisterScreen(
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = if (addressValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                        unfocusedBorderColor = if (addressValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
+                        unfocusedBorderColor = if (addressValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral20,
                         focusedTextColor = NeutralColors.Neutral70,
                         unfocusedTextColor = NeutralColors.Neutral70,
                         focusedLabelColor = if (fullNameValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
@@ -654,10 +712,11 @@ fun RegisterScreen(
                             )
                         }
                     },
-                    isError = addressValidation.hasError
+                    isError = addressValidation.hasError,
+                    shape = RoundedCornerShape(4.dp) // Ubah shape menjadi 4dp
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // Province Dropdown
                 var expandedProvince by remember { mutableStateOf(false) }
@@ -683,7 +742,7 @@ fun RegisterScreen(
                             .clickable { expandedProvince = !expandedProvince },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = if (provinceValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                            unfocusedBorderColor = if (provinceValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
+                            unfocusedBorderColor = if (provinceValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral20,
                             focusedTextColor = if (selectedProvince.isEmpty()) NeutralColors.Neutral30 else NeutralColors.Neutral70,
                             unfocusedTextColor = if (selectedProvince.isEmpty()) NeutralColors.Neutral30 else NeutralColors.Neutral70,
                         ),
@@ -696,7 +755,8 @@ fun RegisterScreen(
                                 )
                             }
                         },
-                        isError = provinceValidation.hasError
+                        isError = provinceValidation.hasError,
+                        shape = RoundedCornerShape(4.dp) // Ubah shape menjadi 4dp
                     )
 
                     DropdownMenu(
@@ -752,7 +812,7 @@ fun RegisterScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // Region Dropdown
                 var expandedRegion by remember { mutableStateOf(false) }
@@ -786,7 +846,7 @@ fun RegisterScreen(
                             },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = if (regionValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                            unfocusedBorderColor = if (regionValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
+                            unfocusedBorderColor = if (regionValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral20,
                             focusedTextColor = if (selectedRegion.isEmpty()) NeutralColors.Neutral30 else NeutralColors.Neutral70,
                             unfocusedTextColor = if (selectedRegion.isEmpty()) NeutralColors.Neutral30 else NeutralColors.Neutral70,
                         ),
@@ -798,14 +858,15 @@ fun RegisterScreen(
                                     style = AppTypography.paragraphRegular
                                 )
                             } else if (selectedProvince.isEmpty()) {
-                                Text(
-                                    text = "Please select a province first",
-                                    color = NeutralColors.Neutral50,
-                                    style = AppTypography.paragraphRegular
-                                )
+//                                Text(
+//                                    text = "Please select a province first",
+//                                    color = NeutralColors.Neutral50,
+//                                    style = AppTypography.paragraphRegular
+//                                )
                             }
                         },
-                        isError = regionValidation.hasError
+                        isError = regionValidation.hasError,
+                        shape = RoundedCornerShape(4.dp) // Ubah shape menjadi 4dp
                     )
 
                     DropdownMenu(
@@ -853,7 +914,7 @@ fun RegisterScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // Gender Dropdown
                 var expandedGender by remember { mutableStateOf(false) }
@@ -871,7 +932,7 @@ fun RegisterScreen(
                             .clickable { expandedGender = !expandedGender },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = if (genderValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                            unfocusedBorderColor = if (genderValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
+                            unfocusedBorderColor = if (genderValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral20,
                             focusedTextColor = if (selectedGender.isEmpty()) NeutralColors.Neutral30 else NeutralColors.Neutral70,
                             unfocusedTextColor = if (selectedGender.isEmpty()) NeutralColors.Neutral30 else NeutralColors.Neutral70,
                         ),
@@ -893,7 +954,8 @@ fun RegisterScreen(
                                 )
                             }
                         },
-                        isError = genderValidation.hasError
+                        isError = genderValidation.hasError,
+                        shape = RoundedCornerShape(4.dp) // Ubah shape menjadi 4dp
                     )
 
                     DropdownMenu(
@@ -916,7 +978,7 @@ fun RegisterScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // Password Field
                 OutlinedTextField(
@@ -930,7 +992,7 @@ fun RegisterScreen(
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = if (passwordValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
-                        unfocusedBorderColor = if (passwordValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral30,
+                        unfocusedBorderColor = if (passwordValidation.hasError) DangerColors.Danger50 else NeutralColors.Neutral20,
                         focusedTextColor = NeutralColors.Neutral70,
                         unfocusedTextColor = NeutralColors.Neutral70,
                         focusedLabelColor = if (fullNameValidation.hasError) DangerColors.Danger50 else MainColors.Primary1,
@@ -961,10 +1023,11 @@ fun RegisterScreen(
                             )
                         }
                     },
-                    isError = passwordValidation.hasError
+                    isError = passwordValidation.hasError,
+                    shape = RoundedCornerShape(4.dp) // Ubah shape menjadi 4dp
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // Custom modifier for dashed border
                 fun Modifier.dashedBorder(width: Dp, radius: Dp, color: Color) = this.drawWithContent {
@@ -1150,6 +1213,7 @@ fun RegisterScreen(
                                     nationalId = nationalId,
                                     fullName = fullName,
                                     email = email,
+                                    telephone = telephone,
                                     password = password,
                                     birthPlace = birthPlace,
                                     birthDate = birthDate,
@@ -1233,7 +1297,7 @@ fun CryptoKeyStatusCard(
             Card(
                 modifier = modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFF8FAFC)
+                    containerColor = NeutralColors.Neutral10
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 shape = RoundedCornerShape(16.dp)
@@ -1241,7 +1305,7 @@ fun CryptoKeyStatusCard(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp)
+                        .padding(24.dp)
                 ) {
                     // Header Section
                     Row(
@@ -1249,28 +1313,13 @@ fun CryptoKeyStatusCard(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Modern crypto icon with gradient background
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(
-                                    brush = Brush.linearGradient(
-                                        colors = listOf(
-                                            MainColors.Primary1,
-                                            MainColors.Primary1.copy(alpha = 0.7f)
-                                        )
-                                    ),
-                                    shape = RoundedCornerShape(12.dp)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.lock),
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
+//                        // Modern crypto icon with gradient background
+//                        Icon(
+//                            painter = painterResource(id = R.drawable.lock),
+//                            contentDescription = null,
+//                            tint = NeutralColors.Neutral70,
+//                            modifier = Modifier.size(10.dp)
+//                        )
 
                         Column(
                             modifier = Modifier.weight(1f)
@@ -1278,21 +1327,21 @@ fun CryptoKeyStatusCard(
                             Text(
                                 text = "Blockchain Security",
                                 style = AppTypography.heading6Bold,
-                                color = Color(0xFF1E293B)
+                                color = NeutralColors.Neutral70
                             )
                             Text(
                                 text = "Cryptographic key protection",
                                 style = AppTypography.paragraphRegular,
-                                color = Color(0xFF64748B)
+                                color = NeutralColors.Neutral50
                             )
                         }
 
                         // Connection status indicator
                         Box(
                             modifier = Modifier
-                                .size(12.dp)
+                                .size(6.dp)
                                 .background(
-                                    color = if (nodeConnected) Color(0xFF10B981) else Color(0xFFEF4444),
+                                    color = if (nodeConnected) SuccessColors.Success70 else DangerColors.Danger70,
                                     shape = CircleShape
                                 )
                         )
@@ -1311,20 +1360,18 @@ fun CryptoKeyStatusCard(
                         ) {
                             Text(
                                 text = "Connection Status",
-                                style = AppTypography.paragraphRegular,
-                                color = Color(0xFF475569),
-                                fontWeight = FontWeight.Medium
+                                style = AppTypography.smallParagraphMedium,
+                                color = NeutralColors.Neutral50,
                             )
 
                             Text(
                                 text = if (nodeConnected) "Ready" else "Unavailable",
-                                style = AppTypography.paragraphRegular,
-                                color = if (nodeConnected) Color(0xFF10B981) else Color(0xFFEF4444),
-                                fontWeight = FontWeight.SemiBold
+                                style = AppTypography.smallParagraphSemiBold,
+                                color = if (nodeConnected) SuccessColors.Success50 else DangerColors.Danger50,
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
                         // Modern Progress Bar
                         Box(
@@ -1332,8 +1379,8 @@ fun CryptoKeyStatusCard(
                                 .fillMaxWidth()
                                 .height(6.dp)
                                 .background(
-                                    color = Color(0xFFE2E8F0),
-                                    shape = RoundedCornerShape(3.dp)
+                                    color = NeutralColors.Neutral10,
+                                    shape = RoundedCornerShape(4.dp)
                                 )
                         ) {
                             Box(
@@ -1344,19 +1391,19 @@ fun CryptoKeyStatusCard(
                                         brush = if (nodeConnected) {
                                             Brush.horizontalGradient(
                                                 colors = listOf(
-                                                    Color(0xFF10B981),
-                                                    Color(0xFF059669)
+                                                    SuccessColors.Success60,
+                                                    SuccessColors.Success80
                                                 )
                                             )
                                         } else {
                                             Brush.horizontalGradient(
                                                 colors = listOf(
-                                                    Color(0xFFEF4444),
-                                                    Color(0xFFDC2626)
+                                                    DangerColors.Danger60,
+                                                    DangerColors.Danger80
                                                 )
                                             )
                                         },
-                                        shape = RoundedCornerShape(3.dp)
+                                        shape = RoundedCornerShape(4.dp)
                                     )
                                     .animateContentSize(
                                         animationSpec = tween(
@@ -1367,7 +1414,8 @@ fun CryptoKeyStatusCard(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         // Status Message
                         Row(
@@ -1380,8 +1428,8 @@ fun CryptoKeyStatusCard(
                                     id = if (nodeConnected) R.drawable.tickcircle else R.drawable.dangercircle
                                 ),
                                 contentDescription = null,
-                                tint = if (nodeConnected) Color(0xFF10B981) else Color(0xFFF59E0B),
-                                modifier = Modifier.size(16.dp)
+                                tint = if (nodeConnected) SuccessColors.Success60 else WarningColors.Warning50,
+                                modifier = Modifier.size(12.dp)
                             )
 
                             Text(
@@ -1389,9 +1437,8 @@ fun CryptoKeyStatusCard(
                                     "Blockchain network is connected and ready for secure registration. Your cryptographic keys will be protected."
                                 else
                                     "Blockchain network connection is currently unavailable. Please check your internet connection and try again.",
-                                style = AppTypography.paragraphRegular,
-                                color = Color(0xFF64748B),
-                                lineHeight = 18.sp
+                                style = AppTypography.smallParagraphRegular.copy(lineHeight = 18.sp),
+                                color = NeutralColors.Neutral50,
                             )
                         }
                     }
@@ -1404,7 +1451,7 @@ fun CryptoKeyStatusCard(
             Card(
                 modifier = modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFF0F9FF)
+                    containerColor = NeutralColors.Neutral10
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 shape = RoundedCornerShape(16.dp)

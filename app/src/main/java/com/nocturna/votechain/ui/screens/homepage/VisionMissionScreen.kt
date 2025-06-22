@@ -203,7 +203,7 @@ fun VisionMissionScreen(
                                 // Display "Data tidak ada" when no work programs
                                 Text(
                                     text = strings.dataNotAvailable,
-                                    style = AppTypography.paragraphRegular,
+                                    style = AppTypography.paragraphRegular.copy(lineHeight = 18.sp),
                                     color = NeutralColors.Neutral80,
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
@@ -293,9 +293,8 @@ private fun MissionSection(mission: String) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (mission.contains(strings.missionNotAvailable, ignoreCase = true) ||
-            mission.contains(strings.missionNotAvailable, ignoreCase = true)) {
-            // Jika mission adalah "data tidak tersedia", tampilkan sebagai teks biasa
+        if (mission.contains(strings.missionNotAvailable, ignoreCase = true)) {
+            // If mission is "data not available", display as plain text
             Text(
                 text = mission,
                 style = AppTypography.paragraphRegular,
@@ -304,41 +303,50 @@ private fun MissionSection(mission: String) {
                 modifier = Modifier.fillMaxWidth()
             )
         } else {
-            // Parse numbered list jika mission berisi data valid
-            val missionPoints = mission.split(Regex("\\d+\\.\\s*")).filter { it.isNotBlank() }
-
-            if (missionPoints.size > 1) {
-                // Display as numbered list
-                missionPoints.forEachIndexed { index, point ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Text(
-                            text = "${index + 1}. ",
-                            style = AppTypography.paragraphRegular,
-                            color = NeutralColors.Neutral80
-                        )
-                        Text(
-                            text = point.trim(),
-                            style = AppTypography.paragraphRegular,
-                            color = NeutralColors.Neutral80,
-                            textAlign = TextAlign.Justify,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
+            // Parse mission text into separate points
+            val missionPoints = if (mission.contains(Regex("\\d+\\."))) {
+                // If the mission already contains numbered points (like "1. Point")
+                mission.split(Regex("\\d+\\.\\s*")).filter { it.isNotBlank() }
+            } else if (mission.contains("\n")) {
+                // If the mission has line breaks, split by line breaks
+                mission.split("\n").filter { it.isNotBlank() }
+            } else if (mission.contains(";")) {
+                // If the mission has semicolons, split by semicolons
+                mission.split(";").filter { it.isNotBlank() }
             } else {
-                // Display as single text block
-                Text(
-                    text = mission,
-                    style = AppTypography.paragraphRegular,
-                    color = NeutralColors.Neutral80,
-                    textAlign = TextAlign.Justify,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Otherwise, treat as a single point or split by periods if they seem to separate sentences
+                if (mission.contains(". ") && mission.length > 50) {
+                    mission.split(". ").filter { it.isNotBlank() }.map { it + "." }
+                } else {
+                    listOf(mission)
+                }
+            }
+
+            // Display as numbered list
+            missionPoints.forEachIndexed { index, point ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 1.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        text = "${index + 1}. ",
+                        style = AppTypography.paragraphRegular,
+                        color = NeutralColors.Neutral80,
+                    )
+                    Text(
+                        text = point.trim(),
+                        style = AppTypography.paragraphRegular.copy(lineHeight = 18.sp),
+                        color = NeutralColors.Neutral80,
+                        textAlign = TextAlign.Justify,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                if (index < missionPoints.size - 1) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
             }
         }
     }
@@ -375,7 +383,7 @@ private fun WorkProgramsSection(programs: List<WorkProgram>) {
             programs.forEachIndexed { index, program ->
                 WorkProgramItem(program = program, index = index + 1)
                 if (index < programs.size - 1) {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
             }
         }
@@ -425,7 +433,7 @@ private fun WorkProgramItem(program: WorkProgram, index: Int) {
                     )
                     Text(
                         text = desc,
-                        style = AppTypography.paragraphRegular,
+                        style = AppTypography.paragraphRegular.copy(lineHeight = 18.sp),
                         color = NeutralColors.Neutral70,
                         textAlign = TextAlign.Justify,
                         modifier = Modifier.weight(1f)

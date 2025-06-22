@@ -134,9 +134,10 @@ fun WaitingScreen(
                     onClick = {
                         when (source) {
                             "register" -> {
-                                // From register flow - let ViewModel handle navigation to login
+                                // From register flow - trigger navigation through ViewModel
+                                // AND call onClose as a fallback mechanism
                                 viewModel?.onWaitingScreenClose()
-                                // DON'T call onClose() here to avoid navigation conflict
+                                onClose()
                             }
                             "login" -> {
                                 // From login flow - use onClose callback to return to login
