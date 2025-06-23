@@ -1,9 +1,12 @@
 package com.nocturna.votechain.viewmodel.vote
 
 import android.content.Context
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.nocturna.votechain.data.model.VoteCastData
 import com.nocturna.votechain.data.model.VoteCastResponse
 import com.nocturna.votechain.data.model.VotingCategory
 import com.nocturna.votechain.data.model.VotingResult
@@ -35,6 +38,9 @@ class VotingViewModel(private val repository: VotingRepository) : ViewModel() {
 
     private val _hasVoted = MutableStateFlow(false)
     val hasVoted: StateFlow<Boolean> = _hasVoted.asStateFlow()
+
+    private val _voteState = MutableLiveData<VoteState>()
+    val voteState: LiveData<VoteState> = _voteState
 
     init {
         checkVotingStatus()
@@ -83,28 +89,27 @@ class VotingViewModel(private val repository: VotingRepository) : ViewModel() {
      * @param electionPairId The ID of the selected candidate pair
      * @param region The voter's region
      */
-    fun castVote(electionPairId: String, region: String) {
+    fun castVote(electionPairId: String, region: String, otpToken: String) {
         viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-            _voteResult.value = null
+            _voteState.value = VoteState.Loading
 
-            repository.castVote(electionPairId, region).collect { result ->
-                _isLoading.value = false
-                result.fold(
-                    onSuccess = { voteResponse ->
-                        _voteResult.value = voteResponse
-                        _hasVoted.value = true
-
-                        // Refresh data after successful vote
-                        fetchActiveVotings()
-                        fetchVotingResults()
-                    },
-                    onFailure = { e ->
-                        _error.value = e.message ?: "Failed to cast vote"
-                    }
-                )
-            }
+            repository.castVoteWithOTP(electionPairId, region, otpToken)
+                .collect { result ->
+                    result.fold(
+                        onSuccess = { response ->
+                            if (response.code == 0) {
+                                _voteState.value = VoteState.Success(response.data)
+                            } else {
+                                _voteState.value = VoteState.Error(
+                                    response.error?.error_message ?: "Unknown error"
+                                )
+                            }
+                        },
+                        onFailure = { error ->
+                            _voteState.value = VoteState.Error(error.message ?: "Unknown error")
+                        }
+                    )
+                }
         }
     }
 
@@ -181,5 +186,11 @@ class VotingViewModel(private val repository: VotingRepository) : ViewModel() {
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }
+    }
+
+    sealed class VoteState {
+        object Loading : VoteState()
+        data class Success(val data: VoteCastData?) : VoteState()
+        data class Error(val message: String) : VoteState()
     }
 }

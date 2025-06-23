@@ -405,4 +405,32 @@ class UserLoginRepository(private val context: Context) {
             null
         }
     }
+
+    /**
+     * Get private key for specific email user
+     */
+    fun getPrivateKey(email: String): String? {
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return sharedPreferences.getString("${email}_private_key", null)
+    }
+
+    /**
+     * Get public key for specific email user
+     */
+    fun getPublicKey(email: String): String? {
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return sharedPreferences.getString("${email}_public_key", null)
+    }
+
+    /**
+     * Save keys for specific email user
+     */
+    fun saveKeysForUser(email: String, privateKey: String, publicKey: String) {
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val editor = sharedPreferences.edit()
+        editor.putString("${email}_private_key", privateKey)
+        editor.putString("${email}_public_key", publicKey)
+        editor.apply()
+        Log.d(TAG, "Keys saved for user: $email")
+    }
 }

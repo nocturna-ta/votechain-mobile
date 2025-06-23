@@ -895,23 +895,53 @@ class CryptoKeyManager(private val context: Context) {
     }
 
     /**
-     * Double decryption
+     * Double decrypt private key
+     * This decrypts with both the encryption key and master key
      */
-    private fun doubleDecryptPrivateKey(encryptedData: String, iv: String): String {
+    private fun doubleDecryptPrivateKey(encryptedData: String?, iv: String?): String {
+        if (encryptedData.isNullOrEmpty() || iv.isNullOrEmpty()) {
+            Log.e(TAG, "Encrypted data or IV is null or empty")
+            throw SecurityException("Invalid encrypted data or IV")
+        }
+
         try {
             // First layer: decrypt with encryption key
             val firstDecryption = decryptWithKey(encryptedData, iv, KEY_ALIAS_ENCRYPTION)
 
-            // Decode first decryption result to get the encrypted data for second layer
-            val secondEncryptedData = Base64.decode(firstDecryption, Base64.NO_WRAP).toString(Charsets.UTF_8)
+            // First decryption result should be base64 encoded
+            if (firstDecryption.isBlank()) {
+                throw SecurityException("First decryption resulted in empty data")
+            }
 
-            // Second layer: decrypt with master key
-            // Use the same IV since it was stored alongside the encryption key
-            return decryptWithKey(secondEncryptedData, iv, KEY_ALIAS_MASTER)
+            try {
+                // Try to decode as Base64 - if this fails, it means the data isn't properly encoded
+                val decodedBytes = Base64.decode(firstDecryption, Base64.DEFAULT)
+
+                // Convert back to string for second decryption
+                val secondEncryptedData = String(decodedBytes, Charsets.UTF_8)
+
+                // Second layer: decrypt with master key
+                return decryptWithKey(secondEncryptedData, iv, KEY_ALIAS_MASTER)
+            } catch (e: IllegalArgumentException) {
+                // Not valid Base64, try to use the string directly
+                Log.w(TAG, "First decryption didn't result in valid Base64, trying direct second decryption")
+                return decryptWithKey(firstDecryption, iv, KEY_ALIAS_MASTER)
+            }
         } catch (e: Exception) {
-            // Handle format errors gracefully
+            // More detailed error logging
             Log.e(TAG, "Double decryption failed: ${e.message}")
-            throw SecurityException("Failed to decrypt private key", e)
+            Log.e(TAG, "Exception type: ${e.javaClass.simpleName}")
+            e.cause?.let { Log.e(TAG, "Caused by: ${it.javaClass.simpleName} - ${it.message}") }
+
+            // Use a recovery approach if possible
+            try {
+                // Attempt single decryption as fallback
+                Log.d(TAG, "Attempting single decryption fallback...")
+                return decryptWithKey(encryptedData, iv, KEY_ALIAS_MASTER)
+            } catch (fallbackEx: Exception) {
+                Log.e(TAG, "Fallback decryption also failed: ${fallbackEx.message}")
+                throw SecurityException("Failed to decrypt private key", e)
+            }
         }
     }
 

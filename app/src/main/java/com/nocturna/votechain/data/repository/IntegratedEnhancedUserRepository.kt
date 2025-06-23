@@ -253,10 +253,12 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
 
             // Get user profile (with fallback)
             val userProfile = try {
-                userProfileRepository.fetchCompleteUserProfile().getOrNull()?.userProfile
+                userProfileRepository.fetchCompleteUserProfile().getOrNull()
+                    ?.let { it.userProfile } // Access userProfile property correctly
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to fetch fresh profile, using saved: ${e.message}")
-                userProfileRepository.getSavedCompleteProfile()?.userProfile
+                userProfileRepository.getSavedCompleteProfile()
+                    ?.let { it.userProfile } // Access userProfile property correctly
             }
 
             // Get voter data (with fallback)

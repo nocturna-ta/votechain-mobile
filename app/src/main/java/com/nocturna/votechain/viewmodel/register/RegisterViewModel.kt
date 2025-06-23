@@ -399,7 +399,7 @@ class RegisterViewModel(
                                 )
                                 _uiState.value = RegisterUiState.Approved
                             }
-                            "rejected", "denied" -> {
+                            "rejected" -> {
                                 registrationStateManager.saveRegistrationState(
                                     RegistrationStateManager.STATE_REJECTED,
                                     email,
@@ -408,21 +408,22 @@ class RegisterViewModel(
                                 _uiState.value = RegisterUiState.Rejected
                             }
                             else -> {
-                                // Default to waiting if status is unclear
-                                registrationStateManager.saveRegistrationState(
-                                    RegistrationStateManager.STATE_WAITING,
-                                    email,
-                                    nationalId
-                                )
                                 _uiState.value = RegisterUiState.Waiting
                             }
                         }
+
+                        // Save the generated keys associated with this email
+                        saveKeysForUser(email)
                     },
-                    onFailure = { exception ->
-                        Log.e(TAG, "Registration failed: ${exception.message}", exception)
-                        // Clear the waiting state since registration failed
-                        registrationStateManager.clearRegistrationState()
-                        _uiState.value = RegisterUiState.Error(exception.message ?: "Unknown error occurred")
+                    onFailure = { error ->
+                        Log.e(TAG, "Registration failed: ${error.message}", error)
+                        _uiState.value = RegisterUiState.Error(error.message ?: "Unknown error occurred")
+
+                        // Even if registration API failed, we can still save key info
+                        // if they were generated
+                        if (keyGenerationState.value == KeyGenerationState.Generated) {
+                            saveKeysForUser(email)
+                        }
                     }
                 )
             } catch (e: Exception) {
@@ -815,7 +816,7 @@ class RegisterViewModel(
                                 )
                                 _uiState.value = RegisterUiState.Approved
                             }
-                            "rejected", "denied" -> {
+                            "rejected" -> {
                                 registrationStateManager.saveRegistrationState(
                                     RegistrationStateManager.STATE_REJECTED,
                                     email,
@@ -1369,4 +1370,35 @@ class RegisterViewModel(
             }
         }
     }
+
+    /**
+     * Save the private and public keys in SharedPreferences for the given email
+     */
+    private fun saveKeysForUser(email: String) {
+        viewModelScope.launch {
+            try {
+                // Instead of using getKeyPairInfo which is unavailable, we'll use the individual getter methods
+                val privateKey = cryptoKeyManager.getPrivateKey()
+                val publicKey = cryptoKeyManager.getPublicKey()
+                val voterAddress = cryptoKeyManager.getVoterAddress()
+
+                if (privateKey != null && publicKey != null) {
+                    val sharedPreferences = context.getSharedPreferences("VoteChainPrefs", Context.MODE_PRIVATE)
+                    val editor = sharedPreferences.edit()
+
+                    editor.putString("${email}_private_key", privateKey)
+                    editor.putString("${email}_public_key", publicKey)
+                    editor.putString("${email}_voter_address", voterAddress)
+                    editor.apply()
+
+                    Log.d(TAG, "✅ Keys saved for user: $email")
+                } else {
+                    Log.e(TAG, "❌ Unable to save keys for user $email: Keys not available")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Failed to save keys for user $email", e)
+            }
+        }
+    }
 }
+

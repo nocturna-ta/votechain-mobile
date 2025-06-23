@@ -109,6 +109,68 @@ class LoginViewModel(
      */
     private suspend fun checkRegistrationStatusAfterLogin(email: String, loginData: UserLoginData?) {
         try {
+            // Step 1: Check if the user has existing registration state
+            val userExists = checkUserRegistrationData(email)
+
+            if (userExists) {
+                val registrationState = registrationStateManager.getRegistrationState()
+                Log.d(TAG, "Registration state found: $registrationState")
+
+                when (registrationState) {
+                    RegistrationStateManager.STATE_WAITING -> {
+                        // Check if there's been an update via API
+                        checkVerificationStatusFromApi(email, loginData)
+                    }
+                    RegistrationStateManager.STATE_APPROVED -> {
+                        proceedToHome(loginData)
+                    }
+                    RegistrationStateManager.STATE_REJECTED -> {
+                        _uiState.value = LoginUiState.NavigateToRejected
+                    }
+                    else -> {
+                        proceedToHome(loginData)
+                    }
+                }
+            } else {
+                // Step 2: If no local state, check API
+                checkVerificationStatusFromApi(email, loginData)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking registration status: ${e.message}", e)
+            fallbackToLocalState(email, loginData)
+        }
+
+        // Load keys for this user regardless of registration state
+        loadKeysForUser(email)
+    }
+
+    /**
+     * Load keys for user from SharedPreferences
+     */
+    private fun loadKeysForUser(email: String) {
+        viewModelScope.launch {
+            try {
+                // Load private and public keys from SharedPreferences
+                val privateKey = userLoginRepository.getPrivateKey(email)
+                val publicKey = userLoginRepository.getPublicKey(email)
+
+                if (privateKey != null && publicKey != null) {
+                    // Keys loaded successfully
+                    Log.d(TAG, "Keys loaded for user $email")
+                } else {
+                    Log.w(TAG, "No keys found for user $email")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading keys for user $email: ${e.message}", e)
+            }
+        }
+    }
+
+    /**
+     * Check verification status from API
+     */
+    private suspend fun checkVerificationStatusFromApi(email: String, loginData: UserLoginData?) {
+        try {
             // Always check with API first to get the most up-to-date status
             val response = withContext(Dispatchers.IO) {
                 apiService.getVerificationStatus(email)
@@ -460,5 +522,13 @@ class LoginViewModel(
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }
+    }
+
+    /**
+     * Check if user has registration data in local storage
+     */
+    private fun checkUserRegistrationData(email: String): Boolean {
+        val savedEmail = registrationStateManager.getSavedEmail()
+        return savedEmail == email && registrationStateManager.getRegistrationState() != RegistrationStateManager.STATE_NONE
     }
 }

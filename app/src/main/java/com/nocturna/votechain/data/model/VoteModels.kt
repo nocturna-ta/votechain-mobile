@@ -1,10 +1,11 @@
 package com.nocturna.votechain.data.model
 
-/** Request model for casting a vote
-* POST /v1/vote/cast
-*/
+/** Enhanced Request model for casting a vote with OTP support
+ * POST /v1/vote/cast
+ */
 data class VoteCastRequest(
     val election_pair_id: String,
+    val otp_token: String,
     val region: String,
     val signed_transaction: String,
     val voter_id: String

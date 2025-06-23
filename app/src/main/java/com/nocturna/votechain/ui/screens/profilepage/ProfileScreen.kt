@@ -144,8 +144,8 @@ fun ProfileScreen(
     }
 
     // Extract voter data dari complete profile
-    val voterData = completeUserProfile?.voterProfile ?: fallbackVoterData
-    val userEmail = completeUserProfile?.userProfile?.email ?: userLoginRepository.getUserEmail()
+    val voterData = completeUserProfile?.let { it.voterProfile } ?: fallbackVoterData
+    val userEmail = completeUserProfile?.let { it.userProfile?.email } ?: userLoginRepository.getUserEmail()
 
     val scrollState = rememberScrollState()
 
