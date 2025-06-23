@@ -81,11 +81,18 @@ fun ResultsScreen(
                 verticalArrangement = Arrangement.spacedBy(24.dp) // Match active voting spacing
             ) {
                 items(votingResults) { result ->
+                    // Assuming VotingCategory has id and title properties
+                    // and we need to adapt it to work with ResultCard
                     ResultCard(
-                        result = result,
+                        result = VotingResult(
+                            categoryId = result.id,
+                            categoryTitle = result.title,
+                            options = emptyList(),
+                            totalVotes = 0
+                        ),
                         onClick = {
-                            // Navigate to detailed results if needed
-                            navController.navigate("detail_result/${result.categoryId}/${result.categoryTitle}")
+                            // Navigate to detailed results using available properties
+                            navController.navigate("detail_result/${result.id}/${result.title}")
                         }
                     )
                 }

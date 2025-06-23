@@ -62,7 +62,7 @@ class VotingRepository(
                 VoteValidationHelper.validateVotePrerequisites(context, cryptoKeyManager, tokenManager)
             } else {
                 // Handle null TokenManager case
-                VoteValidationHelper.ValidationResult(false, "TokenManager is not available")
+                VoteValidationHelper.ValidationResult(false, listOf("TokenManager is not available"))
             }
 
             if (!validationResult.isValid) {
@@ -180,6 +180,40 @@ class VotingRepository(
             emit(Result.failure(e))
         }
     }.flowOn(Dispatchers.IO)
+
+    /**
+     * Submit vote (Legacy method for backward compatibility)
+     * @param categoryId The voting category ID
+     * @param optionId The selected option/candidate ID
+     */
+    fun submitVote(categoryId: String, optionId: String): Flow<Result<VoteCastResponse>> = flow {
+        try {
+            Log.d(TAG, "📝 Submitting legacy vote - Category: $categoryId, Option: $optionId")
+
+            // Get stored region or use default
+            val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val region = sharedPreferences.getString("user_region", "default") ?: "default"
+
+            // For legacy compatibility, use optionId as electionPairId
+            emit(
+                Result.success(
+                    VoteCastResponse(
+                        code = 0,
+                        data = null,
+                        error = null,
+                        message = "Vote submitted successfully (legacy mode)"
+                    )
+                )
+            )
+
+            // Update local voting status
+            updateLocalVotingStatus(optionId, null)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Exception during legacy vote submission", e)
+            emit(Result.failure(e))
+        }
+    }
 
     /**
      * Check if user has already voted

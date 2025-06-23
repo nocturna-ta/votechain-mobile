@@ -416,13 +416,6 @@ fun VotechainNavGraph(
                 onBackClick = {
                     navController.popBackStack()
                 },
-                onViewProfileClick = { candidateId ->
-                    navController.navigate("candidate_detail/$candidateId")
-                },
-                onVoteClick = { electionPairId ->
-                    // Navigate to vote confirmation with the verified OTP
-                    navController.navigate("vote_confirmation/$categoryId/$electionPairId")
-                },
                 navController = navController
             )
         }

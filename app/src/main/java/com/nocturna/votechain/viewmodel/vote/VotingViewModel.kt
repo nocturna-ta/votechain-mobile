@@ -24,8 +24,8 @@ class VotingViewModel(private val repository: VotingRepository) : ViewModel() {
     private val _activeVotings = MutableStateFlow<List<VotingCategory>>(emptyList())
     val activeVotings: StateFlow<List<VotingCategory>> = _activeVotings.asStateFlow()
 
-    private val _votingResults = MutableStateFlow<List<VotingResult>>(emptyList())
-    val votingResults: StateFlow<List<VotingResult>> = _votingResults.asStateFlow()
+    private val _votingResults = MutableStateFlow<List<VotingCategory>>(emptyList())
+    val votingResults: StateFlow<List<VotingCategory>> = _votingResults.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -93,12 +93,16 @@ class VotingViewModel(private val repository: VotingRepository) : ViewModel() {
         viewModelScope.launch {
             _voteState.value = VoteState.Loading
 
-            repository.castVoteWithOTP(electionPairId, region, otpToken)
+            repository.castVoteWithOTPVerification(electionPairId, region)
                 .collect { result ->
                     result.fold(
                         onSuccess = { response ->
                             if (response.code == 0) {
                                 _voteState.value = VoteState.Success(response.data)
+                                _hasVoted.value = true
+                                // Refresh data after successful vote
+                                fetchActiveVotings()
+                                fetchVotingResults()
                             } else {
                                 _voteState.value = VoteState.Error(
                                     response.error?.error_message ?: "Unknown error"
@@ -144,7 +148,7 @@ class VotingViewModel(private val repository: VotingRepository) : ViewModel() {
      * Check current voting status
      */
     private fun checkVotingStatus() {
-        _hasVoted.value = repository.hasVoted()
+        _hasVoted.value = repository.hasUserVoted()
     }
 
     /**
@@ -175,12 +179,9 @@ class VotingViewModel(private val repository: VotingRepository) : ViewModel() {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(VotingViewModel::class.java)) {
                 val cryptoKeyManager = CryptoKeyManager(context)
-                val tokenManager = TokenManager(context)
                 val repository = VotingRepository(
                     context = context,
-                    voteApiService = NetworkClient.voteApiService,
-                    cryptoKeyManager = cryptoKeyManager,
-                    tokenManager = tokenManager
+                    cryptoKeyManager = cryptoKeyManager
                 )
                 return VotingViewModel(repository) as T
             }
