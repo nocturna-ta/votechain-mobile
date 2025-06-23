@@ -21,15 +21,14 @@ import kotlinx.coroutines.flow.flowOn
 class OTPRepository(private val context: Context) {
     private val TAG = "OTPRepository"
     private val PREFS_NAME = "VoteChainPrefs"
-
-    val defaultPhoneNumber = "085722663467" // Default phone number for testing, replace with actual logic if needed
+    private val voterRepository = VoterRepository(context)
 
     /**
      * Generate OTP for voting verification
      */
-    fun generateVotingOTP(voterData: VoterData, categoryId: String): Flow<Result<OTPGenerateResponse>> = flow {
+    fun generateVotingOTP(categoryId: String): Flow<Result<OTPGenerateResponse>> = flow {
         try {
-            Log.d(TAG, "Generating OTP for voting verification - voter_id: ${voterData.id}")
+            Log.d(TAG, "Starting OTP generation process for category: $categoryId")
 
             val token = getStoredToken()
             if (token.isNullOrEmpty()) {
@@ -37,34 +36,54 @@ class OTPRepository(private val context: Context) {
                 return@flow
             }
 
-            val request = OTPGenerateRequest(
-//                phone_number = voterData.telephone ?: "",
-                phone_number = defaultPhoneNumber,
-                purpose = "vote_cast",
-                voter_id = voterData.id
+            // Step 1: Fetch voter data from /v1/voter based on logged-in user email
+            Log.d(TAG, "Fetching voter data from API...")
+            val voterResult = voterRepository.fetchVoterData(token)
+
+            voterResult.fold(
+                onSuccess = { voterData ->
+                    Log.d(TAG, "Voter data fetched successfully - ID: ${voterData.id}")
+
+                    // Step 2: Generate OTP using voter data
+                    val request = OTPGenerateRequest(
+                        phone_number = voterData.telephone,
+                        purpose = "vote_cast",
+                        voter_id = voterData.id
+                    )
+
+                    Log.d(TAG, "Generating OTP with request: phone=${request.phone_number}, voter_id=${request.voter_id}")
+
+                    val response = NetworkClient.otpApiService.generateOTP("Bearer $token", request)
+
+                    if (response.isSuccessful) {
+                        response.body()?.let { otpResponse ->
+                            if (otpResponse.code == 0) {
+                                Log.d(TAG, "OTP generated successfully for voter: ${voterData.id}")
+                                // Log OTP code for local development (remove in production)
+                                Log.d(TAG, "DEBUG - OTP Code: ${otpResponse.code}")
+
+                                emit(Result.success(otpResponse))
+                            } else {
+                                val errorMsg = otpResponse.error?.error_message ?: "Failed to generate OTP"
+                                Log.e(TAG, "OTP generation failed: $errorMsg")
+                                emit(Result.failure(Exception(errorMsg)))
+                            }
+                        } ?: run {
+                            Log.e(TAG, "Empty response body from OTP API")
+                            emit(Result.failure(Exception("Empty response from server")))
+                        }
+                    } else {
+                        val errorBody = response.errorBody()?.string()
+                        Log.e(TAG, "OTP API failed with code: ${response.code()}, body: $errorBody")
+                        emit(Result.failure(Exception("Failed to generate OTP: ${response.code()}")))
+                    }
+                },
+                onFailure = { error ->
+                    Log.e(TAG, "Failed to fetch voter data: ${error.message}")
+                    emit(Result.failure(Exception("Failed to fetch voter data: ${error.message}")))
+                }
             )
 
-            val response = otpApiService.generateOTP("Bearer $token", request)
-
-            if (response.isSuccessful) {
-                response.body()?.let { otpResponse ->
-                    if (otpResponse.code == 0) {
-                        Log.d(TAG, "OTP generated successfully for voter: ${voterData.id}")
-                        emit(Result.success(otpResponse))
-                    } else {
-                        val errorMsg = otpResponse.error?.error_message ?: "Failed to generate OTP"
-                        Log.e(TAG, "OTP generation failed: $errorMsg")
-                        emit(Result.failure(Exception(errorMsg)))
-                    }
-                } ?: run {
-                    Log.e(TAG, "Empty response body from OTP generate API")
-                    emit(Result.failure(Exception("Empty response from server")))
-                }
-            } else {
-                val errorBody = response.errorBody()?.string()
-                Log.e(TAG, "OTP generate API failed with code: ${response.code()}, body: $errorBody")
-                emit(Result.failure(Exception("API Error: ${response.code()} - $errorBody")))
-            }
         } catch (e: Exception) {
             Log.e(TAG, "Exception during OTP generation", e)
             emit(Result.failure(e))
@@ -72,11 +91,74 @@ class OTPRepository(private val context: Context) {
     }.flowOn(Dispatchers.IO)
 
     /**
+     * Verify OTP code
+     */
+    fun verifyVotingOTP(categoryId: String, otpCode: String): Flow<Result<OTPVerifyResponse>> = flow {
+        try {
+            Log.d(TAG, "Verifying OTP code for category: $categoryId")
+
+            val token = getStoredToken()
+            if (token.isNullOrEmpty()) {
+                emit(Result.failure(Exception("Authentication token not found")))
+                return@flow
+            }
+
+            // Get voter data for verification
+            val voterResult = voterRepository.fetchVoterData(token)
+
+            voterResult.fold(
+                onSuccess = { voterData ->
+                    val request = OTPVerifyRequest(
+                        code = otpCode,
+                        purpose = "vote_cast",
+                        voter_id = voterData.id
+                    )
+
+                    Log.d(TAG, "Verifying OTP with voter_id: ${voterData.id}")
+
+                    val response = NetworkClient.otpApiService.verifyOTP("Bearer $token", request)
+
+                    if (response.isSuccessful) {
+                        response.body()?.let { verifyResponse ->
+                            if (verifyResponse.code == 0 && verifyResponse.data?.is_valid == true) {
+                                Log.d(TAG, "OTP verification successful")
+                                // Store OTP token for voting process
+                                storeOTPToken(verifyResponse.data.otp_token)
+                                emit(Result.success(verifyResponse))
+                            } else {
+                                val errorMsg = verifyResponse.error?.error_message ?: "Invalid OTP code"
+                                Log.e(TAG, "OTP verification failed: $errorMsg")
+                                emit(Result.failure(Exception(errorMsg)))
+                            }
+                        } ?: run {
+                            Log.e(TAG, "Empty response body from OTP verify API")
+                            emit(Result.failure(Exception("Empty response from server")))
+                        }
+                    } else {
+                        val errorBody = response.errorBody()?.string()
+                        Log.e(TAG, "OTP verify API failed with code: ${response.code()}, body: $errorBody")
+                        emit(Result.failure(Exception("OTP verification failed: ${response.code()}")))
+                    }
+                },
+                onFailure = { error ->
+                    Log.e(TAG, "Failed to fetch voter data for verification: ${error.message}")
+                    emit(Result.failure(Exception("Failed to verify voter data: ${error.message}")))
+                }
+            )
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception during OTP verification", e)
+            emit(Result.failure(e))
+        }
+    }.flowOn(Dispatchers.IO)
+
+
+    /**
      * Resend OTP for voting verification
      */
-    fun resendVotingOTP(voterData: VoterData, categoryId: String): Flow<Result<OTPGenerateResponse>> = flow {
+    fun resendVotingOTP(categoryId: String): Flow<Result<OTPGenerateResponse>> = flow {
         try {
-            Log.d(TAG, "Resending OTP for voting verification - voter_id: ${voterData.id}")
+            Log.d(TAG, "Resending OTP for category: $categoryId")
 
             val token = getStoredToken()
             if (token.isNullOrEmpty()) {
@@ -85,8 +167,7 @@ class OTPRepository(private val context: Context) {
             }
 
             val request = OTPGenerateRequest(
-//                phone_number = voterData.telephone ?: "",
-                phone_number = defaultPhoneNumber,
+                phone_number = voterData.telephone ?: "",
                 purpose = "vote_cast",
                 voter_id = voterData.id
             )
@@ -132,8 +213,7 @@ class OTPRepository(private val context: Context) {
             }
 
             val request = OTPVerifyRequest(
-                phone_number = defaultPhoneNumber,
-//                phone_number = voterData.telephone ?: "",
+                phone_number = voterData.telephone ?: "",
                 purpose = "vote_cast",
                 voter_id = voterData.id,
                 otp_code = otpCode
@@ -173,5 +253,52 @@ class OTPRepository(private val context: Context) {
     private fun getStoredToken(): String? {
         val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return sharedPreferences.getString("auth_token", null)
+            ?: sharedPreferences.getString("user_token", null)
+    }
+
+    /**
+     * Store OTP token for voting process
+     */
+    private fun storeOTPToken(otpToken: String?) {
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        with(sharedPreferences.edit()) {
+            putString("current_otp_token", otpToken)
+            putLong("otp_token_timestamp", System.currentTimeMillis())
+            apply()
+        }
+        Log.d(TAG, "OTP token stored for voting process")
+    }
+
+    /**
+     * Get stored OTP token
+     */
+    fun getStoredOTPToken(): String? {
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val token = sharedPreferences.getString("current_otp_token", null)
+        val timestamp = sharedPreferences.getLong("otp_token_timestamp", 0)
+
+        // Check if token is still valid (within 10 minutes)
+        val isValid = (System.currentTimeMillis() - timestamp) < 10 * 60 * 1000
+
+        return if (token != null && isValid) {
+            Log.d(TAG, "Valid OTP token found")
+            token
+        } else {
+            Log.d(TAG, "No valid OTP token found")
+            null
+        }
+    }
+
+    /**
+     * Clear stored OTP token
+     */
+    fun clearOTPToken() {
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        with(sharedPreferences.edit()) {
+            remove("current_otp_token")
+            remove("otp_token_timestamp")
+            apply()
+        }
+        Log.d(TAG, "OTP token cleared")
     }
 }

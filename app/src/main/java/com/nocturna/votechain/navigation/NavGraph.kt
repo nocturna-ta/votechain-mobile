@@ -33,6 +33,7 @@ import com.nocturna.votechain.ui.screens.profilepage.ProfileScreen
 import com.nocturna.votechain.ui.screens.register.RegistrationFlowController
 import com.nocturna.votechain.ui.screens.votepage.OTPVotingVerificationScreen
 import com.nocturna.votechain.ui.screens.votepage.ResultsScreen
+import com.nocturna.votechain.ui.screens.votepage.VoteConfirmationScreen
 import com.nocturna.votechain.ui.screens.votepage.VoteSuccessScreen
 import com.nocturna.votechain.ui.screens.votepage.VotingScreen
 import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
@@ -387,13 +388,16 @@ fun VotechainNavGraph(
             arguments = listOf(navArgument("categoryId") { type = NavType.StringType })
         ) { backStackEntry ->
             val categoryId = backStackEntry.arguments?.getString("categoryId") ?: ""
+
             OTPVotingVerificationScreen(
                 navController = navController,
                 categoryId = categoryId,
-                onBackClick = { navController.popBackStack() },
+                onBackClick = {
+                    navController.popBackStack()
+                },
                 onVerificationComplete = {
-                    // Navigate to candidate selection screen after successful verification
-                    navController.navigate("candidate_selection/$categoryId") {
+                    // Navigate to candidate selection after successful OTP verification
+                    navController.navigate("candidate_president/$categoryId") {
                         popUpTo("otp_verification/$categoryId") { inclusive = true }
                     }
                 }
@@ -402,16 +406,51 @@ fun VotechainNavGraph(
 
         // FIXED: Candidate Selection screen with proper parameters and ViewModel
         composable(
-            "candidate_selection/{categoryId}",
+            "candidate_president/{categoryId}",
             arguments = listOf(navArgument("categoryId") { type = NavType.StringType })
-        ) {
-            val categoryId = it.arguments?.getString("categoryId") ?: ""
+        ) { backStackEntry ->
+            val categoryId = backStackEntry.arguments?.getString("categoryId") ?: ""
+
             CandidateSelectionScreen(
-                onBackClick = { navController.popBackStack() }, // Added missing onBackClick
-                navController = navController,
                 categoryId = categoryId,
-                viewModel = votingViewModel, // Use the ViewModel with proper factory
-                electionViewModel = electionViewModel
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onViewProfileClick = { candidateId ->
+                    navController.navigate("candidate_detail/$candidateId")
+                },
+                onVoteClick = { electionPairId ->
+                    // Navigate to vote confirmation with the verified OTP
+                    navController.navigate("vote_confirmation/$categoryId/$electionPairId")
+                },
+                navController = navController
+            )
+        }
+
+        // Vote Confirmation Screen
+        composable(
+            "vote_confirmation/{categoryId}/{electionPairId}",
+            arguments = listOf(
+                navArgument("categoryId") { type = NavType.StringType },
+                navArgument("electionPairId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val categoryId = backStackEntry.arguments?.getString("categoryId") ?: ""
+            val electionPairId = backStackEntry.arguments?.getString("electionPairId") ?: ""
+
+            VoteConfirmationScreen(
+                categoryId = categoryId,
+                electionPairId = electionPairId,
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onConfirmVote = {
+                    // Navigate to vote success after casting vote
+                    navController.navigate("vote_success") {
+                        popUpTo("votes") { inclusive = false }
+                    }
+                },
+                navController = navController
             )
         }
 

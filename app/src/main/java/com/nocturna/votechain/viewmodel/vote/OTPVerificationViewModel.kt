@@ -1,6 +1,7 @@
 package com.nocturna.votechain.viewmodel.vote
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -16,21 +17,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
 /**
- * UI State for OTP Verification
- */
-data class OTPVerificationUiState(
-    val isLoading: Boolean = false,
-    val isVerifying: Boolean = false,
-    val isResending: Boolean = false,
-    val otpData: OTPData? = null,
-    val voterData: VoterData? = null,
-    val error: String? = null,
-    val isVerificationSuccess: Boolean = false,
-    val remainingAttempts: Int = 0,
-    val timeRemainingSeconds: Int = 180
-)
-
-/**
  * ViewModel for handling OTP verification logic
  */
 class OTPVerificationViewModel(
@@ -38,126 +24,39 @@ class OTPVerificationViewModel(
     private val categoryId: String
 ) : ViewModel() {
 
+    private val TAG = "OTPVerificationViewModel"
     private val otpRepository = OTPRepository(context)
     private val voterRepository = VoterRepository(context)
 
+    // UI State
     private val _uiState = MutableStateFlow(OTPVerificationUiState())
     val uiState: StateFlow<OTPVerificationUiState> = _uiState.asStateFlow()
 
+    // Initialize and generate OTP when ViewModel is created
     init {
-        loadVoterDataAndGenerateOTP()
-    }
-
-    /**
-     * Load voter data and automatically generate OTP
-     */
-    private fun loadVoterDataAndGenerateOTP() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-
-            try {
-                // Get stored voter data
-                val voterData = getStoredVoterData()
-                if (voterData != null) {
-                    _uiState.value = _uiState.value.copy(voterData = voterData)
-                    generateOTP()
-                } else {
-                    // If no stored data, try to fetch from API
-                    fetchVoterDataAndGenerateOTP()
-                }
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = "Failed to load voter data: ${e.message}"
-                )
-            }
-        }
-    }
-
-    /**
-     * Get stored voter data from SharedPreferences
-     * Fix: Add this method since it doesn't exist in VoterRepository
-     */
-    private fun getStoredVoterData(): VoterData? {
-        val sharedPreferences = context.getSharedPreferences("VoteChainPrefs", Context.MODE_PRIVATE)
-
-        val fullName = sharedPreferences.getString("voter_full_name", null)
-        val nik = sharedPreferences.getString("voter_nik", null)
-        val voterAddress = sharedPreferences.getString("voter_address", null)
-        val userId = sharedPreferences.getString("user_id", null)
-
-        return if (fullName != null && nik != null) {
-            VoterData(
-                id = userId ?: "",
-                user_id = userId.toString(),
-                full_name = fullName,
-                nik = nik,
-                voter_address = voterAddress ?: "",
-                telephone = "085722663467", // Default phone number
-                gender = sharedPreferences.getString("voter_gender", null) ?: "",
-                birth_place = sharedPreferences.getString("voter_birth_place", null) ?: "",
-                birth_date = sharedPreferences.getString("voter_birth_date", null) ?: "",
-                residential_address = sharedPreferences.getString("voter_residential_address", null) ?: "",
-                is_registered = sharedPreferences.getBoolean("voter_is_registered", false),
-                has_voted = sharedPreferences.getBoolean("voter_has_voted", false),
-                region = sharedPreferences.getString("voter_region", null) ?: ""
-            )
-        } else {
-            null
-        }
-    }
-
-    /**
-     * Fetch voter data from API and generate OTP
-     */
-    private fun fetchVoterDataAndGenerateOTP() {
-        viewModelScope.launch {
-            val token = getStoredToken()
-            if (token.isNullOrEmpty()) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = "Authentication required. Please login again."
-                )
-                return@launch
-            }
-
-//            voterRepository.fetchVoterData(token)
-//                .onEach { result: Result<VoterData> ->
-//                result.fold(
-//                    onSuccess = { voterData: VoterData ->
-//                        _uiState.value = _uiState.value.copy(voterData = voterData)
-//                        generateOTP()
-//                    },
-//                    onFailure = { e: Throwable ->
-//                        _uiState.value = _uiState.value.copy(
-//                            isLoading = false,
-//                            error = "Failed to fetch voter data: ${e.message}"
-//                        )
-//                    }
-//                )
-//            }
-//                .collect()
-        }
+        generateOTP()
     }
 
     /**
      * Generate OTP for voting verification
      */
     fun generateOTP() {
-        val voterData = _uiState.value.voterData ?: return
+        Log.d(TAG, "Generating OTP for category: $categoryId")
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
-            otpRepository.generateVotingOTP(voterData, categoryId).collect { result ->
+            otpRepository.generateVotingOTP(categoryId).collect { result ->
                 result.fold(
                     onSuccess = { response ->
+                        Log.d(TAG, "OTP generation successful")
                         response.data?.let { otpData ->
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
                                 otpData = otpData,
                                 remainingAttempts = otpData.remaining_attempts,
-                                timeRemainingSeconds = otpData.time_remaining_seconds.toIntOrNull() ?: 180
+                                timeRemainingSeconds = otpData.time_remaining_seconds.toIntOrNull() ?: 180,
+                                error = null
                             )
                         } ?: run {
                             _uiState.value = _uiState.value.copy(
@@ -167,6 +66,7 @@ class OTPVerificationViewModel(
                         }
                     },
                     onFailure = { e ->
+                        Log.e(TAG, "OTP generation failed: ${e.message}")
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             error = "Failed to generate OTP: ${e.message}"
@@ -181,20 +81,22 @@ class OTPVerificationViewModel(
      * Resend OTP
      */
     fun resendOTP() {
-        val voterData = _uiState.value.voterData ?: return
+        Log.d(TAG, "Resending OTP for category: $categoryId")
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isResending = true, error = null)
 
-            otpRepository.resendVotingOTP(voterData, categoryId).collect { result ->
+            otpRepository.resendVotingOTP(categoryId).collect { result ->
                 result.fold(
                     onSuccess = { response ->
+                        Log.d(TAG, "OTP resend successful")
                         response.data?.let { otpData ->
                             _uiState.value = _uiState.value.copy(
                                 isResending = false,
                                 otpData = otpData,
                                 remainingAttempts = otpData.remaining_attempts,
-                                timeRemainingSeconds = otpData.time_remaining_seconds.toIntOrNull() ?: 180
+                                timeRemainingSeconds = otpData.time_remaining_seconds.toIntOrNull() ?: 180,
+                                error = null
                             )
                         } ?: run {
                             _uiState.value = _uiState.value.copy(
@@ -204,6 +106,7 @@ class OTPVerificationViewModel(
                         }
                     },
                     onFailure = { e ->
+                        Log.e(TAG, "OTP resend failed: ${e.message}")
                         _uiState.value = _uiState.value.copy(
                             isResending = false,
                             error = "Failed to resend OTP: ${e.message}"
@@ -218,7 +121,7 @@ class OTPVerificationViewModel(
      * Verify OTP code
      */
     fun verifyOTP(otpCode: String) {
-        val voterData = _uiState.value.voterData ?: return
+        Log.d(TAG, "Verifying OTP code: $otpCode")
 
         if (otpCode.length != 4) {
             _uiState.value = _uiState.value.copy(error = "Please enter a valid 4-digit OTP")
@@ -228,27 +131,35 @@ class OTPVerificationViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isVerifying = true, error = null)
 
-            otpRepository.verifyVotingOTP(voterData, otpCode).collect { result ->
+            otpRepository.verifyVotingOTP(categoryId, otpCode).collect { result ->
                 result.fold(
                     onSuccess = { response ->
+                        Log.d(TAG, "OTP verification response received")
                         if (response.data?.is_valid == true) {
+                            Log.d(TAG, "OTP verification successful")
                             _uiState.value = _uiState.value.copy(
                                 isVerifying = false,
-                                isVerificationSuccess = true
+                                isVerificationSuccess = true,
+                                otpToken = response.data.otp_token,
+                                error = null
                             )
                         } else {
+                            Log.w(TAG, "OTP verification failed: Invalid code")
+                            val currentAttempts = _uiState.value.remainingAttempts
                             _uiState.value = _uiState.value.copy(
                                 isVerifying = false,
                                 error = response.data?.message ?: "Invalid OTP code",
-                                remainingAttempts = _uiState.value.remainingAttempts - 1
+                                remainingAttempts = maxOf(0, currentAttempts - 1)
                             )
                         }
                     },
                     onFailure = { e ->
+                        Log.e(TAG, "OTP verification failed: ${e.message}")
+                        val currentAttempts = _uiState.value.remainingAttempts
                         _uiState.value = _uiState.value.copy(
                             isVerifying = false,
                             error = "Verification failed: ${e.message}",
-                            remainingAttempts = _uiState.value.remainingAttempts - 1
+                            remainingAttempts = maxOf(0, currentAttempts - 1)
                         )
                     }
                 )
@@ -271,11 +182,21 @@ class OTPVerificationViewModel(
     }
 
     /**
-     * Get stored authentication token
+     * Reset verification state
      */
-    private fun getStoredToken(): String? {
-        val sharedPreferences = context.getSharedPreferences("VoteChainPrefs", Context.MODE_PRIVATE)
-        return sharedPreferences.getString("auth_token", null)
+    fun resetVerificationState() {
+        _uiState.value = _uiState.value.copy(
+            isVerificationSuccess = false,
+            otpToken = null,
+            error = null
+        )
+    }
+
+    /**
+     * Get OTP token for voting process
+     */
+    fun getOTPToken(): String? {
+        return _uiState.value.otpToken ?: otpRepository.getStoredOTPToken()
     }
 
     /**
@@ -294,3 +215,18 @@ class OTPVerificationViewModel(
         }
     }
 }
+
+/**
+ * UI State for OTP Verification Screen
+ */
+data class OTPVerificationUiState(
+    val isLoading: Boolean = false,
+    val isResending: Boolean = false,
+    val isVerifying: Boolean = false,
+    val isVerificationSuccess: Boolean = false,
+    val otpData: OTPData? = null,
+    val otpToken: String? = null,
+    val remainingAttempts: Int = 3,
+    val timeRemainingSeconds: Int = 180,
+    val error: String? = null
+)

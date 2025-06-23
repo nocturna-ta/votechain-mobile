@@ -137,7 +137,7 @@ object VoteValidationHelper {
      */
     data class ValidationResult(
         val isValid: Boolean,
-        val issues: List<String>
+        val issues: String
     ) {
         fun getErrorMessage(): String {
             return if (issues.isEmpty()) {
