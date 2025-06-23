@@ -3,33 +3,77 @@ package com.nocturna.votechain.data.model
 import com.google.gson.annotations.SerializedName
 
 /**
- * Data classes for WebSocket messages
+ * Live results update message from WebSocket
+ * Matches the exact JSON structure provided
  */
-data class WebSocketMessage(
+data class LiveResultsUpdateMessage(
     @SerializedName("type")
     val type: String,
-    @SerializedName("data")
-    val data: Any? = null,
-    @SerializedName("subscription")
-    val subscription: String? = null,
-    @SerializedName("message")
-    val message: String? = null,
     @SerializedName("timestamp")
-    val timestamp: Long? = null
+    val timestamp: String,
+    @SerializedName("data")
+    val data: LiveElectionData,
+    @SerializedName("filter")
+    val filter: LiveResultFilter
 )
 
-data class SubscriptionMessage(
-    @SerializedName("type")
-    val type: String = "subscribe",
-    @SerializedName("subscription")
-    val subscription: String = "live_results"
+data class LiveElectionData(
+    @SerializedName("election_id")
+    val electionId: String,
+    @SerializedName("total_votes")
+    val totalVotes: Int,
+    @SerializedName("total_voters")
+    val totalVoters: Int,
+    @SerializedName("last_updated")
+    val lastUpdated: String,
+    @SerializedName("overall_percentage")
+    val overallPercentage: Double,
+    @SerializedName("regions")
+    val regions: List<LiveRegionResult>,
+    @SerializedName("top_cities")
+    val topCities: List<LiveCityResult>,
+    @SerializedName("stats")
+    val stats: LiveElectionStats
 )
 
-data class LiveResultsMessage(
-    @SerializedName("type")
-    val type: String,
-    @SerializedName("data")
-    val data: VotingResult,
-    @SerializedName("timestamp")
-    val timestamp: Long
+data class LiveRegionResult(
+    @SerializedName("region")
+    val region: String,
+    @SerializedName("votes")
+    val votes: Int,
+    @SerializedName("percentage")
+    val percentage: Int
+)
+
+data class LiveCityResult(
+    @SerializedName("city")
+    val city: String,
+    @SerializedName("votes")
+    val votes: Int,
+    @SerializedName("voters")
+    val voters: Int,
+    @SerializedName("percentage")
+    val percentage: Int,
+    @SerializedName("rank")
+    val rank: Int
+)
+
+data class LiveElectionStats(
+    @SerializedName("total_voters")
+    val totalVoters: Int,
+    @SerializedName("total_regions")
+    val totalRegions: Int,
+    @SerializedName("success_rate")
+    val successRate: Double,
+    @SerializedName("votes_per_second")
+    val votesPerSecond: Double,
+    @SerializedName("active_regions")
+    val activeRegions: Int,
+    @SerializedName("completion_rate")
+    val completionRate: Double
+)
+
+data class LiveResultFilter(
+    @SerializedName("election_pair_id")
+    val electionPairId: String
 )

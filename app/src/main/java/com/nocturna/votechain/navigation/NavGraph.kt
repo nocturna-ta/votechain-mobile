@@ -31,6 +31,7 @@ import com.nocturna.votechain.ui.screens.profilepage.AccountDetailsScreen
 import com.nocturna.votechain.ui.screens.profilepage.FAQScreen
 import com.nocturna.votechain.ui.screens.profilepage.ProfileScreen
 import com.nocturna.votechain.ui.screens.register.RegistrationFlowController
+import com.nocturna.votechain.ui.screens.votepage.LiveResultScreen
 import com.nocturna.votechain.ui.screens.votepage.OTPVotingVerificationScreen
 import com.nocturna.votechain.ui.screens.votepage.ResultsScreen
 import com.nocturna.votechain.ui.screens.votepage.VoteConfirmationScreen
@@ -462,6 +463,18 @@ fun VotechainNavGraph(
 
         composable("results") {
             ResultsScreen(navController, votingViewModel)
+        }
+
+        composable(
+            "live_result/{electionId}",
+            arguments = listOf(navArgument("electionId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val electionId = backStackEntry.arguments?.getString("electionId") ?: ""
+            LiveResultScreen(
+                electionId = electionId,
+                navController = navController,
+                electionViewModel = electionViewModel
+            )
         }
 
         // FAQ Screen - Updated implementation

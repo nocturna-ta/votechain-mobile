@@ -1,8 +1,11 @@
+// Update untuk LiveResultViewModel.kt
+
 package com.nocturna.votechain.viewmodel.vote
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.nocturna.votechain.data.model.LiveElectionData
 import com.nocturna.votechain.data.model.VotingResult
 import com.nocturna.votechain.data.network.LiveResultsWebSocketManager
 import com.nocturna.votechain.data.repository.LiveResultRepository
@@ -13,6 +16,7 @@ import kotlinx.coroutines.launch
 
 /**
  * ViewModel for live voting results with WebSocket connection
+ * Enhanced to handle raw live data
  */
 class LiveResultViewModel(
     private val repository: LiveResultRepository = LiveResultRepository()
@@ -21,6 +25,10 @@ class LiveResultViewModel(
     // Live result state
     private val _liveResult = MutableStateFlow<VotingResult?>(null)
     val liveResult: StateFlow<VotingResult?> = _liveResult.asStateFlow()
+
+    // Raw live data from WebSocket
+    private val _rawLiveData = MutableStateFlow<LiveElectionData?>(null)
+    val rawLiveData: StateFlow<LiveElectionData?> = _rawLiveData.asStateFlow()
 
     // Connection state
     private val _connectionState = MutableStateFlow(LiveResultsWebSocketManager.ConnectionState.DISCONNECTED)
@@ -35,9 +43,11 @@ class LiveResultViewModel(
     val error: StateFlow<String?> = _error.asStateFlow()
 
     /**
-     * Start receiving live results for a specific category
+     * Start receiving live results for a specific election
+     * @param electionId The election ID to monitor
+     * @param regionCode Optional region filter
      */
-    fun startLiveResults(categoryId: String, regionCode: String? = null) {
+    fun startLiveResults(electionId: String, regionCode: String? = null) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
@@ -50,7 +60,7 @@ class LiveResultViewModel(
 
         viewModelScope.launch {
             // Observe live results
-            repository.getLiveResults(categoryId, regionCode).collect { result ->
+            repository.getLiveResults(electionId, regionCode).collect { result ->
                 _isLoading.value = false
                 result.fold(
                     onSuccess = { votingResult ->
@@ -61,6 +71,13 @@ class LiveResultViewModel(
                         _error.value = exception.message
                     }
                 )
+            }
+        }
+
+        // Also observe raw live data if available
+        viewModelScope.launch {
+            repository.getRawLiveData().collect { data ->
+                _rawLiveData.value = data
             }
         }
     }
@@ -76,26 +93,28 @@ class LiveResultViewModel(
     /**
      * Retry connection
      */
-    fun retryConnection(categoryId: String, regionCode: String? = null) {
+    fun retryConnection(electionId: String, regionCode: String? = null) {
         stopLiveResults()
-        startLiveResults(categoryId, regionCode)
+        startLiveResults(electionId, regionCode)
     }
 
     override fun onCleared() {
         super.onCleared()
+        stopLiveResults()
         repository.cleanup()
     }
-}
 
-/**
- * Factory for creating LiveResultViewModel
- */
-class LiveResultViewModelFactory : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(LiveResultViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return LiveResultViewModel() as T
+    companion object {
+        fun provideFactory(): ViewModelProvider.Factory {
+            return object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    if (modelClass.isAssignableFrom(LiveResultViewModel::class.java)) {
+                        return LiveResultViewModel() as T
+                    }
+                    throw IllegalArgumentException("Unknown ViewModel class")
+                }
+            }
         }
-        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

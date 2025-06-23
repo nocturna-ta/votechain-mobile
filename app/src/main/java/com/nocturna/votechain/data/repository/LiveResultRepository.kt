@@ -1,5 +1,8 @@
+// Update untuk LiveResultRepository.kt
+
 package com.nocturna.votechain.data.repository
 
+import com.nocturna.votechain.data.model.LiveElectionData
 import com.nocturna.votechain.data.model.VotingResult
 import com.nocturna.votechain.data.network.LiveResultsWebSocketManager
 import kotlinx.coroutines.flow.Flow
@@ -8,7 +11,7 @@ import kotlinx.coroutines.flow.map
 
 /**
  * Repository for live voting results using WebSocket connection
- * Replaces the dummy data with real-time results from the API
+ * Enhanced to provide raw live data access
  */
 class LiveResultRepository {
     private val webSocketManager = LiveResultsWebSocketManager()
@@ -16,7 +19,7 @@ class LiveResultRepository {
     /**
      * Get live results with real-time updates
      */
-    fun getLiveResults(categoryId: String, regionCode: String? = null): Flow<Result<VotingResult?>> {
+    fun getLiveResults(electionId: String, regionCode: String? = null): Flow<Result<VotingResult?>> {
         // Connect to WebSocket if not already connected
         webSocketManager.connect()
 
@@ -28,13 +31,24 @@ class LiveResultRepository {
             when {
                 error != null -> Result.failure(Exception(error))
                 liveResult != null -> {
-                    // Filter by category and region if needed
-                    val filteredResult = filterResult(liveResult, categoryId, regionCode)
+                    // Filter by election ID if needed
+                    val filteredResult = if (liveResult.categoryId == electionId) {
+                        filterResult(liveResult, electionId, regionCode)
+                    } else {
+                        null
+                    }
                     Result.success(filteredResult)
                 }
                 else -> Result.success(null)
             }
         }
+    }
+
+    /**
+     * Get raw live data from WebSocket
+     */
+    fun getRawLiveData(): Flow<LiveElectionData?> {
+        return webSocketManager.rawLiveData
     }
 
     /**
@@ -59,12 +73,16 @@ class LiveResultRepository {
     }
 
     /**
-     * Filter results based on category and region
-     * Adapt this method based on your actual data structure
+     * Filter results based on election ID and region
      */
-    private fun filterResult(result: VotingResult, categoryId: String, regionCode: String?): VotingResult {
-        // Apply filtering logic here if needed
-        // For now, return the result as is
+    private fun filterResult(result: VotingResult, electionId: String, regionCode: String?): VotingResult {
+        // If no region filter, return the result as is
+        if (regionCode == null) {
+            return result
+        }
+
+        // Apply region-specific filtering if needed
+        // This would be implemented based on your specific requirements
         return result
     }
 }

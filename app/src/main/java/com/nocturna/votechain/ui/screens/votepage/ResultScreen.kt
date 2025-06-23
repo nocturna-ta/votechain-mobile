@@ -113,8 +113,7 @@ fun ResultsScreen(
                         onClick = {
                             // Navigate to detailed results
                             if (result.id == "presidential_2024") {
-                                // Navigate to presidential election detailed results
-                                navController.navigate("detail_result/${result.id}")
+                                navController.navigate("live_result/${result.id}")
                             } else {
                                 navController.navigate("detail_result/${result.id}/${result.title}")
                             }

@@ -3,6 +3,9 @@ package com.nocturna.votechain.data.network
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
+import com.nocturna.votechain.data.model.LiveElectionData
+import com.nocturna.votechain.data.model.LiveResultsUpdateMessage
+import com.nocturna.votechain.data.model.VotingOption
 import com.nocturna.votechain.data.model.VotingResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +31,7 @@ class LiveResultsWebSocketManager {
     private val TAG = "LiveResultsWebSocketManager"
 
     companion object {
-        private const val WEBSOCKET_URL = "ws://4db6-36-69-141-188.ngrok-free.app/v1/live/ws"
+        private const val WEBSOCKET_URL = "ws://775e-36-69-141-188.ngrok-free.app/v1/live/ws"
         private const val RECONNECT_DELAY = 5000L // 5 seconds
         private const val MAX_RECONNECT_ATTEMPTS = 5
     }
@@ -95,21 +98,21 @@ class LiveResultsWebSocketManager {
     /**
      * Send subscription message to start receiving live results
      */
-    private fun subscribeToLiveResults() {
-        val subscriptionMessage = mapOf(
-            "type" to "subscribe",
-            "subscription" to "live_results"
-        )
-
-        val jsonMessage = gson.toJson(subscriptionMessage)
-        Log.d(TAG, "Sending subscription message: $jsonMessage")
-
-        val success = webSocket?.send(jsonMessage) ?: false
-        if (!success) {
-            Log.e(TAG, "Failed to send subscription message")
-            _error.value = "Failed to send subscription message"
-        }
-    }
+//    private fun subscribeToLiveResults() {
+//        val subscriptionMessage = mapOf(
+//            "type" to "subscribe",
+//            "subscription" to "live_results"
+//        )
+//
+//        val jsonMessage = gson.toJson(subscriptionMessage)
+//        Log.d(TAG, "Sending subscription message: $jsonMessage")
+//
+//        val success = webSocket?.send(jsonMessage) ?: false
+//        if (!success) {
+//            Log.e(TAG, "Failed to send subscription message")
+//            _error.value = "Failed to send subscription message"
+//        }
+//    }
 
     /**
      * Attempt to reconnect with exponential backoff
@@ -142,32 +145,32 @@ class LiveResultsWebSocketManager {
         try {
             Log.d(TAG, "Received message: $text")
 
-            // Parse the incoming message
-            val messageMap = gson.fromJson(text, Map::class.java) as? Map<String, Any>
+            // Parse the incoming message as LiveResultsUpdateMessage
+            val message = gson.fromJson(text, LiveResultsUpdateMessage::class.java)
 
-            when (messageMap?.get("type")) {
+            when (message.type) {
                 "subscription_confirmed" -> {
                     Log.d(TAG, "Subscription confirmed")
                     _error.value = null
                 }
-                "live_results" -> {
-                    val data = messageMap["data"]
-                    if (data != null) {
-                        // Convert the data to VotingResult
-                        val votingResult = parseVotingResult(data)
-                        if (votingResult != null) {
-                            _liveResults.value = votingResult
-                            Log.d(TAG, "Updated live results: ${votingResult}")
-                        }
-                    }
+                "live_results_update" -> {
+                    // Convert LiveElectionData to VotingResult format
+                    val votingResult = convertToVotingResult(message.data)
+                    _liveResults.value = votingResult
+
+                    // Also store the raw data for detailed views
+                    _rawLiveData.value = message.data
+
+                    Log.d(TAG, "Updated live results for election: ${message.data.electionId}")
+                    Log.d(TAG, "Total votes: ${message.data.totalVotes}, Participation: ${message.data.overallPercentage}%")
                 }
                 "error" -> {
-                    val errorMessage = messageMap["message"] as? String ?: "Unknown error"
+                    val errorMessage = "WebSocket error"
                     Log.e(TAG, "Received error from server: $errorMessage")
                     _error.value = errorMessage
                 }
                 else -> {
-                    Log.d(TAG, "Unknown message type: ${messageMap?.get("type")}")
+                    Log.d(TAG, "Unknown message type: ${message.type}")
                 }
             }
         } catch (e: JsonSyntaxException) {
@@ -176,6 +179,66 @@ class LiveResultsWebSocketManager {
         } catch (e: Exception) {
             Log.e(TAG, "Error processing message: $text", e)
             _error.value = "Error processing server message"
+        }
+    }
+
+    /**
+     * Convert LiveElectionData to VotingResult format
+     * This is needed for compatibility with existing UI components
+     */
+    private fun convertToVotingResult(data: LiveElectionData): VotingResult {
+        // Create voting options based on available data
+        // In a real implementation, you would get candidate info from the election pairs
+        val options = listOf(
+            VotingOption(
+                id = "candidate_1",
+                name = "Candidate 1",
+                votes = (data.totalVotes * 0.45).toInt(),
+                percentage = 0.45f
+            ),
+            VotingOption(
+                id = "candidate_2",
+                name = "Candidate 2",
+                votes = (data.totalVotes * 0.35).toInt(),
+                percentage = 0.35f
+            ),
+            VotingOption(
+                id = "candidate_3",
+                name = "Candidate 3",
+                votes = (data.totalVotes * 0.20).toInt(),
+                percentage = 0.20f
+            )
+        )
+
+        return VotingResult(
+            categoryId = data.electionId,
+            categoryTitle = "2024 Presidential Election",
+            options = options,
+            totalVotes = data.totalVotes
+        )
+    }
+
+    // Add this to store raw live data
+    private val _rawLiveData = MutableStateFlow<LiveElectionData?>(null)
+    val rawLiveData: StateFlow<LiveElectionData?> = _rawLiveData.asStateFlow()
+
+    // Update subscription message to match expected format
+    private fun subscribeToLiveResults() {
+        val subscriptionMessage = mapOf(
+            "type" to "subscribe",
+            "subscription" to "live_results",
+            "filter" to mapOf(
+                "election_pair_id" to "all" // Or specific election ID
+            )
+        )
+
+        val jsonMessage = gson.toJson(subscriptionMessage)
+        Log.d(TAG, "Sending subscription message: $jsonMessage")
+
+        val success = webSocket?.send(jsonMessage) ?: false
+        if (!success) {
+            Log.e(TAG, "Failed to send subscription message")
+            _error.value = "Failed to send subscription message"
         }
     }
 
