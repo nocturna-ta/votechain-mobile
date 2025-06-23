@@ -279,7 +279,7 @@ class VoterRepository(private val context: Context) {
                 ethBalance = walletInfo.balance,
                 publicKey = walletInfo.publicKey,
                 privateKey = walletInfo.privateKey,
-                voterAddress = walletInfo.voterAddress,
+                voterAddress = voterData?.voter_address ?: walletInfo.voterAddress,
                 hasVoted = voterData?.has_voted ?: false,
                 isDataLoading = false,
                 errorMessage = if (walletInfo.hasError) walletInfo.errorMessage else null

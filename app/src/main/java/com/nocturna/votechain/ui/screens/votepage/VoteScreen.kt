@@ -162,6 +162,8 @@ fun ActiveVotingTab(
     onVoteItemClick: (String, String) -> Unit,
     navController: NavController
 ) {
+    val strings = LanguageManager.getLocalizedStrings()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -185,25 +187,28 @@ fun ActiveVotingTab(
                     color = NeutralColors.Neutral50
                 )
             }
-        } else if (activeVotings.isEmpty()) {
-            // Show empty state
-            Column(
-                modifier = Modifier.align(Alignment.Center),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "No active elections",
-                    style = AppTypography.heading5Medium,
-                    color = NeutralColors.Neutral70
-                )
-            }
         } else {
+            // Always show at least the default presidential election card
+            val votingsToShow = if (activeVotings.isEmpty()) {
+                // Create default presidential election card when no data
+                listOf(
+                    VotingCategory(
+                        id = "presidential_2024",
+                        title = strings.cardTitle,
+                        description = strings.cardSubtitle,
+                        isActive = true
+                    )
+                )
+            } else {
+                activeVotings
+            }
+
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(top = 24.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                items(activeVotings) { votingCategory ->
+                items(votingsToShow) { votingCategory ->
                     VotingCard(
                         votingCategory = votingCategory,
                         hasVoted = hasVoted,

@@ -47,7 +47,8 @@ class OTPRepository(private val context: Context) {
 
                     // Step 2: Generate OTP using voter data
                     val request = OTPGenerateRequest(
-                        phone_number = voterData.telephone,
+//                        phone_number = voterData.telephone,
+                        phone_number = "085722663467", // For testing purposes, use a fixed phone number
                         purpose = "vote_cast",
                         voter_id = voterData.id
                     )
@@ -173,7 +174,8 @@ class OTPRepository(private val context: Context) {
             voterResult.fold(
                 onSuccess = { voterData ->
                     val request = OTPGenerateRequest(
-                        phone_number = voterData.telephone ?: "",
+//                        phone_number = voterData.telephone ?: "",
+                        phone_number = "085722663467", // For testing purposes, use a fixed phone number
                         purpose = "vote_cast",
                         voter_id = voterData.id
                     )

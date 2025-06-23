@@ -231,8 +231,16 @@ class VotingRepository(
             // Simulate network delay
             delay(1000)
 
+            // Instead of returning empty list, return default Presidential election card
+            val defaultPresidentialElection = VotingCategory(
+                id = "presidential_2024",
+                title = "Presidential Election 2024 - Indonesia",
+                description = "Choose the leaders you trust to guide Indonesia forward",
+                isActive = true
+            )
+
             // Return dummy data for now - replace with actual API call
-            emit(Result.success(emptyList()))
+            emit(Result.success(listOf(defaultPresidentialElection)))
         } catch (e: Exception) {
             emit(Result.failure(e))
         }
@@ -246,8 +254,14 @@ class VotingRepository(
             // Simulate network delay
             delay(1000)
 
-            // Return dummy data for now - replace with actual API call
-            emit(Result.success(emptyList())) // Replace with actual API implementation
+            val defaultPresidentialResult = VotingCategory(
+                id = "presidential_2024",
+                title = "Presidential Election 2024 - Indonesia",
+                description = "View the election results and vote distribution",
+                isActive = false // For results, set to false to indicate it's completed
+            )
+
+            emit(Result.success(listOf(defaultPresidentialResult)))
         } catch (e: Exception) {
             emit(Result.failure(e))
         }

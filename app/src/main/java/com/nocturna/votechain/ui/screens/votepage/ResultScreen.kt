@@ -28,6 +28,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,10 +36,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.nocturna.votechain.R
+import com.nocturna.votechain.data.model.VotingCategory
 import com.nocturna.votechain.ui.screens.LoadingScreen
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
+import com.nocturna.votechain.utils.LanguageManager
 
 @Composable
 fun ResultsScreen(
@@ -48,6 +51,7 @@ fun ResultsScreen(
     val votingResults by viewModel.votingResults.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val strings = LanguageManager.getLocalizedStrings()
 
     Box(
         modifier = Modifier
@@ -72,17 +76,33 @@ fun ResultsScreen(
                     color = NeutralColors.Neutral50
                 )
             }
-        } else if (votingResults.isEmpty()) {
-            EmptyResultsState()
         } else {
+            // Always show at least the default presidential election result card
+            val resultsToShow = if (votingResults.isEmpty()) {
+                // Create default presidential election result card when no data
+                listOf(
+                    VotingCategory(
+                        id = "presidential_2024",
+                        title = strings.cardTitle,
+                        description = if (LanguageManager.getLanguage(LocalContext.current) == LanguageManager.LANGUAGE_INDONESIAN) {
+                            "Lihat hasil pemilihan dan distribusi suara"
+                        } else {
+                            "View the election results and vote distribution"
+                        },
+                        isActive = false // Results are for completed elections
+                    )
+                )
+            } else {
+                votingResults
+            }
+
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(top = 24.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp) // Match active voting spacing
             ) {
-                items(votingResults) { result ->
-                    // Assuming VotingCategory has id and title properties
-                    // and we need to adapt it to work with ResultCard
+                items(resultsToShow) { result ->
+                    // Convert VotingCategory to VotingResult for ResultCard
                     ResultCard(
                         result = VotingResult(
                             categoryId = result.id,
@@ -91,8 +111,13 @@ fun ResultsScreen(
                             totalVotes = 0
                         ),
                         onClick = {
-                            // Navigate to detailed results using available properties
-                            navController.navigate("detail_result/${result.id}/${result.title}")
+                            // Navigate to detailed results
+                            if (result.id == "presidential_2024") {
+                                // Navigate to presidential election detailed results
+                                navController.navigate("detail_result/${result.id}")
+                            } else {
+                                navController.navigate("detail_result/${result.id}/${result.title}")
+                            }
                         }
                     )
                 }
