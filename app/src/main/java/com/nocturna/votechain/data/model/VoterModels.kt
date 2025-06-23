@@ -20,6 +20,7 @@ data class VoterData(
     val birth_place: String,
     val birth_date: String,
     val residential_address: String,
+    val telephone: String,
     val voter_address: String,
     val region: String,
     val is_registered: Boolean,

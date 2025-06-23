@@ -180,6 +180,7 @@ class VoterRepository(private val context: Context) {
                 birth_place = "",
                 birth_date = "",
                 residential_address = "",
+                telephone = "",
                 voter_address = voterAddress,
                 region = "",
                 is_registered = true,

@@ -385,8 +385,8 @@ fun VotechainNavGraph(
         composable(
             "otp_verification/{categoryId}",
             arguments = listOf(navArgument("categoryId") { type = NavType.StringType })
-        ) {
-            val categoryId = it.arguments?.getString("categoryId") ?: ""
+        ) { backStackEntry ->
+            val categoryId = backStackEntry.arguments?.getString("categoryId") ?: ""
             OTPVotingVerificationScreen(
                 navController = navController,
                 categoryId = categoryId,
@@ -394,7 +394,7 @@ fun VotechainNavGraph(
                 onVerificationComplete = {
                     // Navigate to candidate selection screen after successful verification
                     navController.navigate("candidate_selection/$categoryId") {
-                        popUpTo("otp_verification/{categoryId}") { inclusive = true }
+                        popUpTo("otp_verification/$categoryId") { inclusive = true }
                     }
                 }
             )

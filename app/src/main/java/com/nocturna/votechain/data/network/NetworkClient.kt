@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
  */
 object NetworkClient {
 
-    const val BASE_URL = "https://4db6-36-69-141-188.ngrok-free.app"
+    const val BASE_URL = "https://0a5c-103-233-100-204.ngrok-free.app"
     private const val TAG = "NetworkClient"
     private const val PREFS_NAME = "VoteChainPrefs"
     private const val KEY_USER_TOKEN = "user_token"
@@ -135,6 +135,9 @@ object NetworkClient {
     }
 
     val voteApiService: VoteApiService = retrofit.create(VoteApiService::class.java)
+
+    // Create OTP API service
+    val otpApiService: OTPApiService = retrofit.create(OTPApiService::class.java)
 
     /**
      * Create a new OkHttpClient specifically for requests that need manual token injection

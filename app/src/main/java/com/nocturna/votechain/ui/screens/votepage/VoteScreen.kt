@@ -1,14 +1,12 @@
 package com.nocturna.votechain.ui.screens.votepage
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -18,23 +16,18 @@ import com.nocturna.votechain.ui.screens.BottomNavigation
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
-import com.nocturna.votechain.ui.theme.PrimaryColors
 import com.nocturna.votechain.viewmodel.vote.VotingViewModel
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.painterResource
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import com.nocturna.votechain.R
 import com.nocturna.votechain.ui.screens.LoadingScreen
-import com.nocturna.votechain.ui.screens.votepage.ResultsScreen
 import com.nocturna.votechain.utils.LanguageManager
 import kotlinx.coroutines.launch
 
@@ -139,7 +132,8 @@ fun VotingScreen(
                                 // Navigate to the general voting detail screen for other elections
                                 navController.navigate("voting_detail/$categoryId")
                             }
-                        }
+                        },
+                        navController = navController
                     )
                     1 -> ResultsScreen(
                         navController = navController,
@@ -165,7 +159,8 @@ fun ActiveVotingTab(
     isLoading: Boolean,
     error: String?,
     hasVoted: Boolean,
-    onVoteItemClick: (String, String) -> Unit
+    onVoteItemClick: (String, String) -> Unit,
+    navController: NavController
 ) {
     Box(
         modifier = Modifier
@@ -212,7 +207,8 @@ fun ActiveVotingTab(
                     VotingCard(
                         votingCategory = votingCategory,
                         hasVoted = hasVoted,
-                        onClick = { onVoteItemClick(votingCategory.id, votingCategory.title) }
+                        onClick = { onVoteItemClick(votingCategory.id, votingCategory.title) },
+                        navController = navController
                     )
                 }
             }
@@ -224,7 +220,8 @@ fun ActiveVotingTab(
 fun VotingCard(
     votingCategory: VotingCategory,
     hasVoted: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    navController: NavController,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -235,7 +232,8 @@ fun VotingCard(
         elevation = CardDefaults.cardElevation(
             defaultElevation = 2.dp
         ),
-        onClick = if (!hasVoted) onClick else { {} } // Disable click if already voted
+        onClick = {
+            navController.navigate("otp_verification/${votingCategory.id}")}
     ) {
         Row(
             modifier = Modifier
