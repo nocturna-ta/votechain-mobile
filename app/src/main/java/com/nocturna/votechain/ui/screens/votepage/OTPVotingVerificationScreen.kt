@@ -1,14 +1,38 @@
 package com.nocturna.votechain.ui.screens.votepage
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -16,11 +40,13 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.nocturna.votechain.R
@@ -38,40 +64,39 @@ fun OTPVotingVerificationScreen(
     categoryId: String,
     onBackClick: () -> Unit = { navController.popBackStack() },
     onVerificationComplete: () -> Unit = {
-        navController.navigate("candidate_selection/$categoryId") {
+        navController.navigate("candidate_president/$categoryId") {
             popUpTo("otp_verification/$categoryId") { inclusive = true }
         }
     }
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    // Create ViewModel with proper factory
     val viewModel: OTPVerificationViewModel = viewModel(
         factory = OTPVerificationViewModel.Factory(context, categoryId)
     )
 
     val uiState by viewModel.uiState.collectAsState()
-    val coroutineScope = rememberCoroutineScope()
 
     // OTP input state
     var otpDigits by remember { mutableStateOf(listOf("", "", "", "")) }
     val focusRequesters = remember { List(4) { FocusRequester() } }
-    val focusManager = LocalFocusManager.current
     val isOtpComplete = otpDigits.all { it.isNotEmpty() }
 
-    // Timer state - synced with ViewModel
-    var remainingSeconds by remember { mutableStateOf(uiState.timeRemainingSeconds) }
+    // Timer state
+    var remainingSeconds by remember { mutableStateOf(180) }
     var isTimerRunning by remember { mutableStateOf(true) }
 
     // Update timer from ViewModel state
     LaunchedEffect(uiState.timeRemainingSeconds) {
         remainingSeconds = uiState.timeRemainingSeconds
-        if (uiState.timeRemainingSeconds > 0) {
-            isTimerRunning = true
-        }
+        isTimerRunning = true
     }
 
-    // Timer countdown effect
+    // Timer effect
     LaunchedEffect(isTimerRunning) {
-        if (isTimerRunning && remainingSeconds > 0) {
+        if (isTimerRunning) {
             while (remainingSeconds > 0) {
                 delay(1000L)
                 remainingSeconds--
@@ -81,10 +106,17 @@ fun OTPVotingVerificationScreen(
         }
     }
 
+    // Auto-verify when OTP is complete
+    LaunchedEffect(isOtpComplete) {
+        if (isOtpComplete && !uiState.isVerifying) {
+            val otpCode = otpDigits.joinToString("")
+            viewModel.verifyOTP(otpCode)
+        }
+    }
+
     // Handle verification success
     LaunchedEffect(uiState.isVerificationSuccess) {
         if (uiState.isVerificationSuccess) {
-            // Show success message briefly before navigating
             delay(1500)
             onVerificationComplete()
         }
@@ -121,37 +153,12 @@ fun OTPVotingVerificationScreen(
 
             // Centered title
             Text(
-                text = "Voting Verification",
+                text = "OTP Verification",
                 style = AppTypography.heading4Regular,
                 color = PrimaryColors.Primary80,
                 modifier = Modifier.align(Alignment.Center)
             )
         }
-
-        // Loading indicator
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    CircularProgressIndicator(
-                        color = MainColors.Primary1,
-                        modifier = Modifier.size(48.dp)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Generating OTP...",
-                        style = AppTypography.paragraphRegular,
-                        color = NeutralColors.Neutral60
-                    )
-                }
-            }
-        } else {
 
         // Center content with vertical spacing
         Spacer(modifier = Modifier.weight(0.3f))
@@ -161,14 +168,12 @@ fun OTPVotingVerificationScreen(
             text = "OTP Verification",
             style = AppTypography.heading2Bold,
             color = MainColors.Primary1,
-            modifier = Modifier
-                .padding(bottom = 12.dp)
-                .align(Alignment.CenterHorizontally)
+            modifier = Modifier.padding(bottom = 12.dp).align(Alignment.CenterHorizontally)
         )
 
-        // Instructions - modified for voting context
+        // Instructions
         Text(
-            text = "Please enter the 4-digit verification code, sent to your registered phone number",
+            text = "Enter the OTP sent to your registered phone number to verify your identity before voting",
             style = AppTypography.heading5Regular,
             color = NeutralColors.Neutral70,
             textAlign = TextAlign.Center,
@@ -180,10 +185,39 @@ fun OTPVotingVerificationScreen(
             text = formattedTime,
             style = AppTypography.heading6SemiBold,
             color = MainColors.Primary1,
-            modifier = Modifier
-                .padding(vertical = 24.dp)
-                .align(Alignment.CenterHorizontally)
+            modifier = Modifier.padding(vertical = 24.dp).align(Alignment.CenterHorizontally)
         )
+
+        // Remaining attempts display
+        if (uiState.remainingAttempts > 0) {
+            Text(
+                text = "Remaining attempts: ${uiState.remainingAttempts}",
+                style = AppTypography.heading6Regular,
+                color = NeutralColors.Neutral60,
+                modifier = Modifier
+                    .padding(bottom = 16.dp)
+                    .align(Alignment.CenterHorizontally)
+            )
+        }
+
+        // Error message display
+        uiState.error?.let { error ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3F3)),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    text = error,
+                    style = AppTypography.heading6Regular,
+                    color = Color(0xFFD32F2F),
+                    modifier = Modifier.padding(12.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
 
         // OTP Input Fields
         Row(
@@ -192,175 +226,143 @@ fun OTPVotingVerificationScreen(
                 .padding(bottom = 32.dp),
             horizontalArrangement = Arrangement.Center
         ) {
-            otpDigits.forEachIndexed { index, digit ->
-                BasicTextField(
-                    value = digit,
-                    onValueChange = { newValue ->
-                        if (newValue.length <= 1 && newValue.all { it.isDigit() }) {
-                            val newDigits = otpDigits.toMutableList()
-                            newDigits[index] = newValue
-                            otpDigits = newDigits
+            for (i in 0 until 4) {
+                val isFocused = remember { mutableStateOf(false) }
 
-                            // Auto-focus next field
-                            if (newValue.isNotEmpty() && index < 3) {
-                                focusRequesters[index + 1].requestFocus()
-                            }
-
-                            // Auto-verify when all fields are filled
-                            if (newDigits.all { it.isNotEmpty() }) {
-                                val otpCode = newDigits.joinToString("")
-                                focusManager.clearFocus()
-                                viewModel.verifyOTP(otpCode)
-                            }
-                        }
-                    },
+                Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp)
-                        .border(
-                            width = if (digit.isNotEmpty()) 2.dp else 1.dp,
-                            color = if (digit.isNotEmpty()) MainColors.Primary1 else NeutralColors.Neutral30,
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .focusRequester(focusRequesters[index]),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    decorationBox = { innerTextField ->
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (digit.isEmpty()) {
-                                Text(
-                                    text = "0",
-                                    style = AppTypography.heading3Regular,
-                                    color = NeutralColors.Neutral30
+                        .width(50.dp)
+                        .padding(horizontal = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    BasicTextField(
+                        value = otpDigits[i],
+                        onValueChange = { newValue ->
+                            val filteredValue = newValue.filter { it.isDigit() }
+                            if (filteredValue.length <= 1) {
+                                val newDigits = otpDigits.toMutableList()
+                                newDigits[i] = filteredValue
+                                otpDigits = newDigits
+
+                                // Auto-move to next field if digit entered
+                                if (filteredValue.isNotEmpty() && i < 3) {
+                                    focusRequesters[i + 1].requestFocus()
+                                }
+                                // Move to previous field if current field becomes empty and not the first field
+                                else if (filteredValue.isEmpty() && i > 0) {
+                                    focusRequesters[i - 1].requestFocus()
+                                }
+
+                                // Clear error when user starts typing
+                                if (filteredValue.isNotEmpty() && uiState.error != null) {
+                                    viewModel.clearError()
+                                }
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number
+                        ),
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequesters[i])
+                            .onFocusChanged { isFocused.value = it.isFocused },
+                        textStyle = AppTypography.heading5Regular.copy(
+                            color = PrimaryColors.Primary70,
+                            textAlign = TextAlign.Center
+                        ),
+                        decorationBox = { innerTextField ->
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                // Text field
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(40.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    innerTextField()
+                                }
+
+                                // Underline
+                                Divider(
+                                    color = if (isFocused.value) MainColors.Primary1 else NeutralColors.Neutral30,
+                                    thickness = 1.dp,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
-                            innerTextField()
                         }
-                    },
-                    textStyle = AppTypography.heading3Regular.copy(
-                        color = MainColors.Primary1,
-                        textAlign = TextAlign.Center
                     )
-                )
+                }
             }
         }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Error message
-            if (!uiState.error.isNullOrEmpty()) {
-                Text(
-                    text = "error: ${uiState.error}",
-                    style = AppTypography.smallParagraphRegular,
-                    color = Color.Red,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            // Success message
-            if (uiState.isVerificationSuccess) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Verification successful! Redirecting...",
-                        style = AppTypography.paragraphRegular,
-                        color = Color.Green
-                    )
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            // Timer and resend section
-            if (remainingSeconds > 0) {
-                Text(
-                    text = "Resend OTP in $formattedTime",
-                    style = AppTypography.paragraphRegular,
-                    color = NeutralColors.Neutral60,
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                )
-            } else {
-                Text(
-                    text = "Didn't receive the code?",
-                    style = AppTypography.paragraphRegular,
-                    color = NeutralColors.Neutral60,
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = if (uiState.isResending) "Resending..." else "Resend OTP",
-                    style = AppTypography.paragraphMedium,
-                    color = if (uiState.isResending) NeutralColors.Neutral40 else MainColors.Primary1,
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .clickable(enabled = !uiState.isResending) {
-                            // Clear OTP inputs
-                            otpDigits = listOf("", "", "", "")
-                            viewModel.clearError()
-                            viewModel.resendOTP()
-                        }
-                )
-            }
-
-            // Remaining attempts
-            if (uiState.remainingAttempts < 3) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Remaining attempts: ${uiState.remainingAttempts}",
-                    style = AppTypography.smallParagraphRegular,
-                    color = if (uiState.remainingAttempts > 0) NeutralColors.Neutral60 else Color.Red,
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                )
-            }
-
-            Spacer(modifier = Modifier.weight(0.7f))
-
-            // Manual verify button (hidden when auto-verify works)
-            if (isOtpComplete && !uiState.isVerifying && !uiState.isVerificationSuccess) {
-                Button(
-                    onClick = {
-                        val otpCode = otpDigits.joinToString("")
-                        viewModel.verifyOTP(otpCode)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MainColors.Primary1,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    enabled = !uiState.isVerifying
-                ) {
-                    if (uiState.isVerifying) {
-                        CircularProgressIndicator(
-                            color = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    } else {
-                        Text(
-                            text = "Verify",
-                            style = AppTypography.paragraphMedium
-                        )
+        // Resend OTP text and button
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp),
+            horizontalArrangement = Arrangement.Center, // Center the row contents
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Didn't you receive the OTP? ",
+                style = AppTypography.heading5Medium,
+                color = NeutralColors.Neutral70
+            )
+            Text(
+                text = if (uiState.isResending) "Resending..." else "Resend OTP",
+                style = AppTypography.heading5Medium,
+                color = if (remainingSeconds > 0 || uiState.isResending) NeutralColors.Neutral40 else MainColors.Primary1,
+                modifier = Modifier.clickable(enabled = remainingSeconds == 0 && !uiState.isResending) {
+                    if (remainingSeconds == 0 && !uiState.isResending) {
+                        // Clear OTP inputs when resending
+                        otpDigits = listOf("", "", "", "")
+                        viewModel.clearError()
+                        viewModel.resendOTP()
+                        remainingSeconds = 180
+                        isTimerRunning = true
                     }
                 }
+            )
+        }
 
-                Spacer(modifier = Modifier.height(24.dp))
+        // Verify Button
+        Button(
+            onClick = {
+                val otpCode = otpDigits.joinToString("")
+                viewModel.verifyOTP(otpCode)
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(46.dp)
+                .padding(horizontal = 24.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MainColors.Primary1,
+                contentColor = NeutralColors.Neutral10,
+                disabledContainerColor = NeutralColors.Neutral30,
+                disabledContentColor = NeutralColors.Neutral50
+            ),
+            shape = RoundedCornerShape(22.dp),
+            enabled = isOtpComplete && !uiState.isVerifying && !uiState.isVerificationSuccess
+        )
+        {
+            if (uiState.isVerifying) {
+                CircularProgressIndicator(
+                    color = NeutralColors.Neutral10,
+                    modifier = Modifier.size(20.dp)
+                )
+            } else {
+                Text("Verify", style = AppTypography.heading4SemiBold, color = NeutralColors.Neutral10)
             }
         }
+
+        Spacer(modifier = Modifier.weight(0.5f))
+    }
+
+    // Request focus to first digit field when screen loads
+    LaunchedEffect(Unit) {
+        focusRequesters[0].requestFocus()
     }
 }

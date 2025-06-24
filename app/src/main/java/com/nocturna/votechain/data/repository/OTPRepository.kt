@@ -29,7 +29,7 @@ class OTPRepository(private val context: Context) {
      */
     fun generateVotingOTP(categoryId: String): Flow<Result<OTPGenerateResponse>> = flow {
         try {
-            Log.d(TAG, "Starting OTP generation process for category: $categoryId")
+            Log.d(TAG, "Generating OTP for category: $categoryId")
 
             val token = getStoredToken()
             if (token.isNullOrEmpty()) {
@@ -37,36 +37,34 @@ class OTPRepository(private val context: Context) {
                 return@flow
             }
 
-            // Step 1: Fetch voter data from /v1/voter based on logged-in user email
-            Log.d(TAG, "Fetching voter data from API...")
             val voterResult = voterRepository.fetchVoterData(token)
-
             voterResult.fold(
                 onSuccess = { voterData ->
-                    Log.d(TAG, "Voter data fetched successfully - ID: ${voterData.id}")
-
-                    // Step 2: Generate OTP using voter data
                     val request = OTPGenerateRequest(
-//                        phone_number = voterData.telephone,
-                        phone_number = "085722663467", // For testing purposes, use a fixed phone number
+                        phone_number = "+6285722663467",
                         purpose = "vote_cast",
                         voter_id = voterData.id
                     )
 
                     Log.d(TAG, "Generating OTP with request: phone=${request.phone_number}, voter_id=${request.voter_id}")
-
                     val response = NetworkClient.otpApiService.generateOTP("Bearer $token", request)
 
                     if (response.isSuccessful) {
                         response.body()?.let { otpResponse ->
-                            if (otpResponse.code == 0) {
-                                Log.d(TAG, "OTP generated successfully for voter: ${voterData.id}")
-                                // Log OTP code for local development (remove in production)
-                                Log.d(TAG, "DEBUG - OTP Code: ${otpResponse.code}")
+                            // Use helper function for cleaner code
+                            if (otpResponse.isSuccessful()) {
+                                Log.d(TAG, "OTP operation successful for voter: ${voterData.id}")
+
+                                // Handle specific scenarios
+                                if (otpResponse.isOTPAlreadyExists()) {
+                                    Log.d(TAG, "OTP already exists and is still valid")
+                                } else {
+                                    Log.d(TAG, "New OTP generated successfully")
+                                }
 
                                 emit(Result.success(otpResponse))
                             } else {
-                                val errorMsg = otpResponse.error?.error_message ?: "Failed to generate OTP"
+                                val errorMsg = otpResponse.getErrorMessage()
                                 Log.e(TAG, "OTP generation failed: $errorMsg")
                                 emit(Result.failure(Exception(errorMsg)))
                             }
@@ -85,7 +83,6 @@ class OTPRepository(private val context: Context) {
                     emit(Result.failure(Exception("Failed to fetch voter data: ${error.message}")))
                 }
             )
-
         } catch (e: Exception) {
             Log.e(TAG, "Exception during OTP generation", e)
             emit(Result.failure(e))
@@ -105,9 +102,7 @@ class OTPRepository(private val context: Context) {
                 return@flow
             }
 
-            // Get voter data for verification
             val voterResult = voterRepository.fetchVoterData(token)
-
             voterResult.fold(
                 onSuccess = { voterData ->
                     val request = OTPVerifyRequest(
@@ -117,18 +112,18 @@ class OTPRepository(private val context: Context) {
                     )
 
                     Log.d(TAG, "Verifying OTP with voter_id: ${voterData.id}")
-
                     val response = NetworkClient.otpApiService.verifyOTP("Bearer $token", request)
 
                     if (response.isSuccessful) {
                         response.body()?.let { verifyResponse ->
-                            if (verifyResponse.code == 0 && verifyResponse.data?.is_valid == true) {
+                            // Use helper function for cleaner code
+                            if (verifyResponse.isVerificationSuccessful()) {
                                 Log.d(TAG, "OTP verification successful")
                                 // Store OTP token for voting process
-                                storeOTPToken(verifyResponse.data.otp_token)
+                                storeOTPToken(verifyResponse.data!!.otp_token)
                                 emit(Result.success(verifyResponse))
                             } else {
-                                val errorMsg = verifyResponse.error?.error_message ?: "Invalid OTP code"
+                                val errorMsg = verifyResponse.getErrorMessage()
                                 Log.e(TAG, "OTP verification failed: $errorMsg")
                                 emit(Result.failure(Exception(errorMsg)))
                             }
@@ -147,7 +142,6 @@ class OTPRepository(private val context: Context) {
                     emit(Result.failure(Exception("Failed to verify voter data: ${error.message}")))
                 }
             )
-
         } catch (e: Exception) {
             Log.e(TAG, "Exception during OTP verification", e)
             emit(Result.failure(e))
@@ -156,7 +150,7 @@ class OTPRepository(private val context: Context) {
 
 
     /**
-     * Resend OTP for voting verification
+     * Resend OTP for voting verification - FIXED VERSION
      */
     fun resendVotingOTP(categoryId: String): Flow<Result<OTPGenerateResponse>> = flow {
         try {
@@ -168,14 +162,11 @@ class OTPRepository(private val context: Context) {
                 return@flow
             }
 
-            // Fetch voter data first
             val voterResult = voterRepository.fetchVoterData(token)
-
             voterResult.fold(
                 onSuccess = { voterData ->
                     val request = OTPGenerateRequest(
-//                        phone_number = voterData.telephone ?: "",
-                        phone_number = "085722663467", // For testing purposes, use a fixed phone number
+                        phone_number = "+6285722663467",
                         purpose = "vote_cast",
                         voter_id = voterData.id
                     )
@@ -184,8 +175,10 @@ class OTPRepository(private val context: Context) {
 
                     if (response.isSuccessful) {
                         response.body()?.let { otpResponse ->
-                            if (otpResponse.code == 0) {
+                            // FIX: Accept HTTP status codes (200-299) and internal success code (0)
+                            if (otpResponse.data != null && (otpResponse.code in 200..299 || otpResponse.code == 0)) {
                                 Log.d(TAG, "OTP resent successfully for voter: ${voterData.id}")
+                                Log.d(TAG, "Resend Status: ${otpResponse.data.message}")
                                 emit(Result.success(otpResponse))
                             } else {
                                 val errorMsg = otpResponse.error?.error_message ?: "Failed to resend OTP"

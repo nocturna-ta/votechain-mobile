@@ -21,7 +21,29 @@ data class OTPGenerateResponse(
     val data: OTPData?,
     val error: OTPError?,
     val message: String
-)
+) {
+    /**
+     * Helper function to check if the response indicates success
+     * Accepts both HTTP status codes (200-299) and internal success code (0)
+     */
+    fun isSuccessful(): Boolean {
+        return (code in 200..299 || code == 0) && data != null
+    }
+
+    /**
+     * Helper function to check if OTP already exists
+     */
+    fun isOTPAlreadyExists(): Boolean {
+        return data?.message?.contains("already exists", ignoreCase = true) == true
+    }
+
+    /**
+     * Helper function to get error message
+     */
+    fun getErrorMessage(): String {
+        return error?.error_message ?: "Failed to generate OTP"
+    }
+}
 
 /**
  * OTP data contained in generate response
@@ -34,7 +56,14 @@ data class OTPData(
     val remaining_attempts: Int,
     val time_remaining_seconds: String,
     val voter_id: String
-)
+) {
+    /**
+     * Helper function to get remaining time in seconds as integer
+     */
+    fun getRemainingTimeInSeconds(): Int {
+        return time_remaining_seconds.replace("s", "").toDoubleOrNull()?.toInt() ?: 180
+    }
+}
 
 /**
  * Request model for /v1/otp/verify
@@ -53,7 +82,21 @@ data class OTPVerifyResponse(
     val data: OTPVerifyData?,
     val error: OTPError?,
     val message: String
-)
+) {
+    /**
+     * Helper function to check if verification was successful
+     */
+    fun isVerificationSuccessful(): Boolean {
+        return (code in 200..299 || code == 0) && data?.is_valid == true
+    }
+
+    /**
+     * Helper function to get error message
+     */
+    fun getErrorMessage(): String {
+        return error?.error_message ?: "Invalid OTP code"
+    }
+}
 
 /**
  * OTP verification data contained in verify response
