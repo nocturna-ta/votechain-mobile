@@ -398,7 +398,7 @@ fun VotechainNavGraph(
                 },
                 onVerificationComplete = {
                     // Navigate to candidate selection after successful OTP verification
-                    navController.navigate("candidate_president/$categoryId") {
+                    navController.navigate("candidate_selection/$categoryId") {
                         popUpTo("otp_verification/$categoryId") { inclusive = true }
                     }
                 }
@@ -407,7 +407,7 @@ fun VotechainNavGraph(
 
         // FIXED: Candidate Selection screen with proper parameters and ViewModel
         composable(
-            "candidate_president/{categoryId}",
+            "candidate_selection/{categoryId}",
             arguments = listOf(navArgument("categoryId") { type = NavType.StringType })
         ) { backStackEntry ->
             val categoryId = backStackEntry.arguments?.getString("categoryId") ?: ""
@@ -417,34 +417,21 @@ fun VotechainNavGraph(
                 onBackClick = {
                     navController.popBackStack()
                 },
+                viewModel = votingViewModel,
                 navController = navController
             )
         }
 
         // Vote Confirmation Screen
         composable(
-            "vote_confirmation/{categoryId}/{electionPairId}",
-            arguments = listOf(
-                navArgument("categoryId") { type = NavType.StringType },
-                navArgument("electionPairId") { type = NavType.StringType }
-            )
+            route = "vote_confirmation/{electionPairId}",
+            arguments = listOf(navArgument("electionPairId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val categoryId = backStackEntry.arguments?.getString("categoryId") ?: ""
             val electionPairId = backStackEntry.arguments?.getString("electionPairId") ?: ""
-
             VoteConfirmationScreen(
-                categoryId = categoryId,
+                navController = navController,
                 electionPairId = electionPairId,
-                onBackClick = {
-                    navController.popBackStack()
-                },
-                onConfirmVote = {
-                    // Navigate to vote success after casting vote
-                    navController.navigate("vote_success") {
-                        popUpTo("votes") { inclusive = false }
-                    }
-                },
-                navController = navController
+                viewModel = votingViewModel // Pass your existing VotingViewModel
             )
         }
 
