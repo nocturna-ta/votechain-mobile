@@ -34,22 +34,44 @@ import com.nocturna.votechain.data.model.LiveRegionResult
 import com.nocturna.votechain.data.model.LiveCityResult
 import com.nocturna.votechain.data.network.LiveResultsWebSocketManager
 import com.nocturna.votechain.ui.components.ConnectionStatusIndicator
+import com.nocturna.votechain.ui.components.DataUpdateNotification
+import com.nocturna.votechain.ui.components.ElectionComparisonCard
+import com.nocturna.votechain.ui.components.ElectionStatsSummary
+import com.nocturna.votechain.ui.components.ElectionUpdateTimer
+import com.nocturna.votechain.ui.components.ParticipationTrendChart
+import com.nocturna.votechain.ui.components.RealTimeStatsBar
+import com.nocturna.votechain.ui.components.RefreshControlPanel
+import com.nocturna.votechain.ui.components.RegionalPerformanceMap
+import com.nocturna.votechain.ui.screens.LoadingScreen
 import com.nocturna.votechain.ui.theme.AppTypography
+import com.nocturna.votechain.utils.LanguageManager
 import com.nocturna.votechain.viewmodel.candidate.ElectionViewModel
 import com.nocturna.votechain.viewmodel.vote.LiveResultViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
+import kotlin.collections.isNotEmpty
+import kotlin.collections.sortedByDescending
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.random.Random
 
 // Data class untuk kandidat dengan persentase
-data class CandidateWithPercentage(
+data class ElectionPairWithVotes(
     val electionPair: ElectionPair,
+    val electionId: String,
     val votes: Int,
     val percentage: Float,
     val color: Color
+)
+
+// Aggregate data untuk pie chart
+data class AggregatedElectionData(
+    val totalVotes: Int,
+    val totalVoters: Int,
+    val participationRate: Double,
+    val electionPairs: List<ElectionPairWithVotes>
 )
 
 // Warna yang digunakan untuk pie chart
@@ -62,6 +84,8 @@ val PieChartColors = listOf(
     Color(0xFFEC4899), // Pink
     Color(0xFF06B6D4), // Cyan
     Color(0xFFEAB308), // Amber
+    Color(0xFF84CC16), // Lime
+    Color(0xFFF97316), // Orange
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,36 +94,39 @@ fun LiveResultScreen(
     electionId: String,
     navController: NavController,
     electionViewModel: ElectionViewModel = viewModel(),
-    liveResultViewModel: LiveResultViewModel = viewModel()
+    liveResultViewModel: LiveResultViewModel = viewModel(),
+    onBackClick: () -> Unit = {}
 ) {
     val electionPairs by electionViewModel.electionPairs.collectAsState()
     val connectionState by liveResultViewModel.connectionState.collectAsState()
-    val liveResultData by liveResultViewModel.rawLiveData.collectAsState()
+    val rawLiveData by liveResultViewModel.rawLiveData.collectAsState()
+    val allElectionsData by liveResultViewModel.allElectionsData.collectAsState()
+    val aggregatedElectionStats by liveResultViewModel.aggregatedElectionData.collectAsState()
     val error by liveResultViewModel.error.collectAsState()
+    val isLoading by liveResultViewModel.isLoading.collectAsState()
 
-    // Get election pairs for this election
-    val currentElectionPairs = electionPairs.filter { it.id == electionId }
+    val strings = LanguageManager.getLocalizedStrings()
 
-    // Create candidates with percentages from live data
-    val candidatesWithPercentage = remember(currentElectionPairs, liveResultData) {
-        currentElectionPairs.mapIndexed { index, pair ->
-            // Calculate votes and percentage for each candidate
-            // This is a mock calculation - adjust based on your actual data structure
-            val votes = when (index) {
-                0 -> liveResultData?.regions?.sumOf { it.votes } ?: 0
-                else -> (liveResultData?.totalVotes ?: 0) - (liveResultData?.regions?.sumOf { it.votes } ?: 0)
-            }
-            val percentage = if (liveResultData?.totalVotes != null && liveResultData!!.totalVotes > 0) {
-                (votes.toFloat() / liveResultData!!.totalVotes) * 100f
-            } else 0f
+    // State untuk menyimpan data agregat dari semua election_id
+    var aggregatedData by remember { mutableStateOf<AggregatedElectionData?>(null) }
+    var lastUpdateTime by remember { mutableStateOf<Long?>(null) }
+    var showUpdateNotification by remember { mutableStateOf(false) }
+    val electionStartTime = remember { System.currentTimeMillis() }
 
-            CandidateWithPercentage(
-                electionPair = pair,
-                votes = votes,
-                percentage = percentage,
-                color = PieChartColors[index % PieChartColors.size]
-            )
-        }.sortedByDescending { it.votes }
+    // Simulasi data dari multiple election_id (dalam implementasi nyata, ini akan datang dari WebSocket)
+    LaunchedEffect(rawLiveData, electionPairs) {
+        if (rawLiveData != null && electionPairs.isNotEmpty()) {
+            // Simulasi data untuk multiple election_id
+            val simulatedElectionData = generateSimulatedElectionData(electionPairs, rawLiveData!!)
+            liveResultViewModel.simulateMultipleElectionData(rawLiveData!!, electionPairs.map { it.id })
+
+            // Agregasi data dari semua election_id
+            aggregatedData = aggregateElectionData(electionPairs, simulatedElectionData)
+
+            // Update timestamp dan show notification
+            lastUpdateTime = System.currentTimeMillis()
+            showUpdateNotification = true
+        }
     }
 
     // Animations
@@ -123,7 +150,13 @@ fun LiveResultScreen(
 
     // Start live connection
     LaunchedEffect(electionId) {
+        electionViewModel.fetchElectionPairs()
         liveResultViewModel.startLiveResults(electionId)
+
+        // Start multiple elections monitoring
+        if (electionPairs.isNotEmpty()) {
+            liveResultViewModel.startMultipleElections(electionPairs.map { it.id })
+        }
     }
 
     // Show error if any
@@ -133,85 +166,327 @@ fun LiveResultScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "Live Election Results",
-                        style = AppTypography.heading4Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.back),
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-                },
-                actions = {
-                    ConnectionStatusIndicator(connectionState)
-                }
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Custom top bar with shadow
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 24.dp)
+                    .clickable(onClick = onBackClick)
+                    .size(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.back),
+                    contentDescription = strings.back,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            // Centered title
+            Text(
+                text = strings.results,
+                style = AppTypography.heading4Regular,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.align(Alignment.Center)
             )
         }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Live Stats Card
-            item {
-                LiveStatsCard(
-                    liveResultData = liveResultData,
-                    pulseAnimation = pulseAnimation
-                )
-            }
 
-            // Pie Chart Card
-            item {
-                if (candidatesWithPercentage.isNotEmpty() && liveResultData?.totalVotes != null && liveResultData!!.totalVotes > 0) {
-                    ModernPieChartCard(
-                        candidates = candidatesWithPercentage,
-                        rotation = rotation
-                    )
-                }
-            }
+        // Show loading indicator when loading
+        if (isLoading) {
+            LoadingScreen()
+        }
+        // Show error message when there's an error
+        else {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                LazyColumn(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    // Data Update Notification
+                    item {
+                        DataUpdateNotification(
+                            isVisible = showUpdateNotification,
+                            message = "Data updated successfully!",
+                            onDismiss = { showUpdateNotification = false }
+                        )
+                    }
 
-            // Candidate Details
-            items(candidatesWithPercentage) { candidate ->
-                CandidateResultCard(
-                    candidate = candidate,
-                    rank = candidatesWithPercentage.indexOf(candidate) + 1
-                )
-            }
+                    // Refresh Control Panel
+                    item {
+                        RefreshControlPanel(
+                            connectionState = connectionState,
+                            onRefreshClick = {
+                                liveResultViewModel.refreshAllElections()
+                                showUpdateNotification = true
+                            },
+                            onSettingsClick = { /* Handle settings */ },
+                            lastUpdateTime = lastUpdateTime,
+                            autoRefreshEnabled = true
+                        )
+                    }
 
-            // Regional Breakdown
-            if (liveResultData?.regions?.isNotEmpty() == true) {
-                item {
-                    RegionalBreakdownCard(regions = liveResultData!!.regions)
-                }
-            }
+                    // Real-time Stats Bar
+                    item {
+                        RealTimeStatsBar(
+                            votesPerSecond = rawLiveData?.stats?.votesPerSecond ?: 0.0,
+                            activeConnections = 1, // This would come from WebSocket
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
 
-            // Top Cities
-            if (liveResultData?.topCities?.isNotEmpty() == true) {
-                item {
-                    TopCitiesCard(cities = liveResultData!!.topCities)
+                    // Election Timer
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            ElectionUpdateTimer(
+                                startTime = electionStartTime,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            // Quick stats cards
+                            if (aggregatedData != null) {
+                                Card(
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                    )
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            text = "Total Candidates",
+                                            style = AppTypography.paragraphRegular,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                        Text(
+                                            text = "${aggregatedData!!.electionPairs.size}",
+                                            style = AppTypography.paragraphBold,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Statistics Summary Cards
+                    if (aggregatedElectionStats != null) {
+                        item {
+                            ElectionStatsSummary(aggregatedStats = aggregatedElectionStats!!)
+                        }
+                    }
+
+                    // Aggregated Stats Card
+                    item {
+                        AggregatedStatsCard(
+                            aggregatedData = aggregatedData,
+                            pulseAnimation = pulseAnimation
+                        )
+                    }
+
+                    // Main Pie Chart Card - Shows distribution across ALL election pairs
+                    item {
+                        if (aggregatedData != null && aggregatedData!!.electionPairs.isNotEmpty()) {
+                            AggregatedPieChartCard(
+                                aggregatedData = aggregatedData!!,
+                                rotation = rotation
+                            )
+                        }
+                    }
+
+                    // Election Performance Comparison
+                    if (allElectionsData.isNotEmpty() && electionPairs.isNotEmpty()) {
+                        item {
+                            val comparisons = liveResultViewModel.getElectionComparison()
+                            if (comparisons.isNotEmpty()) {
+                                ElectionComparisonCard(
+                                    comparisons = comparisons,
+                                    electionPairs = electionPairs
+                                )
+                            }
+                        }
+                    }
+
+                    // Participation Trend Chart
+                    if (allElectionsData.isNotEmpty() && electionPairs.isNotEmpty()) {
+                        item {
+                            ParticipationTrendChart(
+                                electionsData = allElectionsData,
+                                electionPairs = electionPairs
+                            )
+                        }
+                    }
+
+                    // Regional Performance Map
+                    if (allElectionsData.isNotEmpty() && electionPairs.isNotEmpty()) {
+                        item {
+                            RegionalPerformanceMap(
+                                electionsData = allElectionsData,
+                                electionPairs = electionPairs
+                            )
+                        }
+                    }
+
+                    // Detailed Election Pair Results
+                    if (aggregatedData?.electionPairs?.isNotEmpty() == true) {
+                        items(aggregatedData!!.electionPairs.sortedByDescending { it.votes }) { electionPairData ->
+                            ElectionPairResultCard(
+                                electionPairData = electionPairData,
+                                rank = aggregatedData!!.electionPairs.sortedByDescending { it.votes }
+                                    .indexOf(electionPairData) + 1
+                            )
+                        }
+                    }
+
+                    // Regional Breakdown untuk current election
+                    if (rawLiveData?.regions?.isNotEmpty() == true) {
+                        item {
+                            RegionalBreakdownCard(regions = rawLiveData!!.regions)
+                        }
+                    }
+
+                    // Top Cities untuk current election
+                    if (rawLiveData?.topCities?.isNotEmpty() == true) {
+                        item {
+                            TopCitiesCard(cities = rawLiveData!!.topCities)
+                        }
+                    }
+
+                    // Individual Election Results
+                    if (allElectionsData.isNotEmpty()) {
+                        item {
+                            IndividualElectionResultsCard(
+                                allLiveData = allElectionsData,
+                                electionPairs = electionPairs
+                            )
+                        }
+                    }
+
+                    // Footer with last update info
+                    item {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "🔄 Data refreshes automatically every 30 seconds",
+                                    style = AppTypography.paragraphRegular,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                if (lastUpdateTime != null) {
+                                    Text(
+                                        text = "Last updated: ${
+                                            java.text.SimpleDateFormat(
+                                                "HH:mm:ss",
+                                                java.util.Locale.getDefault()
+                                            ).format(java.util.Date(lastUpdateTime!!))
+                                        }",
+                                        style = AppTypography.paragraphRegular,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+// Function untuk mensimulasikan data dari multiple election_id
+fun generateSimulatedElectionData(
+    electionPairs: List<ElectionPair>,
+    currentLiveData: LiveElectionData
+): Map<String, LiveElectionData> {
+    val simulatedData = mutableMapOf<String, LiveElectionData>()
+
+    electionPairs.forEach { pair ->
+        // Simulasi data untuk setiap election pair
+        val baseVotes = currentLiveData.totalVotes
+        val randomMultiplier = Random.nextDouble(0.5, 1.5)
+        val simulatedVotes = (baseVotes * randomMultiplier).toInt()
+
+        val simulatedElectionData = LiveElectionData(
+            electionId = pair.id,
+            totalVotes = simulatedVotes,
+            totalVoters = currentLiveData.totalVoters,
+            lastUpdated = currentLiveData.lastUpdated,
+            overallPercentage = currentLiveData.overallPercentage * randomMultiplier,
+            regions = currentLiveData.regions.map { region ->
+                region.copy(votes = (region.votes * randomMultiplier).toInt())
+            },
+            topCities = currentLiveData.topCities.map { city ->
+                city.copy(votes = (city.votes * randomMultiplier).toInt())
+            },
+            stats = currentLiveData.stats
+        )
+
+        simulatedData[pair.id] = simulatedElectionData
+    }
+
+    return simulatedData
+}
+
+// Function untuk agregasi data dari semua election_id
+fun aggregateElectionData(
+    electionPairs: List<ElectionPair>,
+    allLiveData: Map<String, LiveElectionData>
+): AggregatedElectionData {
+    val totalVotes = allLiveData.values.sumOf { it.totalVotes }
+    val totalVoters = allLiveData.values.firstOrNull()?.totalVoters ?: 0
+    val participationRate = if (totalVoters > 0) (totalVotes.toDouble() / totalVoters) * 100 else 0.0
+
+    val electionPairsWithVotes = electionPairs.mapIndexed { index, pair ->
+        val liveData = allLiveData[pair.id]
+        val votes = liveData?.totalVotes ?: 0
+        val percentage = if (totalVotes > 0) (votes.toFloat() / totalVotes) * 100f else 0f
+
+        ElectionPairWithVotes(
+            electionPair = pair,
+            electionId = pair.id,
+            votes = votes,
+            percentage = percentage,
+            color = PieChartColors[index % PieChartColors.size]
+        )
+    }
+
+    return AggregatedElectionData(
+        totalVotes = totalVotes,
+        totalVoters = totalVoters,
+        participationRate = participationRate,
+        electionPairs = electionPairsWithVotes
+    )
+}
+
 @Composable
-fun LiveStatsCard(
-    liveResultData: LiveElectionData?,
+fun AggregatedStatsCard(
+    aggregatedData: AggregatedElectionData?,
     pulseAnimation: Float
 ) {
     Card(
@@ -235,7 +510,7 @@ fun LiveStatsCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Live Voting Statistics",
+                    text = "Overall Election Statistics",
                     style = AppTypography.heading5Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -251,17 +526,17 @@ fun LiveStatsCard(
                 StatItem(
                     title = "Total Votes",
                     value = NumberFormat.getNumberInstance(Locale.US)
-                        .format(liveResultData?.totalVotes ?: 0),
+                        .format(aggregatedData?.totalVotes ?: 0),
+                    modifier = Modifier.weight(1f)
+                )
+                StatItem(
+                    title = "Total Candidates",
+                    value = "${aggregatedData?.electionPairs?.size ?: 0}",
                     modifier = Modifier.weight(1f)
                 )
                 StatItem(
                     title = "Participation",
-                    value = "${String.format("%.1f", (liveResultData?.overallPercentage ?: 0.0) * 100)}%",
-                    modifier = Modifier.weight(1f)
-                )
-                StatItem(
-                    title = "Active Regions",
-                    value = "${liveResultData?.stats?.activeRegions ?: 0}",
+                    value = "${String.format("%.1f", aggregatedData?.participationRate ?: 0.0)}%",
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -270,8 +545,8 @@ fun LiveStatsCard(
 }
 
 @Composable
-fun ModernPieChartCard(
-    candidates: List<CandidateWithPercentage>,
+fun AggregatedPieChartCard(
+    aggregatedData: AggregatedElectionData,
     rotation: Float
 ) {
     Card(
@@ -290,7 +565,7 @@ fun ModernPieChartCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Vote Distribution",
+                text = "Vote Distribution - All Candidates",
                 style = AppTypography.heading5Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -299,11 +574,11 @@ fun ModernPieChartCard(
 
             // Pie Chart
             Box(
-                modifier = Modifier.size(240.dp),
+                modifier = Modifier.size(280.dp),
                 contentAlignment = Alignment.Center
             ) {
-                AnimatedPieChart(
-                    candidates = candidates,
+                AggregatedAnimatedPieChart(
+                    electionPairs = aggregatedData.electionPairs,
                     modifier = Modifier.fillMaxSize()
                 )
 
@@ -316,11 +591,16 @@ fun ModernPieChartCard(
                         style = AppTypography.paragraphRegular,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    candidates.firstOrNull()?.let { leader ->
+                    aggregatedData.electionPairs.maxByOrNull { it.votes }?.let { leader ->
                         Text(
                             text = "${leader.percentage.toInt()}%",
                             style = AppTypography.heading3Bold,
                             color = leader.color
+                        )
+                        Text(
+                            text = "#${leader.electionPair.election_no}",
+                            style = AppTypography.paragraphMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -329,9 +609,9 @@ fun ModernPieChartCard(
             Spacer(modifier = Modifier.height(20.dp))
 
             // Legend
-            candidates.forEach { candidate ->
-                LegendItem(
-                    candidate = candidate,
+            aggregatedData.electionPairs.sortedByDescending { it.votes }.forEach { electionPairData ->
+                AggregatedLegendItem(
+                    electionPairData = electionPairData,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -341,52 +621,54 @@ fun ModernPieChartCard(
 }
 
 @Composable
-fun AnimatedPieChart(
-    candidates: List<CandidateWithPercentage>,
+fun AggregatedAnimatedPieChart(
+    electionPairs: List<ElectionPairWithVotes>,
     modifier: Modifier = Modifier
 ) {
-    val animatedValues = candidates.map { candidate ->
+    val animatedValues = electionPairs.map { electionPairData ->
         animateFloatAsState(
-            targetValue = candidate.percentage,
-            animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing)
+            targetValue = electionPairData.percentage,
+            animationSpec = tween(durationMillis = 1500, easing = FastOutSlowInEasing)
         )
     }
 
     Canvas(modifier = modifier) {
         val canvasWidth = size.width
         val canvasHeight = size.height
-        val radius = minOf(canvasWidth, canvasHeight) / 2f * 0.8f
+        val radius = minOf(canvasWidth, canvasHeight) / 2f * 0.85f
         val center = center
 
         var currentAngle = -90f
-        val strokeWidth = 40.dp.toPx()
+        val strokeWidth = 50.dp.toPx()
 
-        candidates.forEachIndexed { index, candidate ->
+        electionPairs.forEachIndexed { index, electionPairData ->
             val animatedValue = animatedValues[index].value
             val sweepAngle = (animatedValue / 100f) * 360f
 
-            // Draw pie slice
-            drawArc(
-                color = candidate.color,
-                startAngle = currentAngle,
-                sweepAngle = sweepAngle,
-                useCenter = false,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
-                size = androidx.compose.ui.geometry.Size(radius * 2, radius * 2),
-                topLeft = androidx.compose.ui.geometry.Offset(
-                    center.x - radius,
-                    center.y - radius
+            if (sweepAngle > 0) {
+                // Draw pie slice
+                drawArc(
+                    color = electionPairData.color,
+                    startAngle = currentAngle,
+                    sweepAngle = sweepAngle,
+                    useCenter = false,
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                    size = androidx.compose.ui.geometry.Size(radius * 2, radius * 2),
+                    topLeft = androidx.compose.ui.geometry.Offset(
+                        center.x - radius,
+                        center.y - radius
+                    )
                 )
-            )
 
-            currentAngle += sweepAngle
+                currentAngle += sweepAngle
+            }
         }
     }
 }
 
 @Composable
-fun LegendItem(
-    candidate: CandidateWithPercentage,
+fun AggregatedLegendItem(
+    electionPairData: ElectionPairWithVotes,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -401,19 +683,19 @@ fun LegendItem(
                 modifier = Modifier
                     .size(16.dp)
                     .clip(CircleShape)
-                    .background(candidate.color)
+                    .background(electionPairData.color)
             )
 
             Spacer(modifier = Modifier.width(12.dp))
 
             Column {
                 Text(
-                    text = "${candidate.electionPair.president} & ${candidate.electionPair.vice_president}",
+                    text = "#${electionPairData.electionPair.election_no} - ${electionPairData.electionPair.president.full_name}",
                     style = AppTypography.paragraphMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "${NumberFormat.getNumberInstance(Locale.US).format(candidate.votes)} votes",
+                    text = "${NumberFormat.getNumberInstance(Locale.US).format(electionPairData.votes)} votes",
                     style = AppTypography.paragraphRegular,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -421,22 +703,22 @@ fun LegendItem(
         }
 
         Text(
-            text = "${candidate.percentage.toInt()}%",
+            text = "${electionPairData.percentage.toInt()}%",
             style = AppTypography.paragraphBold,
-            color = candidate.color
+            color = electionPairData.color
         )
     }
 }
 
 @Composable
-fun CandidateResultCard(
-    candidate: CandidateWithPercentage,
+fun ElectionPairResultCard(
+    electionPairData: ElectionPairWithVotes,
     rank: Int
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { /* Handle candidate detail */ },
+            .clickable { /* Handle election pair detail */ },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -452,9 +734,9 @@ fun CandidateResultCard(
             // Rank badge
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
-                    .background(candidate.color),
+                    .background(electionPairData.color),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -470,27 +752,120 @@ fun CandidateResultCard(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = "${candidate.electionPair.president} & ${candidate.electionPair.vice_president}",
+                    text = "#${electionPairData.electionPair.election_no}",
+                    style = AppTypography.paragraphBold,
+                    color = electionPairData.color
+                )
+                Text(
+                    text = "${electionPairData.electionPair.president.full_name} & ${electionPairData.electionPair.vice_president.full_name}",
                     style = AppTypography.paragraphBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${NumberFormat.getNumberInstance(Locale.US).format(candidate.votes)} votes",
-                    style = AppTypography.paragraphRegular,
+                    text = "${NumberFormat.getNumberInstance(Locale.US).format(electionPairData.votes)} votes",
+                    style = AppTypography.paragraphBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
+            Column(
+                horizontalAlignment = Alignment.End
+            ) {
+                Text(
+                    text = "${electionPairData.percentage.toInt()}%",
+                    style = AppTypography.heading6Bold,
+                    color = electionPairData.color
+                )
+                Text(
+                    text = "of total",
+                    style = AppTypography.paragraphRegular,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun IndividualElectionResultsCard(
+    allLiveData: Map<String, LiveElectionData>,
+    electionPairs: List<ElectionPair>
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(8.dp, RoundedCornerShape(16.dp)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
             Text(
-                text = "${candidate.percentage.toInt()}%",
-                style = AppTypography.heading6Bold,
-                color = candidate.color
+                text = "Individual Election Results",
+                style = AppTypography.heading5Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            allLiveData.forEach { (electionId, liveData) ->
+                val electionPair = electionPairs.find { it.id == electionId }
+                if (electionPair != null) {
+                    IndividualElectionItem(
+                        electionPair = electionPair,
+                        liveData = liveData
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun IndividualElectionItem(
+    electionPair: ElectionPair,
+    liveData: LiveElectionData
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(
+                text = "#${electionPair.election_no} - ${electionPair.president.full_name}",
+                style = AppTypography.paragraphMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "Election ID: ${liveData.electionId}",
+                style = AppTypography.paragraphRegular,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Column(
+            horizontalAlignment = Alignment.End
+        ) {
+            Text(
+                text = "${NumberFormat.getNumberInstance(Locale.US).format(liveData.totalVotes)} votes",
+                style = AppTypography.paragraphBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "${String.format("%.1f", liveData.overallPercentage * 100)}% participation",
+                style = AppTypography.paragraphRegular,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
 }
 
+// Reuse existing components
 @Composable
 fun RegionalBreakdownCard(regions: List<LiveRegionResult>) {
     Card(

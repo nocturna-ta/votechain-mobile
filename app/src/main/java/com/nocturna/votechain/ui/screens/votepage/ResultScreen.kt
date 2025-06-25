@@ -161,15 +161,15 @@ fun ResultCard(
                 Spacer(modifier = Modifier.height(6.dp)) // Match active voting spacing
 
                 // Create description showing winner or status
-                val description = if (result.options.isNotEmpty()) {
-                    val winner = result.options.maxByOrNull { it.votes }
-                    "Winner: ${winner?.name} with ${winner?.votes} votes"
-                } else {
-                    "Total votes: ${result.totalVotes}"
-                }
+//                val description = if (result.options.isNotEmpty()) {
+//                    val winner = result.options.maxByOrNull { it.votes }
+//                    "Winner: ${winner?.name} with ${winner?.votes} votes"
+//                } else {
+//                    "Total votes: ${result.totalVotes}"
+//                }
 
                 Text(
-                    text = description,
+                    text = "Presents the official vote counts, percentages, and detailed outcomes",
                     style = AppTypography.heading6Medium, // Match active voting description style
                     color = MaterialTheme.colorScheme.onBackground, // Match active voting description color
                     maxLines = 1,

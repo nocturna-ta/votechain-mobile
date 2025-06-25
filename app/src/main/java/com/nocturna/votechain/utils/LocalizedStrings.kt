@@ -334,7 +334,7 @@ private fun getIndonesianStrings(): LocalizedStrings {
         noneSupportingParties = "Data partai tidak tersedia",
 
         // Results
-        results = "Hasil",
+        results = "Hasil Pemilihan Langsung",
         totalVotes = "Total Suara",
         votes = "suara",
         noResultsAvailable = "Tidak ada hasil voting tersedia",
@@ -541,7 +541,7 @@ private fun getEnglishStrings(): LocalizedStrings {
         noneSupportingParties = "Party data not available",
 
         // Results
-        results = "Results",
+        results = "Live Election Results",
         totalVotes = "Total Votes",
         votes = "votes",
         noResultsAvailable = "No voting results available",
