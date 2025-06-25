@@ -414,10 +414,7 @@ fun VotechainNavGraph(
 
             CandidateSelectionScreen(
                 categoryId = categoryId,
-                onBackClick = {
-                    navController.popBackStack()
-                },
-                viewModel = votingViewModel,
+                votingViewModel = votingViewModel,
                 navController = navController
             )
         }
@@ -488,19 +485,25 @@ fun VotechainNavGraph(
                         popUpTo("profile") { inclusive = true }
                         launchSingleTop = true
                     }
-                },
+                }
+//                onLogout = {
+//                    // Navigate to login screen and clear all previous screens from back stack
+//                    navController.navigate("login") {
+//                        popUpTo(0) { inclusive = true }
+//                    }
+//                }
+            )
+        }
+
+        composable("account_details") {
+            AccountDetailsScreen(
+                navController = navController,
                 onLogout = {
                     // Navigate to login screen and clear all previous screens from back stack
                     navController.navigate("login") {
                         popUpTo(0) { inclusive = true }
                     }
                 }
-            )
-        }
-
-        composable("account_details") {
-            AccountDetailsScreen(
-                navController = navController
             )
         }
     }

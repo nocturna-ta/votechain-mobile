@@ -49,16 +49,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nocturna.votechain.utils.AccessibilityManager
+import com.nocturna.votechain.utils.LanguageManager
+import com.nocturna.votechain.utils.LanguageManager.currentLanguage
+import com.nocturna.votechain.utils.ThemeManager
+import com.nocturna.votechain.utils.getLocalizedStrings
+import com.nocturna.votechain.viewmodel.UserProfileViewModel
+import com.nocturna.votechain.viewmodel.UserProfileViewModelFactory
+import com.nocturna.votechain.viewmodel.login.LoginViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.nocturna.votechain.data.model.WalletInfo
@@ -69,14 +73,6 @@ import com.nocturna.votechain.ui.screens.BottomNavigation
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
-import com.nocturna.votechain.ui.theme.PrimaryColors
-import com.nocturna.votechain.utils.LanguageManager
-import com.nocturna.votechain.utils.LanguageManager.currentLanguage
-import com.nocturna.votechain.utils.ThemeManager
-import com.nocturna.votechain.utils.getLocalizedStrings
-import com.nocturna.votechain.viewmodel.UserProfileViewModel
-import com.nocturna.votechain.viewmodel.UserProfileViewModelFactory
-import com.nocturna.votechain.viewmodel.login.LoginViewModel
 
 @Composable
 fun ProfileScreen(
@@ -97,6 +93,17 @@ fun ProfileScreen(
 
     val context = LocalContext.current
     val currentTheme by ThemeManager.currentTheme.collectAsState()
+
+    // Set up accessibility manager
+    val accessibilityManager = remember { AccessibilityManager.getInstance(context) }
+    val isAccessibilityEnabled by accessibilityManager.isEnabled.collectAsState()
+    // Text-to-speech toggle state
+    var isTextToSpeechEnabled by remember { mutableStateOf(false) }
+
+    // Initialize the text-to-speech state based on accessibility settings
+    LaunchedEffect(isAccessibilityEnabled) {
+        isTextToSpeechEnabled = isAccessibilityEnabled
+    }
 
     // Get LoginViewModel instance
     val loginViewModel: LoginViewModel = viewModel(factory = LoginViewModel.Factory(context))
@@ -337,49 +344,102 @@ fun ProfileScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-//                // Accessibility Settings
-//                Row(
-//                    modifier = Modifier
-//                        .fillMaxWidth()
-//                        .clickable {
-//                            if (isAccessibilityEnabled) {
-//                                accessibilityManager.speakAction("Pengaturan bantuan suara")
-//                            }
-//                        }
-//                        .padding(vertical = 12.dp),
-//                    verticalAlignment = Alignment.CenterVertically,
-//                    horizontalArrangement = Arrangement.SpaceBetween
-//                ) {
-//                    Column {
-//                        Text(
-//                            text = "Bantuan Suara",
-//                            style = AppTypography.heading5Medium,
-//                            color = NeutralColors.Neutral40
-//                        )
-//                        Text(
-//                            text = "Untuk pengguna tunanetra",
-//                            style = AppTypography.paragraphRegular,
-//                            color = NeutralColors.Neutral50
-//                        )
-//                    }
-//
-//                    Switch(
-//                        checked = isAccessibilityEnabled,
-//                        onCheckedChange = { enabled ->
-//                            if (enabled) {
-//                                accessibilityManager.initialize()
-//                            } else {
-//                                accessibilityManager.setEnabled(false)
-//                            }
-//                        },
-//                        colors = SwitchDefaults.colors(
-//                            checkedThumbColor = MainColors.Primary1,
-//                            checkedTrackColor = MainColors.Primary1.copy(alpha = 0.5f)
-//                        )
-//                    )
-//                }
-//
-//                Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
+                // Accessibility Settings
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            if (isAccessibilityEnabled) {
+                                accessibilityManager.speakAction("Pengaturan bantuan suara")
+                            }
+                        }
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = "Bantuan Suara",
+                            style = AppTypography.heading5Medium,
+                            color = NeutralColors.Neutral40
+                        )
+                        Text(
+                            text = "Untuk pengguna tunanetra",
+                            style = AppTypography.paragraphRegular,
+                            color = NeutralColors.Neutral50
+                        )
+                    }
+
+                    Switch(
+                        checked = isAccessibilityEnabled,
+                        onCheckedChange = { enabled ->
+                            if (enabled) {
+                                accessibilityManager.initialize()
+                            } else {
+                                accessibilityManager.setEnabled(false)
+                            }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MainColors.Primary1,
+                            checkedTrackColor = MainColors.Primary1.copy(alpha = 0.5f)
+                        )
+                    )
+                }
+
+                Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
+
+                // Text-to-Speech toggle
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            if (isAccessibilityEnabled) {
+                                accessibilityManager.speakAction("Pengaturan text to speech")
+                            }
+                        }
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = "Text to Speech",
+                            style = AppTypography.heading5Medium,
+                            color = NeutralColors.Neutral40
+                        )
+                        Text(
+                            text = "Mengubah teks menjadi suara",
+                            style = AppTypography.paragraphRegular,
+                            color = NeutralColors.Neutral50
+                        )
+                    }
+
+                    Switch(
+                        checked = isTextToSpeechEnabled,
+                        onCheckedChange = { enabled ->
+                            isTextToSpeechEnabled = enabled
+                            if (enabled) {
+                                // Enable text-to-speech
+                                if (!isAccessibilityEnabled) {
+                                    // If accessibility is not yet enabled, initialize it
+                                    accessibilityManager.initialize()
+                                } else {
+                                    // Just announce that text-to-speech is enabled
+                                    accessibilityManager.speakText("Text to Speech diaktifkan")
+                                }
+                            } else if (isAccessibilityEnabled) {
+                                // Announce that text-to-speech is disabled, but keep accessibility enabled
+                                accessibilityManager.speakText("Text to Speech dinonaktifkan")
+                            }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MainColors.Primary1,
+                            checkedTrackColor = MainColors.Primary1.copy(alpha = 0.5f)
+                        )
+                    )
+                }
+
+                Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 
                 Row(
                     modifier = Modifier
@@ -562,28 +622,6 @@ fun ProfileScreen(
                 }
 
                 Divider(color =  MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
-
-                // Logout Option
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showLogoutDialog = true }
-                        .padding(vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = strings.logout,
-                        style = AppTypography.heading5Medium,
-                        color = NeutralColors.Neutral40,
-                    )
-                    Icon(
-                        painter = painterResource(id = R.drawable.down2),
-                        contentDescription = null,
-                        tint = NeutralColors.Neutral40,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
 
                 // About Section
                 Text(

@@ -61,14 +61,12 @@ fun AccountDetailsScreen(
     var showPrivateKey by remember { mutableStateOf(false) }
     var showPasswordDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     // State untuk profile data dengan fallback
 //    var completeUserProfile by remember { mutableStateOf(userProfileRepository.getSavedCompleteProfile()) }
 //    var fallbackVoterData by remember { mutableStateOf(voterRepository.getVoterDataLocally()) }
 //    var dataLoadError by remember { mutableStateOf<String?>(null) }
-
-    // State for logout confirmation dialog
-    var showLogoutDialog by remember { mutableStateOf(false) }
 
     // For copy to clipboard functionality
     val clipboardManager = LocalClipboardManager.current
@@ -141,85 +139,7 @@ fun AccountDetailsScreen(
     }
 
     // Password confirmation dialog for private key access
-    if (showPasswordDialog) {
-        var password by remember { mutableStateOf("") }
-        var passwordError by remember { mutableStateOf<String?>(null) }
-
-        AlertDialog(
-            onDismissRequest = {
-                showPasswordDialog = false
-                password = ""
-                passwordError = null
-            },
-            title = {
-                Text(
-                    text = "Security Confirmation",
-                    style = AppTypography.heading4Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            },
-            text = {
-                Column {
-                    Text(
-                        text = "Enter your password to view private key",
-                        style = AppTypography.paragraphRegular,
-                        color = NeutralColors.Neutral70,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = {
-                            password = it
-                            passwordError = null
-                        },
-                        label = { Text("Password") },
-                        visualTransformation = PasswordVisualTransformation(),
-                        isError = passwordError != null,
-                        supportingText = passwordError?.let { { Text(it) } },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        scope.launch {
-                            try {
-                                // Verify password with login repository
-                                val isValid = userLoginRepository.verifyPassword(password)
-                                if (isValid) {
-                                    showPrivateKey = true
-                                    showPasswordDialog = false
-                                    password = ""
-                                    passwordError = null
-                                } else {
-                                    passwordError = "Incorrect password"
-                                }
-                            } catch (e: Exception) {
-                                passwordError = "Failed to verify password"
-                            }
-                        }
-                    }
-                ) {
-                    Text("Confirm")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showPasswordDialog = false
-                        password = ""
-                        passwordError = null
-                    }
-                ) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
-    // Logout Dialog
+    // Logout Confirmation Dialog
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
@@ -234,28 +154,30 @@ fun AccountDetailsScreen(
                 Text(
                     text = "Are you sure you want to logout from your account?",
                     style = AppTypography.paragraphRegular,
-                    color = NeutralColors.Neutral70
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        scope.launch {
-                            try {
-                                loginViewModel.logoutUser()
-                                onLogout()
-                            } catch (e: Exception) {
-                                // Handle logout error
-                            }
-                        }
                         showLogoutDialog = false
-                    }
+                        loginViewModel.logoutUser()
+                        onLogout()
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = NeutralColors.Neutral40
+                    )
                 ) {
-                    Text("Yes, Logout", color = Color(0xFFE53E3E))
+                    Text("Logout")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showLogoutDialog = false }) {
+                TextButton(
+                    onClick = { showLogoutDialog = false },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
                     Text("Cancel")
                 }
             }
