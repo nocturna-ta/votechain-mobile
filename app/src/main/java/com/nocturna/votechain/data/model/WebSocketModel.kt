@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName
 
 /**
  * Live results update message from WebSocket
- * Matches the exact JSON structure provided
+ * Fixed percentage fields to be Double instead of Int
  */
 data class LiveResultsUpdateMessage(
     @SerializedName("type")
@@ -42,7 +42,7 @@ data class LiveRegionResult(
     @SerializedName("votes")
     val votes: Int,
     @SerializedName("percentage")
-    val percentage: Int
+    val percentage: Double // Changed from Int to Double
 )
 
 data class LiveCityResult(
@@ -53,7 +53,7 @@ data class LiveCityResult(
     @SerializedName("voters")
     val voters: Int,
     @SerializedName("percentage")
-    val percentage: Int,
+    val percentage: Double, // Changed from Int to Double
     @SerializedName("rank")
     val rank: Int
 )
