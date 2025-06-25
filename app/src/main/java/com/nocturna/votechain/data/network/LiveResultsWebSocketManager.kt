@@ -31,9 +31,10 @@ class LiveResultsWebSocketManager {
     private val TAG = "LiveResultsWebSocketManager"
 
     companion object {
-        private const val WEBSOCKET_URL = "ws://dde5-36-69-196-149.ngrok-free.app/v1/live/ws"
+        private const val WEBSOCKET_URL = "ws://4bc4-36-69-141-181.ngrok-free.app/v1/live/ws"
         private const val RECONNECT_DELAY = 5000L // 5 seconds
         private const val MAX_RECONNECT_ATTEMPTS = 5
+        private const val CONNECTION_TIMEOUT = 10L
     }
 
     private val gson = Gson()

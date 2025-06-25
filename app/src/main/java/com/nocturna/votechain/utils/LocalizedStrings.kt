@@ -23,6 +23,7 @@ data class LocalizedStrings(
     val about: String,
     val faq: String,
     val logout: String,
+    val textToSpeech: String,
 
     // Navigation
     val homeNav: String,
@@ -238,6 +239,7 @@ private fun getIndonesianStrings(): LocalizedStrings {
         about = "Tentang",
         faq = "Pertanyaan Umum",
         logout = "Keluar",
+        textToSpeech = "Teks ke Suara",
 
         // Navigation
         homeNav = "Beranda",
@@ -444,6 +446,7 @@ private fun getEnglishStrings(): LocalizedStrings {
         about = "About",
         faq = "FAQ",
         logout = "Logout",
+        textToSpeech = "Text to Speech",
 
         // Navigation
         homeNav = "Home",

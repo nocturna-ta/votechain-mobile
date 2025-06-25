@@ -56,13 +56,6 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 // Data class untuk WebSocket response
-data class LiveResultsUpdate(
-    val type: String,
-    val timestamp: String,
-    val data: LiveResultData,
-    val filter: LiveResultFilter
-)
-
 data class LiveResultData(
     val election_id: String,
     val total_votes: Int,
@@ -71,7 +64,8 @@ data class LiveResultData(
     val overall_percentage: Double,
     val regions: List<RegionResult>,
     val top_cities: List<CityResult>,
-    val stats: LiveStats
+    val stats: LiveStats,
+    val candidates: List<CandidateVoteData> = emptyList() // Tambahan untuk kandidat data
 )
 
 data class RegionResult(
@@ -101,7 +95,15 @@ data class LiveResultFilter(
     val election_pair_id: String
 )
 
-// Data class untuk kandidat dengan persentase
+// Data class untuk kandidat dengan vote data dari WebSocket
+data class CandidateVoteData(
+    val candidateId: String,
+    val candidateName: String,
+    val votes: Int,
+    val percentage: Float
+)
+
+// Data class untuk kandidat dengan persentase dan warna untuk UI
 data class CandidateWithPercentage(
     val electionPair: ElectionPair,
     val votes: Int,
@@ -124,6 +126,7 @@ fun LiveResultScreen(
 
     var liveResultData by remember { mutableStateOf<LiveResultData?>(null) }
     var candidatesWithPercentage by remember { mutableStateOf<List<CandidateWithPercentage>>(emptyList()) }
+    var isDataLoaded by remember { mutableStateOf(false) }
 
     // Animation states
     val infiniteTransition = rememberInfiniteTransition()
@@ -157,7 +160,51 @@ fun LiveResultScreen(
     }
 
     // Handle WebSocket messages
+    val rawLiveData by liveResultViewModel.rawLiveData.collectAsState()
     val liveResult by liveResultViewModel.liveResult.collectAsState()
+
+    // Process raw WebSocket data
+    LaunchedEffect(rawLiveData) {
+        rawLiveData?.let { data ->
+            try {
+                // Convert LiveElectionData to LiveResultData dengan data real
+                liveResultData = LiveResultData(
+                    election_id = data.electionId,
+                    total_votes = data.totalVotes,
+                    total_voters = data.totalVoters,
+                    last_updated = data.lastUpdated,
+                    overall_percentage = data.overallPercentage,
+                    regions = data.regions.map { region ->
+                        RegionResult(
+                            region = region.region,
+                            votes = region.votes,
+                            percentage = region.percentage
+                        )
+                    },
+                    top_cities = data.topCities.map { city ->
+                        CityResult(
+                            city = city.city,
+                            votes = city.votes,
+                            voters = city.voters,
+                            percentage = city.percentage,
+                            rank = city.rank
+                        )
+                    },
+                    stats = LiveStats(
+                        total_voters = data.stats.totalVoters,
+                        total_regions = data.stats.totalRegions,
+                        success_rate = data.stats.successRate,
+                        votes_per_second = data.stats.votesPerSecond,
+                        active_regions = data.stats.activeRegions,
+                        completion_rate = data.stats.completionRate
+                    )
+                )
+                isDataLoaded = true
+            } catch (e: Exception) {
+                android.util.Log.e("LiveResultScreen", "Error processing raw live data", e)
+            }
+        }
+    }
 
     // Update live data when received from WebSocket
     LaunchedEffect(liveResult) {

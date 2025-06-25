@@ -49,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -344,75 +345,24 @@ fun ProfileScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                // Accessibility Settings
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            if (isAccessibilityEnabled) {
-                                accessibilityManager.speakAction("Pengaturan bantuan suara")
-                            }
-                        }
-                        .padding(vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text(
-                            text = "Bantuan Suara",
-                            style = AppTypography.heading5Medium,
-                            color = NeutralColors.Neutral40
-                        )
-                        Text(
-                            text = "Untuk pengguna tunanetra",
-                            style = AppTypography.paragraphRegular,
-                            color = NeutralColors.Neutral50
-                        )
-                    }
-
-                    Switch(
-                        checked = isAccessibilityEnabled,
-                        onCheckedChange = { enabled ->
-                            if (enabled) {
-                                accessibilityManager.initialize()
-                            } else {
-                                accessibilityManager.setEnabled(false)
-                            }
-                        },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = MainColors.Primary1,
-                            checkedTrackColor = MainColors.Primary1.copy(alpha = 0.5f)
-                        )
-                    )
-                }
-
-                Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
-
                 // Text-to-Speech toggle
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            if (isAccessibilityEnabled) {
+                            if (isTextToSpeechEnabled) {
                                 accessibilityManager.speakAction("Pengaturan text to speech")
                             }
                         }
-                        .padding(vertical = 12.dp),
+                        .padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column {
-                        Text(
-                            text = "Text to Speech",
-                            style = AppTypography.heading5Medium,
-                            color = NeutralColors.Neutral40
-                        )
-                        Text(
-                            text = "Mengubah teks menjadi suara",
-                            style = AppTypography.paragraphRegular,
-                            color = NeutralColors.Neutral50
-                        )
-                    }
+                    Text(
+                        text = strings.textToSpeech,
+                        style = AppTypography.heading5Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
 
                     Switch(
                         checked = isTextToSpeechEnabled,
@@ -427,15 +377,17 @@ fun ProfileScreen(
                                     // Just announce that text-to-speech is enabled
                                     accessibilityManager.speakText("Text to Speech diaktifkan")
                                 }
-                            } else if (isAccessibilityEnabled) {
-                                // Announce that text-to-speech is disabled, but keep accessibility enabled
+                            } else {
+                                // Disable text-to-speech but keep basic functionality
                                 accessibilityManager.speakText("Text to Speech dinonaktifkan")
+                                accessibilityManager.setEnabled(false)
                             }
                         },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = MainColors.Primary1,
                             checkedTrackColor = MainColors.Primary1.copy(alpha = 0.5f)
-                        )
+                        ),
+                        modifier = Modifier.scale(0.60f) // Make toggle slightly smaller
                     )
                 }
 

@@ -77,8 +77,32 @@ fun CandidateSelectionScreen(
     val votingError by votingViewModel.error.collectAsState()
     val hasVoted by votingViewModel.hasVoted.collectAsState()
 
-    // Load election pairs on first composition
     LaunchedEffect(Unit) {
+        Log.d("CandidateSelectionScreen", "Initializing screen with categoryId: $categoryId")
+
+        // Ensure ElectionNetworkClient is properly initialized with the context
+        val isNetworkClientReady = ElectionNetworkClient.ensureInitialized(context)
+        Log.d("CandidateSelectionScreen", "ElectionNetworkClient initialization status: $isNetworkClientReady")
+
+        if (!isNetworkClientReady) {
+            Log.e("CandidateSelectionScreen", "Failed to initialize ElectionNetworkClient")
+            return@LaunchedEffect
+        }
+
+        // Check if user has valid token
+        val userToken = ElectionNetworkClient.getUserToken()
+        Log.d("CandidateSelectionScreen", "User token status: ${if (userToken.isNotEmpty()) "Available" else "Missing"}")
+
+        if (userToken.isEmpty()) {
+            Log.e("CandidateSelectionScreen", "No authentication token found - redirecting to login")
+            navController.navigate("login") {
+                popUpTo(0) { inclusive = true }
+            }
+            return@LaunchedEffect
+        }
+
+        // Fetch election pairs after ensuring network client is ready
+        Log.d("CandidateSelectionScreen", "Network client ready - fetching election pairs")
         electionViewModel.fetchElectionPairs()
     }
 
@@ -86,9 +110,10 @@ fun CandidateSelectionScreen(
     LaunchedEffect(hasVoted) {
         if (hasVoted && isSubmittingVote) {
             isSubmittingVote = false
-            // Navigate back to home screen
-            navController.navigate("home") {
-                popUpTo("home") { inclusive = true }
+            Log.d("CandidateSelectionScreen", "Vote submitted successfully - navigating to vote success")
+            // Navigate to vote success screen
+            navController.navigate("vote_success") {
+                popUpTo("candidate_selection/$categoryId") { inclusive = true }
             }
         }
     }
@@ -97,8 +122,8 @@ fun CandidateSelectionScreen(
     LaunchedEffect(votingError) {
         if (votingError != null && isSubmittingVote) {
             isSubmittingVote = false
+            Log.e("CandidateSelectionScreen", "Vote submission error: $votingError")
             // Handle error (show snackbar, etc.)
-            Log.e("CandidateSelection", "Vote submission error: $votingError")
         }
     }
 

@@ -104,4 +104,44 @@ dependencies {
     // BouncyCastle dependencies
     implementation (libs.bcprov.jdk15on)
     implementation (libs.bcpkix.jdk15on)
+
+    // JUnit 5 Testing
+    testImplementation (libs.junit.jupiter.api)
+    testImplementation (libs.junit.jupiter.engine)
+    testImplementation (libs.junit.jupiter.params)
+
+    // Android Architecture Components Testing
+    testImplementation (libs.androidx.core.testing)
+
+    // Coroutines Testing
+    testImplementation (libs.kotlinx.coroutines.test)
+
+    // Mockito untuk mocking
+    testImplementation (libs.mockito.core)
+    testImplementation (libs.mockito.inline)
+    testImplementation (libs.mockito.kotlin)
+
+    // MockK untuk Kotlin mocking (alternative yang lebih baik untuk Kotlin)
+    testImplementation (libs.mockk)
+    testImplementation (libs.mockk.android)
+
+    // Robolectric untuk Android unit testing
+    testImplementation (libs.robolectric)
+
+    // Truth assertion library (Google)
+    testImplementation (libs.truth)
+
+    // Turbine untuk Flow testing
+    testImplementation (libs.turbine)
+
+    // Android Test (untuk instrumentation tests jika diperlukan)
+    androidTestImplementation (libs.junit.v115)
+    androidTestImplementation (libs.androidx.espresso.core.v351)
+    androidTestImplementation (libs.androidx.compose.ui.ui.test.junit4)
+
+    // ViewModel testing
+    testImplementation (libs.androidx.lifecycle.viewmodel.ktx)
+
+    // LiveData testing
+    testImplementation (libs.androidx.lifecycle.livedata.ktx.v270)
 }
