@@ -144,4 +144,6 @@ dependencies {
 
     // LiveData testing
     testImplementation (libs.androidx.lifecycle.livedata.ktx.v270)
+
+    implementation (libs.androidx.startup.runtime)
 }

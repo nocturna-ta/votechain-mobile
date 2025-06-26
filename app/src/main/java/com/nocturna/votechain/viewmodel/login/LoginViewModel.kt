@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.nocturna.votechain.VoteChainApplication
 import com.nocturna.votechain.data.model.ApiResponse
 import com.nocturna.votechain.data.model.CompleteUserData
 import com.nocturna.votechain.data.model.UserLoginData
@@ -76,33 +77,173 @@ class LoginViewModel(
      * Login user with email and password
      */
     fun loginUser(email: String, password: String) {
+        _uiState.value = LoginUiState.Loading
         viewModelScope.launch {
             try {
                 _uiState.value = LoginUiState.Loading
 
-                Log.d(TAG, "Starting enhanced login for: $email")
+                Log.d(TAG, "🔐 Starting enhanced login with auto key loading for: $email")
 
-                // Step 1: Authenticate user
-                val loginResult = userLoginRepository.loginUser(email, password)
+                // Step 1: Authenticate user dengan enhanced login
+                val loginResult = userLoginRepository.loginUserWithCryptoKeys(email, password)
 
                 loginResult.fold(
                     onSuccess = { loginResponse ->
-                        Log.d(TAG, "Login successful, checking registration status...")
+                        Log.d(TAG, "✅ Enhanced login successful, checking registration status...")
 
-                        // Step 2: Check registration status after successful login
+                        // Step 2: Verify key loading success
+                        val keyVerification = userLoginRepository.verifyKeysIntegrityAfterLogin(email)
+                        Log.d(TAG, "🔍 Key loading verification: ${if (keyVerification) "✅ Success" else "⚠️ Needs attention"}")
+
+                        // Step 3: Check registration status after successful login
                         checkRegistrationStatusAfterLogin(email, loginResponse.data)
                     },
                     onFailure = { error ->
-                        Log.e(TAG, "Login failed: ${error.message}")
+                        Log.e(TAG, "❌ Enhanced login failed: ${error.message}")
                         _uiState.value = LoginUiState.Error(error.message ?: "Login failed")
                     }
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "Login exception: ${e.message}", e)
+                Log.e(TAG, "❌ Login exception: ${e.message}", e)
                 _uiState.value = LoginUiState.Error(e.message ?: "Unknown error occurred")
             }
         }
     }
+
+    /**
+     * Load user crypto keys with fallback mechanisms
+     */
+    private suspend fun loadUserCryptoKeys(email: String): KeyLoadResult {
+        return try {
+            Log.d(TAG, "🔑 Loading crypto keys for: $email")
+
+            // Step 1: Check if keys already loaded
+            val hasKeys = integratedUserRepository.hasStoredKeys()
+
+            if (hasKeys) {
+                Log.d(TAG, "✅ Crypto keys already available")
+                return KeyLoadResult.Success("Keys already loaded")
+            }
+
+//            if (hasKeys && privateKey != null && publicKey != null && voterAddress != null) {
+//                Log.d(TAG, "✅ Crypto keys already available")
+//                return KeyLoadResult.Success("Keys already loaded")
+//            }
+
+            // Step 2: Try to load from enhanced login repository
+            Log.d(TAG, "🔄 Attempting to load keys using enhanced method...")
+            val enhancedLoadResult = userLoginRepository.loginUserWithCryptoKeys(email, "")
+
+            // Step 3: Re-check after enhanced loading
+            // Step 3: Re-check after enhanced loading
+            val hasKeysAfterLoad = integratedUserRepository.hasStoredKeys()
+
+            if (hasKeysAfterLoad) {
+                Log.d(TAG, "✅ Keys loaded successfully via enhanced method")
+                return KeyLoadResult.Success("Keys loaded via enhanced method")
+            }
+//            hasKeys = cryptoKeyManager.hasStoredKeyPair()
+//            privateKey = cryptoKeyManager.getPrivateKey()
+//            publicKey = cryptoKeyManager.getPublicKey()
+//            voterAddress = cryptoKeyManager.getVoterAddress()
+//
+//            if (hasKeys && privateKey != null && publicKey != null && voterAddress != null) {
+//                Log.d(TAG, "✅ Keys loaded successfully via enhanced method")
+//                return KeyLoadResult.Success("Keys loaded via enhanced method")
+//            }
+
+            // Step 4: Try backup restoration
+            Log.d(TAG, "🔧 Attempting key restoration from backup...")
+            val backupPrivateKey = userLoginRepository.getPrivateKey(email)
+            val backupPublicKey = userLoginRepository.getPublicKey(email)
+
+            if (backupPrivateKey != null && backupPublicKey != null) {
+                // Restore keys using repository method
+                val restoredVoterAddress = deriveVoterAddressFromPublicKey(backupPublicKey)
+
+                // Use repository method to store keys if available
+//                val restoreSuccess = integratedUserRepository.restoreKeys(
+//                    backupPrivateKey, backupPublicKey, restoredVoterAddress
+//                )
+
+//                if (restoreSuccess) {
+//                    Log.d(TAG, "✅ Keys restored from backup successfully")
+//                    return KeyLoadResult.Success("Keys restored from backup")
+//                }
+            }
+
+            // Step 5: Keys not found
+            Log.w(TAG, "⚠️ No crypto keys found for user")
+            KeyLoadResult.NotFound("No crypto keys available for user")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error loading crypto keys: ${e.message}", e)
+            KeyLoadResult.Error("Failed to load crypto keys: ${e.message}")
+        }
+    }
+
+    /**
+     * Verify key integrity after loading
+     */
+    private suspend fun verifyKeyIntegrity(email: String): KeyIntegrityStatus {
+        return try {
+//            val cryptoKeyManager = integratedUserRepository.cryptoKeyManager
+//
+//            val hasStoredKeys = cryptoKeyManager.hasStoredKeyPair()
+//            val privateKey = cryptoKeyManager.getPrivateKey()
+//            val publicKey = cryptoKeyManager.getPublicKey()
+//            val voterAddress = cryptoKeyManager.getVoterAddress()
+            val hasStoredKeys = integratedUserRepository.hasStoredKeys()
+
+            // Check backup storage too
+            val backupPrivateKey = userLoginRepository.getPrivateKey(email)
+            val backupPublicKey = userLoginRepository.getPublicKey(email)
+
+            Log.d(TAG, "🔍 Key integrity check:")
+            Log.d(TAG, "- hasStoredKeyPair: $hasStoredKeys")
+            Log.d(TAG, "- backupPrivateKey: ${if (backupPrivateKey != null) "✅" else "❌"}")
+            Log.d(TAG, "- backupPublicKey: ${if (backupPublicKey != null) "✅" else "❌"}")
+
+            when {
+                hasStoredKeys -> {
+                    KeyIntegrityStatus.Healthy
+                }
+                backupPrivateKey != null && backupPublicKey != null -> {
+                    KeyIntegrityStatus.BackupOnly
+                }
+                else -> {
+                    KeyIntegrityStatus.Missing
+                }
+            }
+
+//            Log.d(TAG, "🔍 Key integrity check:")
+//            Log.d(TAG, "- hasStoredKeyPair: $hasStoredKeys")
+//            Log.d(TAG, "- privateKey: ${if (privateKey != null) "✅" else "❌"}")
+//            Log.d(TAG, "- publicKey: ${if (publicKey != null) "✅" else "❌"}")
+//            Log.d(TAG, "- voterAddress: ${if (voterAddress != null) "✅" else "❌"}")
+//            Log.d(TAG, "- backupPrivateKey: ${if (backupPrivateKey != null) "✅" else "❌"}")
+//            Log.d(TAG, "- backupPublicKey: ${if (backupPublicKey != null) "✅" else "❌"}")
+//
+//            when {
+//                hasStoredKeys && privateKey != null && publicKey != null && voterAddress != null -> {
+//                    KeyIntegrityStatus.Healthy
+//                }
+//                backupPrivateKey != null && backupPublicKey != null -> {
+//                    KeyIntegrityStatus.BackupOnly
+//                }
+//                hasStoredKeys && (privateKey == null || publicKey == null) -> {
+//                    KeyIntegrityStatus.Corrupted
+//                }
+//                else -> {
+//                    KeyIntegrityStatus.Missing
+//                }
+//            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error verifying key integrity: ${e.message}", e)
+            KeyIntegrityStatus.Error
+        }
+    }
+
 
     /**
      * Check registration status after successful login
@@ -142,6 +283,89 @@ class LoginViewModel(
 
         // Load keys for this user regardless of registration state
         loadKeysForUser(email)
+    }
+
+    /**
+     * Handle successful login with complete data
+     */
+    private fun handleLoginSuccess(
+        completeData: CompleteUserData,
+        keyLoadResult: KeyLoadResult,
+        keyStatus: KeyIntegrityStatus
+    ) {
+        _completeUserData.value = completeData
+        _isLoggedIn.value = true
+
+        // Navigate based on key status
+        when (keyStatus) {
+            KeyIntegrityStatus.Healthy -> {
+                Log.d(TAG, "✅ Login successful with healthy keys")
+                _uiState.value = LoginUiState.Success(completeData)
+            }
+            KeyIntegrityStatus.BackupOnly -> {
+                Log.d(TAG, "⚠️ Login successful but keys only in backup")
+                _uiState.value = LoginUiState.PartialSuccess(
+                    completeData,
+                    "Keys loaded from backup. Consider regenerating for better security."
+                )
+            }
+            KeyIntegrityStatus.Corrupted -> {
+                Log.w(TAG, "⚠️ Login successful but keys are corrupted")
+                _uiState.value = LoginUiState.PartialSuccess(
+                    completeData,
+                    "Some cryptographic keys are corrupted. Please check your profile."
+                )
+            }
+            KeyIntegrityStatus.Missing -> {
+                Log.w(TAG, "⚠️ Login successful but no crypto keys found")
+                _uiState.value = LoginUiState.PartialSuccess(
+                    completeData,
+                    "No cryptographic keys found. You may need to regenerate them."
+                )
+            }
+            KeyIntegrityStatus.Error -> {
+                Log.e(TAG, "❌ Error checking key status")
+                _uiState.value = LoginUiState.PartialSuccess(
+                    completeData,
+                    "Error checking cryptographic keys. Please verify in profile."
+                )
+            }
+        }
+    }
+
+    /**
+     * Derive voter address from public key
+     */
+    private fun deriveVoterAddressFromPublicKey(publicKey: String): String {
+        return try {
+            val cleanPublicKey = if (publicKey.startsWith("0x")) {
+                publicKey.substring(2)
+            } else {
+                publicKey
+            }
+
+            val publicKeyBigInt = java.math.BigInteger(cleanPublicKey, 16)
+            val addressHex = org.web3j.crypto.Keys.getAddress(publicKeyBigInt)
+            org.web3j.crypto.Keys.toChecksumAddress("0x" + addressHex)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deriving voter address: ${e.message}")
+            "0x0000000000000000000000000000000000000000"
+        }
+    }
+
+    // Data classes untuk result handling
+    sealed class KeyLoadResult {
+        data class Success(val message: String) : KeyLoadResult()
+        data class NotFound(val message: String) : KeyLoadResult()
+        data class Error(val message: String) : KeyLoadResult()
+    }
+
+    enum class KeyIntegrityStatus {
+        Healthy,    // All keys present and accessible in crypto manager
+        BackupOnly, // Keys only available in backup storage
+        Corrupted,  // Keys exist but not accessible properly
+        Missing,    // No keys found anywhere
+        Error       // Error during verification
     }
 
     /**
@@ -322,31 +546,6 @@ class LoginViewModel(
     }
 
     /**
-     * Check current login state and load data if already logged in
-     */
-    fun checkLoginState() {
-        viewModelScope.launch {
-            try {
-                val isSessionValid = userLoginRepository.isSessionValid()
-
-                if (isSessionValid) {
-                    Log.d(TAG, "Valid session found, loading user data...")
-                    _uiState.value = LoginUiState.Loading
-                    loadCompleteUserData()
-                } else {
-                    Log.d(TAG, "No valid session found")
-                    _uiState.value = LoginUiState.Initial
-                    _isLoggedIn.value = false
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error checking login state: ${e.message}", e)
-                _uiState.value = LoginUiState.Initial
-                _isLoggedIn.value = false
-            }
-        }
-    }
-
-    /**
      * Refresh user data (for pull-to-refresh functionality)
      */
     fun refreshUserData() {
@@ -476,28 +675,153 @@ class LoginViewModel(
     }
 
     /**
-     * Log out the current user
+     * Check key integrity using public methods
+     */
+    private suspend fun checkKeyIntegrity(email: String): Boolean {
+        return try {
+            // Use public methods from repositories to check key integrity
+            val hasStoredKeys = integratedUserRepository.hasStoredKeys()
+            val backupPrivateKey = userLoginRepository.getPrivateKey(email)
+            val backupPublicKey = userLoginRepository.getPublicKey(email)
+
+            Log.d(TAG, "🔍 Key integrity check:")
+            Log.d(TAG, "- hasStoredKeyPair: $hasStoredKeys")
+            Log.d(TAG, "- backupPrivateKey: ${if (backupPrivateKey != null) "✅" else "❌"}")
+            Log.d(TAG, "- backupPublicKey: ${if (backupPublicKey != null) "✅" else "❌"}")
+
+            // Return true if we have either stored keys or backup keys
+            hasStoredKeys || (backupPrivateKey != null && backupPublicKey != null)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking key integrity: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Enhanced check login state dengan crypto key loading
+     */
+    fun checkLoginState() {
+        viewModelScope.launch {
+            try {
+                val isSessionValid = userLoginRepository.isSessionValid()
+
+                if (isSessionValid) {
+                    Log.d(TAG, "✅ Valid session found, loading user data with key verification...")
+                    _uiState.value = LoginUiState.Loading
+
+                    // Load crypto keys for current user
+                    val userEmail = userLoginRepository.getUserEmail()
+                    if (!userEmail.isNullOrEmpty()) {
+                        // Try to load keys if not already loaded
+//                        val keyStatus = userLoginRepository.verifyKeyIntegrityAfterLogin(userEmail)
+                        val keyStatus = checkKeyIntegrity(userEmail)
+                        if (!keyStatus) {
+                            Log.w(TAG, "⚠️ Keys need attention for user: $userEmail")
+
+                            // Try to repair keys using StartupInitializer
+                            try {
+                                val app = context.applicationContext as VoteChainApplication
+                                val repairSuccess = app.forceReloadAllKeys()
+                                Log.d(TAG, "🔧 Key repair result: ${if (repairSuccess) "✅ Success" else "❌ Failed"}")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "❌ Error during key repair: ${e.message}")
+                            }
+                        }
+                    }
+
+                    loadCompleteUserData()
+                } else {
+                    Log.d(TAG, "❌ No valid session found")
+                    _uiState.value = LoginUiState.Initial
+                    _isLoggedIn.value = false
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Error checking login state: ${e.message}", e)
+                _uiState.value = LoginUiState.Initial
+                _isLoggedIn.value = false
+            }
+        }
+    }
+
+    /**
+     * Enhanced logout user dengan comprehensive cleanup
      */
     fun logoutUser() {
         viewModelScope.launch {
             try {
-                Log.d(TAG, "Starting enhanced logout...")
+                Log.d(TAG, "🚪 Starting enhanced logout...")
 
-                // Clear all user data
+                // Step 1: Enhanced logout dari repository
+                val logoutResult = userLoginRepository.logoutUserEnhanced()
+
+                logoutResult.fold(
+                    onSuccess = {
+                        Log.d(TAG, "✅ Repository logout successful")
+                    },
+                    onFailure = { error ->
+                        Log.w(TAG, "⚠️ Repository logout had issues: ${error.message}")
+                        // Continue with logout even if repository fails
+                    }
+                )
+
+                // Step 2: Clear all user data dari integrated repository
                 integratedUserRepository.clearAllUserData()
 
-                // Reset state
+                // Step 3: Clear application-level keys if needed
+                try {
+                    val app = context.applicationContext as VoteChainApplication
+                    val userEmail = userLoginRepository.getUserEmail()
+                    if (!userEmail.isNullOrEmpty()) {
+                        app.clearKeysNeedAttention(userEmail)
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "⚠️ Could not clear application keys: ${e.message}")
+                }
+
+                // Step 4: Reset state
                 _completeUserData.value = null
                 _isLoggedIn.value = false
                 _uiState.value = LoginUiState.LoggedOut
 
-                Log.d(TAG, "✅ Enhanced logout completed")
+                Log.d(TAG, "✅ Enhanced logout completed successfully")
+
             } catch (e: Exception) {
-                Log.e(TAG, "Error during logout: ${e.message}", e)
+                Log.e(TAG, "❌ Error during enhanced logout: ${e.message}", e)
                 // Force logout even if there's an error
                 _completeUserData.value = null
                 _isLoggedIn.value = false
                 _uiState.value = LoginUiState.LoggedOut
+            }
+        }
+    }
+
+    /**
+     * Manual key repair untuk troubleshooting
+     */
+    fun repairUserKeys() {
+        viewModelScope.launch {
+            try {
+                val userEmail = userLoginRepository.getUserEmail()
+                if (userEmail == null) {
+                    Log.w(TAG, "Cannot repair keys: no user email")
+                    return@launch
+                }
+
+                Log.d(TAG, "🔧 Attempting manual key repair for: $userEmail")
+
+                // Try using application-level repair
+                val app = context.applicationContext as VoteChainApplication
+                val repairSuccess = app.forceReloadAllKeys()
+
+                if (repairSuccess) {
+                    Log.d(TAG, "✅ Key repair successful")
+                    // Refresh current user data
+                    refreshUserData()
+                } else {
+                    Log.e(TAG, "❌ Key repair failed")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Exception during key repair: ${e.message}", e)
             }
         }
     }

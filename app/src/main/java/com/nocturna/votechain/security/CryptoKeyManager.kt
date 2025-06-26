@@ -7,6 +7,7 @@ import android.util.Base64
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.nocturna.votechain.data.repository.UserLoginRepository
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.web3j.crypto.ECKeyPair
 import org.web3j.crypto.Keys
@@ -1226,6 +1227,185 @@ class CryptoKeyManager(private val context: Context) {
             !privateKey.isNullOrEmpty()
         } catch (e: Exception) {
             Log.w(TAG, "Cannot validate signing capability: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Debug method untuk troubleshoot key storage issues
+     */
+    fun debugKeyStorage(): String {
+        val debugInfo = StringBuilder()
+
+        try {
+            debugInfo.append("=== CRYPTO KEY MANAGER DEBUG ===\n")
+            debugInfo.append("Timestamp: ${System.currentTimeMillis()}\n\n")
+
+            // Check encrypted shared preferences
+            debugInfo.append("1. Encrypted SharedPreferences Check:\n")
+            val publicKey = encryptedSharedPreferences.getString(PUBLIC_KEY_KEY, null)
+            val encryptedPrivateKey = encryptedSharedPreferences.getString(ENCRYPTED_PRIVATE_KEY_KEY, null)
+            val voterAddress = encryptedSharedPreferences.getString(VOTER_ADDRESS_KEY, null)
+            val iv = encryptedSharedPreferences.getString(IV_KEY, null)
+            val metadata = encryptedSharedPreferences.getString(KEY_METADATA, null)
+
+            debugInfo.append("- Public Key: ${if (publicKey != null) "✅ Found (${publicKey.length} chars)" else "❌ Not found"}\n")
+            debugInfo.append("- Encrypted Private Key: ${if (encryptedPrivateKey != null) "✅ Found (${encryptedPrivateKey.length} chars)" else "❌ Not found"}\n")
+            debugInfo.append("- Voter Address: ${if (voterAddress != null) "✅ Found ($voterAddress)" else "❌ Not found"}\n")
+            debugInfo.append("- IV: ${if (iv != null) "✅ Found" else "❌ Not found"}\n")
+            debugInfo.append("- Metadata: ${if (metadata != null) "✅ Found" else "❌ Not found"}\n\n")
+
+            // Check Android Keystore
+            debugInfo.append("2. Android Keystore Check:\n")
+            val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
+            keyStore.load(null)
+
+            val hasMasterKey = keyStore.containsAlias(KEY_ALIAS_MASTER)
+            val hasEncryptionKey = keyStore.containsAlias(KEY_ALIAS_ENCRYPTION)
+            val hasSigningKey = keyStore.containsAlias(KEY_ALIAS_SIGNING)
+
+            debugInfo.append("- Master Key: ${if (hasMasterKey) "✅ Present" else "❌ Missing"}\n")
+            debugInfo.append("- Encryption Key: ${if (hasEncryptionKey) "✅ Present" else "❌ Missing"}\n")
+            debugInfo.append("- Signing Key: ${if (hasSigningKey) "✅ Present" else "❌ Missing"}\n\n")
+
+//            // Test decryption
+//            debugInfo.append("3. Decryption Test:\n")
+//            if (encryptedPrivateKey != null && iv != null) {
+//                try {
+//                    val decryptedKey = decryptPrivateKey(encryptedPrivateKey, iv)
+//                    debugInfo.append("- Decryption: ${if (decryptedKey != null) "✅ Successful" else "❌ Failed"}\n")
+//                    if (decryptedKey != null) {
+//                        debugInfo.append("- Decrypted Key Length: ${decryptedKey.length} chars\n")
+//                        debugInfo.append("- Starts with 0x: ${decryptedKey.startsWith("0x")}\n")
+//                    }
+//                } catch (e: Exception) {
+//                    debugInfo.append("- Decryption: ❌ Error - ${e.message}\n")
+//                }
+//            } else {
+//                debugInfo.append("- Decryption: ⚠️ Skipped (missing encrypted key or IV)\n")
+//            }
+//
+//            debugInfo.append("\n4. hasStoredKeyPair() Result: ${hasStoredKeyPair()}\n")
+
+            // Check regular SharedPreferences (backup storage)
+            debugInfo.append("\n5. Backup Storage Check (Regular SharedPreferences):\n")
+            val regularPrefs = context.getSharedPreferences("VoteChainPrefs", Context.MODE_PRIVATE)
+            val allKeys = regularPrefs.all
+            val relevantKeys = allKeys.filterKeys { it.contains("private_key") || it.contains("public_key") }
+
+            if (relevantKeys.isNotEmpty()) {
+                debugInfo.append("- Found ${relevantKeys.size} backup key(s):\n")
+                relevantKeys.forEach { (key, value) ->
+                    debugInfo.append("  - $key: ${if (value != null) "✅ Present" else "❌ Null"}\n")
+                }
+            } else {
+                debugInfo.append("- No backup keys found\n")
+            }
+
+            debugInfo.append("\n=== END DEBUG ===")
+
+        } catch (e: Exception) {
+            debugInfo.append("❌ Debug failed: ${e.message}\n")
+            debugInfo.append("Stack trace: ${e.stackTrace.joinToString("\n")}")
+        }
+
+        val result = debugInfo.toString()
+        Log.d(TAG, result)
+        return result
+    }
+
+    /**
+     * Force reload keys from storage
+     */
+    fun forceReloadKeys(): Boolean {
+        return try {
+            Log.d(TAG, "Force reloading keys from storage...")
+
+            // Clear any cached values (if you have them)
+            clearCache()
+
+            // Try to reload
+            val hasKeys = hasStoredKeyPair()
+            val privateKey = getPrivateKey()
+            val publicKey = getPublicKey()
+            val voterAddress = getVoterAddress()
+
+            Log.d(TAG, "Force reload results:")
+            Log.d(TAG, "- hasStoredKeyPair: $hasKeys")
+            Log.d(TAG, "- privateKey: ${if (privateKey != null) "Found" else "Not found"}")
+            Log.d(TAG, "- publicKey: ${if (publicKey != null) "Found" else "Not found"}")
+            Log.d(TAG, "- voterAddress: ${if (voterAddress != null) "Found" else "Not found"}")
+
+            privateKey != null && publicKey != null && voterAddress != null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during force reload: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Clear any internal cache (implement if you have caching)
+     */
+    private fun clearCache() {
+        // Implement this if you have any cached values
+        // For now, this is just a placeholder
+        Log.d(TAG, "Cache cleared")
+    }
+
+    /**
+     * Repair corrupted keys (attempt)
+     */
+    fun repairCorruptedKeys(email: String): Boolean {
+        return try {
+            Log.d(TAG, "Attempting to repair corrupted keys for: $email")
+
+            // Step 1: Check backup storage
+            val userLoginRepo = UserLoginRepository(context)
+            val backupPrivateKey = userLoginRepo.getPrivateKey(email)
+            val backupPublicKey = userLoginRepo.getPublicKey(email)
+
+            if (backupPrivateKey != null && backupPublicKey != null) {
+                Log.d(TAG, "Found backup keys, attempting restoration...")
+
+                // Step 2: Derive voter address
+                val voterAddress = try {
+                    val cleanPublicKey = if (backupPublicKey.startsWith("0x")) {
+                        backupPublicKey.substring(2)
+                    } else {
+                        backupPublicKey
+                    }
+
+                    val publicKeyBigInt = BigInteger(cleanPublicKey, 16)
+                    val addressHex = org.web3j.crypto.Keys.getAddress(publicKeyBigInt)
+                    org.web3j.crypto.Keys.toChecksumAddress("0x" + addressHex)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not derive voter address, using fallback")
+                    "0x0000000000000000000000000000000000000000"
+                }
+
+                // Step 3: Create new KeyPairInfo
+                val keyPairInfo = KeyPairInfo(
+                    publicKey = backupPublicKey,
+                    privateKey = backupPrivateKey,
+                    voterAddress = voterAddress,
+                    generationMethod = "Repaired_From_Backup"
+                )
+
+                // Step 4: Store keys
+                storeKeyPair(keyPairInfo)
+
+                // Step 5: Verify
+                val verification = hasStoredKeyPair()
+                Log.d(TAG, "Key repair ${if (verification) "successful" else "failed"}")
+
+                return verification
+            } else {
+                Log.w(TAG, "No backup keys found, cannot repair")
+                return false
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during key repair: ${e.message}", e)
             false
         }
     }

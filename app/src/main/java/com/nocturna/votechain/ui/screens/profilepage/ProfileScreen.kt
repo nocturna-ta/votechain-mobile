@@ -62,7 +62,6 @@ import com.nocturna.votechain.utils.LanguageManager.currentLanguage
 import com.nocturna.votechain.utils.ThemeManager
 import com.nocturna.votechain.utils.getLocalizedStrings
 import com.nocturna.votechain.viewmodel.UserProfileViewModel
-import com.nocturna.votechain.viewmodel.UserProfileViewModelFactory
 import com.nocturna.votechain.viewmodel.login.LoginViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController

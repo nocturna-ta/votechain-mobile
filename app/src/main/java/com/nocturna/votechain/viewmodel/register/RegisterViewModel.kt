@@ -16,7 +16,9 @@ import com.nocturna.votechain.data.network.NetworkClient
 import com.nocturna.votechain.data.network.WilayahApiClient
 import com.nocturna.votechain.data.repository.EnhancedUserRepository
 import com.nocturna.votechain.data.repository.RegistrationStateManager
+import com.nocturna.votechain.data.repository.UserLoginRepository
 import com.nocturna.votechain.data.repository.UserRepository
+import com.nocturna.votechain.data.repository.VoterRepository
 import com.nocturna.votechain.security.CryptoKeyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -76,6 +78,8 @@ data class SecurityCheck(
  */
 class RegisterViewModel(
     private val userRepository: UserRepository,
+    private val userLoginRepository: UserLoginRepository,
+    private val voterRepository: VoterRepository,
     private val context: Context
 ) : ViewModel() {
     private val TAG = "RegisterViewModel"
@@ -505,7 +509,14 @@ class RegisterViewModel(
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(RegisterViewModel::class.java)) {
                 val userRepository = UserRepository(context)
-                return RegisterViewModel(userRepository, context) as T
+                val userLoginRepository = UserLoginRepository(context)
+                val voterRepository = VoterRepository(context)
+                return RegisterViewModel(
+                    context = context,
+                    userRepository = userRepository,
+                    userLoginRepository = userLoginRepository,
+                    voterRepository = voterRepository
+                ) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }
@@ -1082,44 +1093,49 @@ class RegisterViewModel(
         fullName: String,
         keyPairInfo: CryptoKeyManager.KeyPairInfo
     ) {
-        Log.d(TAG, "✅ Registration successful: ${response.message}")
+        try {
+            Log.d(TAG, "✅ Registration successful, processing results...")
 
-        // Store voter data with crypto reference
-        storeVoterDataSecurely(nationalId, fullName, keyPairInfo)
+            // Step 1: Save keys dengan method yang benar
+            cryptoKeyManager.storeKeyPair(keyPairInfo)
 
-        // Handle verification status
-        val verificationStatus = response.data?.verification_status?.lowercase()
-        Log.d(TAG, "Verification status: $verificationStatus")
+            // Step 2: TAMBAHAN - Simpan juga ke UserLoginRepository untuk kompatibilitas
+            userLoginRepository.saveKeysForUser(
+                email = email,
+                privateKey = keyPairInfo.privateKey,
+                publicKey = keyPairInfo.publicKey
+            )
 
-        when (verificationStatus) {
-            "pending", "waiting" -> {
-                registrationStateManager.saveRegistrationState(
-                    RegistrationStateManager.STATE_WAITING,
-                    email,
-                    nationalId
-                )
-                _uiState.value = RegisterUiState.Waiting
-            }
-            "accepted", "approved" -> {
-                registrationStateManager.saveRegistrationState(
-                    RegistrationStateManager.STATE_APPROVED,
-                    email,
-                    nationalId
-                )
-                _uiState.value = RegisterUiState.Approved
-            }
-            "rejected", "denied" -> {
-                registrationStateManager.saveRegistrationState(
-                    RegistrationStateManager.STATE_REJECTED,
-                    email,
-                    nationalId
-                )
-                _uiState.value = RegisterUiState.Rejected
-            }
-            else -> {
-                _uiState.value = RegisterUiState.Success(response)
-                startVerificationStatusCheck(email)
-            }
+            // Step 3: Save ke VoterRepository
+//            voterRepository.saveVoterDataLocally(
+//                fullName = fullName,  // Perbaiki typo
+//                nik = nationalId,
+//                publicKey = keyPairInfo.publicKey,
+//                privateKey = keyPairInfo.privateKey,
+//                voterAddress = keyPairInfo.voterAddress,
+//                hasVoted = false
+//            )
+
+            // Step 4: Verify penyimpanan
+            val savedPrivateKey = cryptoKeyManager.getPrivateKey()
+            val backupPrivateKey = userLoginRepository.getPrivateKey(email)
+
+            Log.d(TAG, "Private key verification:")
+            Log.d(TAG, "- From CryptoKeyManager: ${if (savedPrivateKey != null) "✅ Found" else "❌ Not found"}")
+            Log.d(TAG, "- From UserLoginRepository: ${if (backupPrivateKey != null) "✅ Found" else "❌ Not found"}")
+
+            // Step 5: Update UI state
+            _keyGenerationState.value = KeyGenerationState.Generated
+            _uiState.value = RegisterUiState.Success(response)
+
+            // Step 6: Clear registration state
+            registrationStateManager.clearRegistrationState()
+
+            Log.d(TAG, "✅ Registration process completed successfully")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error in handleRegistrationSuccess: ${e.message}", e)
+            _uiState.value = RegisterUiState.Error("Registration completed but failed to save user data: ${e.message}")
         }
     }
 

@@ -1,5 +1,6 @@
 package com.nocturna.votechain.ui.screens.profilepage
 
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -22,10 +23,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.nocturna.votechain.R
+import com.nocturna.votechain.VoteChainApplication
 import com.nocturna.votechain.data.model.AccountDisplayData
 import com.nocturna.votechain.data.repository.UserLoginRepository
 import com.nocturna.votechain.data.repository.UserProfileRepository
 import com.nocturna.votechain.data.repository.VoterRepository
+import com.nocturna.votechain.security.CryptoKeyManager
 import com.nocturna.votechain.ui.screens.LoadingScreen
 import com.nocturna.votechain.ui.screens.login.LoginScreen
 import com.nocturna.votechain.ui.theme.AppTypography
@@ -34,6 +37,7 @@ import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.utils.LanguageManager
 import com.nocturna.votechain.viewmodel.login.LoginViewModel
+import com.nocturna.votechain.viewmodel.login.LoginViewModel.KeyIntegrityStatus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -54,6 +58,7 @@ fun AccountDetailsScreen(
     val userProfileRepository = remember { UserProfileRepository(context) }
     val userLoginRepository = remember { UserLoginRepository(context) }
     val voterRepository = remember { VoterRepository(context) }
+    val cryptoKeyManager = remember { CryptoKeyManager(context) }
 
     // Get LoginViewModel instance
     val loginViewModel: LoginViewModel = viewModel(factory = LoginViewModel.Factory(context))
@@ -62,54 +67,200 @@ fun AccountDetailsScreen(
     var accountData by remember { mutableStateOf(AccountDisplayData()) }
     var isLoading by remember { mutableStateOf(true) }
     var isRefreshing by remember { mutableStateOf(false) }
+    var isKeyLoading by remember { mutableStateOf(false) }
     var showPrivateKey by remember { mutableStateOf(false) }
     var showPasswordDialog by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var keyIntegrityStatus by remember { mutableStateOf<KeyIntegrityStatus?>(null) }
+    var keyDiagnostics by remember { mutableStateOf("") }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
-    // State untuk profile data dengan fallback
-//    var completeUserProfile by remember { mutableStateOf(userProfileRepository.getSavedCompleteProfile()) }
-//    var fallbackVoterData by remember { mutableStateOf(voterRepository.getVoterDataLocally()) }
-//    var dataLoadError by remember { mutableStateOf<String?>(null) }
+    // Enhanced error states
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var keyErrorMessage by remember { mutableStateOf<String?>(null) }
 
     // For copy to clipboard functionality
     val clipboardManager = LocalClipboardManager.current
     var showCopiedMessage by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
+    /**
+     * Derive voter address from public key
+     */
+    fun deriveVoterAddressFromPublicKey(publicKey: String): String {
+        return try {
+            val cleanPublicKey = if (publicKey.startsWith("0x")) {
+                publicKey.substring(2)
+            } else {
+                publicKey
+            }
+
+            val publicKeyBigInt = java.math.BigInteger(cleanPublicKey, 16)
+            val addressHex = org.web3j.crypto.Keys.getAddress(publicKeyBigInt)
+            org.web3j.crypto.Keys.toChecksumAddress("0x" + addressHex)
+        } catch (e: Exception) {
+            Log.e("AccountDetails", "Error deriving voter address: ${e.message}")
+            "0x0000000000000000000000000000000000000000"
+        }
+    }
+
+    /**
+     * Load minimal account data dengan key recovery
+     */
+    suspend fun loadMinimalAccountDataWithKeyRecovery(userEmail: String) {
+        try {
+            Log.d("AccountDetails", "📦 Loading minimal account data with key recovery...")
+
+            val localVoterData = voterRepository.getVoterDataLocally()
+            val walletInfo = voterRepository.getCompleteWalletInfo()
+
+            // Try to get keys from both storages
+            val cryptoKeyManager = CryptoKeyManager(context)
+            var privateKey = cryptoKeyManager.getPrivateKey()
+            var publicKey = cryptoKeyManager.getPublicKey()
+            var voterAddress = cryptoKeyManager.getVoterAddress()
+
+            // Fallback to backup storage
+            if (privateKey.isNullOrEmpty()) {
+                privateKey = userLoginRepository.getPrivateKey(userEmail)
+                publicKey = userLoginRepository.getPublicKey(userEmail)
+
+                if (publicKey != null) {
+                    voterAddress = deriveVoterAddressFromPublicKey(publicKey)
+                }
+            }
+
+            accountData = AccountDisplayData(
+                fullName = localVoterData?.full_name ?: "N/A",
+                email = userEmail,
+                nik = localVoterData?.nik ?: "N/A",
+                publicKey = publicKey ?: "",
+                privateKey = privateKey ?: "",
+                voterAddress = voterAddress ?: localVoterData?.voter_address ?: "",
+                ethBalance = walletInfo.balance,
+                hasVoted = localVoterData?.has_voted ?: false
+            )
+
+            Log.d("AccountDetails", "📦 Minimal account data loaded with key recovery")
+        } catch (e: Exception) {
+            Log.e("AccountDetails", "❌ Error loading minimal data: ${e.message}", e)
+        }
+    }
+
     // Function to load account data
-    suspend fun loadAccountData() {
+    suspend fun loadAccountDataEnhanced() {
         try {
             isLoading = true
             errorMessage = null
 
-            // Get complete user profile first
+            Log.d("AccountDetails", "🔄 Loading enhanced account data...")
+
+            // Step 1: Get user email
+            val userEmail = userLoginRepository.getUserEmail()
+            if (userEmail.isNullOrEmpty()) {
+                errorMessage = "No user session found"
+                return
+            }
+
+            // Step 2: Verify dan load crypto keys
+            Log.d("AccountDetails", "🔐 Verifying crypto keys...")
+            val keyStatus = userLoginRepository.verifyKeysIntegrityAfterLogin(userEmail)
+
+            if (!keyStatus) {
+                Log.w("AccountDetails", "⚠️ Keys need repair, attempting auto-repair...")
+
+                try {
+                    // Try to repair keys
+                    val app = context.applicationContext as VoteChainApplication
+                    val repairSuccess = app.forceReloadAllKeys()
+
+                    if (repairSuccess) {
+                        Log.d("AccountDetails", "✅ Keys repaired successfully")
+                    } else {
+                        Log.w("AccountDetails", "⚠️ Key repair failed")
+                    }
+                } catch (e: Exception) {
+                    Log.e("AccountDetails", "❌ Error during key repair: ${e.message}")
+                }
+            }
+
+            // Step 3: Load profile data
             userProfileRepository.fetchCompleteUserProfile().fold(
                 onSuccess = { profile ->
-                    // Profile loaded successfully, now get account data
-                    val displayData = voterRepository.getAccountDisplayData()
-                    accountData = displayData.copy(
-                        email = profile.userProfile?.email ?: ""
+                    Log.d("AccountDetails", "✅ Profile data loaded")
+
+                    // Step 4: Get wallet info dengan enhanced verification
+                    val walletInfo = voterRepository.getCompleteWalletInfo()
+
+                    // Step 5: Get crypto keys dengan verification
+                    val cryptoKeyManager = CryptoKeyManager(context)
+                    var privateKey = cryptoKeyManager.getPrivateKey()
+                    var publicKey = cryptoKeyManager.getPublicKey()
+                    var voterAddress = cryptoKeyManager.getVoterAddress()
+
+                    // Step 6: Fallback ke backup storage jika keys tidak ada
+                    if (privateKey.isNullOrEmpty() && userEmail != null) {
+                        Log.w("AccountDetails", "🔧 Primary keys empty, checking backup storage...")
+
+                        val backupPrivateKey = userLoginRepository.getPrivateKey(userEmail)
+                        val backupPublicKey = userLoginRepository.getPublicKey(userEmail)
+
+                        if (backupPrivateKey != null && backupPublicKey != null) {
+                            Log.d("AccountDetails", "✅ Found keys in backup storage")
+                            privateKey = backupPrivateKey
+                            publicKey = backupPublicKey
+
+                            // Try to restore to primary storage
+                            try {
+                                val restoredVoterAddress = deriveVoterAddressFromPublicKey(backupPublicKey)
+                                val keyPairInfo = CryptoKeyManager.KeyPairInfo(
+                                    publicKey = backupPublicKey,
+                                    privateKey = backupPrivateKey,
+                                    voterAddress = restoredVoterAddress,
+                                    generationMethod = "Profile_Backup_Restoration"
+                                )
+                                cryptoKeyManager.storeKeyPair(keyPairInfo)
+                                voterAddress = restoredVoterAddress
+                                Log.d("AccountDetails", "✅ Keys restored to primary storage")
+                            } catch (e: Exception) {
+                                Log.e("AccountDetails", "❌ Failed to restore keys: ${e.message}")
+                            }
+                        } else {
+                            Log.e("AccountDetails", "❌ No keys found in backup storage either")
+                        }
+                    }
+
+                    // Step 7: Update account data
+                    accountData = AccountDisplayData(
+//                        fullName = profile.userProfile?.full_name ?: "N/A",
+                        email = userEmail,
+//                        nik = localVoterData?.nik ?: "N/A",
+                        publicKey = publicKey ?: "",
+                        privateKey = privateKey ?: "",
+                        voterAddress = voterAddress ?: "",
+                        ethBalance = walletInfo.balance,
+                        hasVoted = profile.voterProfile?.has_voted ?: false
                     )
+
+                    // Step 8: Log status
+                    Log.d("AccountDetails", "✅ Account data updated:")
+                    Log.d("AccountDetails", "- Private Key: ${if (privateKey != null) "✅ Available" else "❌ Missing"}")
+                    Log.d("AccountDetails", "- Public Key: ${if (publicKey != null) "✅ Available" else "❌ Missing"}")
+                    Log.d("AccountDetails", "- Voter Address: ${if (voterAddress != null) "✅ Available" else "❌ Missing"}")
+
                 },
                 onFailure = { error ->
-                    // Use fallback data if profile fetch fails
-                    val displayData = voterRepository.getAccountDisplayData()
-                    accountData = displayData.copy(
-                        email = userLoginRepository.getUserEmail() ?: ""
-                    )
-                    errorMessage = "Some data may be outdated: ${error.message}"
+                    Log.e("AccountDetails", "❌ Failed to load profile: ${error.message}")
+                    errorMessage = "Failed to load profile data: ${error.message}"
+
+                    // Try to load minimal data from local storage
+                    loadMinimalAccountDataWithKeyRecovery(userEmail)
                 }
             )
         } catch (e: Exception) {
-            errorMessage = "Failed to load account data: ${e.message}"
-            // Set default values on error
-            accountData = AccountDisplayData(
-                errorMessage = errorMessage
-            )
+            Log.e("AccountDetails", "❌ Exception loading account data: ${e.message}", e)
+            errorMessage = "Unexpected error: ${e.message}"
         } finally {
             isLoading = false
-            isRefreshing = false
         }
     }
 
@@ -142,55 +293,10 @@ fun AccountDetailsScreen(
         }
     }
 
-    // Password confirmation dialog for private key access
-    // Logout Confirmation Dialog
-    if (showLogoutDialog) {
-        AlertDialog(
-            onDismissRequest = { showLogoutDialog = false },
-            title = {
-                Text(
-                    text = "Logout",
-                    style = AppTypography.heading4Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            },
-            text = {
-                Text(
-                    text = "Are you sure you want to logout from your account?",
-                    style = AppTypography.paragraphRegular,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showLogoutDialog = false
-                        loginViewModel.logoutUser()
-                        onLogout()
-                    },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = NeutralColors.Neutral40
-                    )
-                ) {
-                    Text("Logout")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showLogoutDialog = false },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                ) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
 
-    // Load account data when screen opens
+    // Load data on first composition
     LaunchedEffect(Unit) {
-        loadAccountData()
+        loadAccountDataEnhanced()
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -222,6 +328,50 @@ fun AccountDetailsScreen(
                 style = AppTypography.heading4Regular,
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier.align(Alignment.Center)
+            )
+        }
+
+        if (showLogoutDialog) {
+            AlertDialog(
+                onDismissRequest = { showLogoutDialog = false },
+                title = {
+                    Text(
+                        text = "Logout",
+                        style = AppTypography.heading4Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Are you sure you want to logout from your account?",
+                        style = AppTypography.paragraphRegular,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showLogoutDialog = false
+                            loginViewModel.logoutUser()
+                            onLogout()
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = NeutralColors.Neutral40
+                        )
+                    ) {
+                        Text("Logout")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showLogoutDialog = false },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        Text("Cancel")
+                    }
+                }
             )
         }
 

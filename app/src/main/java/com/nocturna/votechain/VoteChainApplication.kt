@@ -1,6 +1,8 @@
 package com.nocturna.votechain
 
+import StartupInitializer
 import android.app.Application
+import android.content.ContentValues.TAG
 import android.util.Log
 import com.nocturna.votechain.blockchain.BlockchainManager
 import com.nocturna.votechain.data.network.ElectionNetworkClient
@@ -23,83 +25,242 @@ import java.security.Security
  * Make sure to add this to AndroidManifest.xml with android:name=".VoteChainApplication"
  */
 class VoteChainApplication : Application() {
-    private val TAG = "VoteChainApplication"
+    companion object {
+        private const val TAG = "VoteChainApplication"
 
-    // Application scope
+        lateinit var instance: VoteChainApplication
+            private set
+    }
+
+    // Application scope untuk background operations
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    // Startup initializer untuk key management
+    private lateinit var startupInitializer: StartupInitializer
 
     override fun onCreate() {
         super.onCreate()
 
-        Log.d("VoteChainApp", "Application initialized")
+        instance = this
+
+        Log.d(TAG, "🚀 VoteChain Application starting with enhanced key management...")
 
         // Initialize CryptoKeyManager BouncyCastle provider
         try {
-            CryptoKeyManager.initializeBouncyCastle()
+            // Step 1: Initialize BouncyCastle provider
+            initializeBouncyCastle()
+
+            // Step 2: Initialize core components
+            initializeCoreComponents()
+            initializeLanguageManager()
+            initializeThemeManager()
+
+            // Step 3: Initialize network clients
+            initializeNetworkClients()
+
+            // Step 4: Initialize startup manager untuk crypto keys
+            initializeStartupManager()
+
+            Log.d(TAG, "✅ VoteChain Application initialized successfully")
+
         } catch (e: Exception) {
-            Log.e("VoteChainApp", "Failed to initialize BouncyCastle", e)
+            Log.e(TAG, "❌ Error during application initialization: ${e.message}", e)
         }
-
-        // Register BouncyCastle provider
-        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-            Security.addProvider(BouncyCastleProvider())
-        }
-
-        // Initialize language manager
-        initializeLanguageManager()
-
-        // Initialize theme manager
-        initializeThemeManager()
-
-        // Initialize NetworkClient with application context
-        NetworkClient.initialize(this)
-        Log.d(TAG, "Application initialized with NetworkClient")
-
-        // Initialize the ElectionNetworkClient with application context
-        initializeElectionNetworkClient()
-
     }
 
-    private fun initializeElectionNetworkClient() {
-        // First initialize with application context
-        ElectionNetworkClient.initialize(this)
+    /**
+     * Initialize language manager
+     */
+    private fun initializeLanguageManager() {
+        // Initialize with saved language preference (defaults to Indonesian)
+        LanguageManager.initialize(this)
+        Log.d(TAG, "✅ Language initialized to: ${LanguageManager.getLanguage(this)}")
+    }
 
-        // Check if there's a token already stored
-        val hasToken = ElectionNetworkClient.hasValidToken()
-        Log.i(TAG, "ElectionNetworkClient initialized with token status: ${if (hasToken) "Token available" else "No token"}")
+    /**
+     * Initialize theme manager
+     */
+    private fun initializeThemeManager() {
+        // Initialize with saved theme preference (defaults to Light Mode)
+        ThemeManager.initialize(this)
+        Log.d(TAG, "✅ Theme initialized to: ${ThemeManager.getTheme(this)}")
+    }
 
-        // If there's no token and you have a default/demo token, you can set it here
-        if (!hasToken) {
-            // This is a placeholder for a potential demo token for testing
-            // In a real app, you would typically get this from a login process
-            val demoToken = getDemoTokenIfAvailable()
-            if (demoToken.isNotEmpty()) {
-                Log.i(TAG, "Setting demo token for ElectionNetworkClient")
-                ElectionNetworkClient.saveUserToken(demoToken)
+    /**
+     * Initialize BouncyCastle provider for cryptographic operations
+     */
+    private fun initializeBouncyCastle() {
+        try {
+            // Initialize CryptoKeyManager BouncyCastle provider
+            CryptoKeyManager.initializeBouncyCastle()
+
+            // Register BouncyCastle provider
+            if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+                Security.addProvider(BouncyCastleProvider())
+                Log.d(TAG, "✅ BouncyCastle provider registered")
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to initialize BouncyCastle", e)
+        }
+    }
+
+    /**
+     * Initialize core application components
+     */
+    private fun initializeCoreComponents() {
+        try {
+            // Initialize language manager
+            LanguageManager.initialize(this)
+            Log.d(TAG, "✅ Language initialized to: ${LanguageManager.getLanguage(this)}")
+
+            // Initialize theme manager
+            ThemeManager.initialize(this)
+            Log.d(TAG, "✅ Theme initialized to: ${ThemeManager.getTheme(this)}")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error initializing core components: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Initialize network clients
+     */
+    private fun initializeNetworkClients() {
+        try {
+            // Initialize NetworkClient with application context
+            NetworkClient.initialize(this)
+            Log.d(TAG, "✅ NetworkClient initialized")
+
+            // Initialize the ElectionNetworkClient
+            initializeElectionNetworkClient()
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error initializing network clients: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Initialize startup manager untuk auto-loading crypto keys
+     */
+    private fun initializeStartupManager() {
+        try {
+            // Initialize startup manager
+            startupInitializer = StartupInitializer.getInstance(this)
+
+            // Start key initialization in background
+            applicationScope.launch {
+                try {
+                    Log.d(TAG, "🔐 Starting crypto key initialization...")
+                    startupInitializer.initializeApp()
+                    Log.d(TAG, "✅ Crypto key initialization completed")
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ Error during crypto key initialization: ${e.message}", e)
+                }
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error initializing startup manager: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Initialize ElectionNetworkClient dengan token handling
+     */
+    private fun initializeElectionNetworkClient() {
+        try {
+            // First initialize with application context
+            ElectionNetworkClient.initialize(this)
+
+            // Check if there's a token already stored
+            val hasToken = ElectionNetworkClient.hasValidToken()
+            Log.i(TAG, "ElectionNetworkClient initialized with token status: ${if (hasToken) "Token available" else "No token"}")
+
+            // If there's no token and you have a default/demo token, you can set it here
+            if (!hasToken) {
+                val demoToken = getDemoTokenIfAvailable()
+                if (demoToken.isNotEmpty()) {
+                    Log.i(TAG, "Setting demo token for ElectionNetworkClient")
+                    ElectionNetworkClient.saveUserToken(demoToken)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error initializing ElectionNetworkClient: ${e.message}", e)
         }
     }
 
     /**
      * Get a demo token if available (for testing purposes)
-     * In a real app, this would come from a login process
      */
     private fun getDemoTokenIfAvailable(): String {
         // This is where you could provide a demo/default token for testing
         // For security reasons, don't hard-code real tokens in production code
-        // This should be replaced with a proper authentication flow
-        return "" // Return empty string for now - replace with actual token if needed
+        return "" // Return empty string for now
     }
 
-    private fun initializeLanguageManager() {
-        // Initialize with saved language preference (defaults to Indonesian)
-        LanguageManager.initialize(this)
-        Log.d(TAG, "Language initialized to: ${LanguageManager.getLanguage(this)}")
+    /**
+     * Get startup initializer instance
+     */
+    fun getStartupInitializer(): StartupInitializer {
+        return if (::startupInitializer.isInitialized) {
+            startupInitializer
+        } else {
+            Log.w(TAG, "StartupInitializer not yet initialized, creating new instance")
+            StartupInitializer.getInstance(this)
+        }
     }
 
-    private fun initializeThemeManager() {
-        // Initialize with saved theme preference (defaults to Light Mode)
-        ThemeManager.initialize(this)
-        Log.d(TAG, "Theme initialized to: ${ThemeManager.getTheme(this)}")
+    /**
+     * Force reload all keys (untuk debugging atau recovery)
+     */
+    suspend fun forceReloadAllKeys(): Boolean {
+        return try {
+            Log.d(TAG, "🔄 Force reloading all keys from Application level...")
+            getStartupInitializer().forceReloadAllKeys()
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error during force reload: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Get key status report (untuk monitoring)
+     */
+    fun getKeyStatusReport(userEmail: String): StartupInitializer.KeyStatusReport {
+        return try {
+            getStartupInitializer().getKeyStatusReport(userEmail)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error getting key status report: ${e.message}", e)
+            StartupInitializer.KeyStatusReport(
+                userEmail = userEmail,
+                cryptoManagerStatus = StartupInitializer.KeyStorageStatus(),
+                backupStatus = StartupInitializer.KeyStorageStatus(),
+                needsAttention = true,
+                timestamp = System.currentTimeMillis(),
+                error = e.message
+            )
+        }
+    }
+
+    /**
+     * Clear keys that need attention flag
+     */
+    fun clearKeysNeedAttention(userEmail: String) {
+        try {
+            getStartupInitializer().clearKeysNeedAttention(userEmail)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error clearing keys need attention: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Check if keys need user attention
+     */
+    fun doKeysNeedAttention(userEmail: String): Boolean {
+        return try {
+            getStartupInitializer().doKeysNeedAttention(userEmail)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error checking if keys need attention: ${e.message}", e)
+            true // Assume they need attention on error
+        }
     }
 }

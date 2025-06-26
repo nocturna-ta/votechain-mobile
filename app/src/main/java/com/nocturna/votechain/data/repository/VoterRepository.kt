@@ -139,7 +139,7 @@ class VoterRepository(private val context: Context) {
     /**
      * Save voter data to SharedPreferences (without private key for security)
      */
-    private fun saveVoterDataLocally(voterData: VoterData) {
+    fun saveVoterDataLocally(voterData: VoterData) {
         val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         with(sharedPreferences.edit()) {
             putString(KEY_VOTER_FULL_NAME, voterData.full_name)

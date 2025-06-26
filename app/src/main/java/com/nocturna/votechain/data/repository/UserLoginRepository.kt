@@ -13,6 +13,7 @@ import com.nocturna.votechain.data.network.NetworkClient
 import com.nocturna.votechain.security.CryptoKeyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.math.BigInteger
 import java.security.MessageDigest
 
 /**
@@ -59,6 +60,128 @@ class UserLoginRepository(private val context: Context) {
     } catch (e: Exception) {
         Log.e(TAG, "Failed to create encrypted preferences, falling back to regular preferences", e)
         context.getSharedPreferences(SECURE_PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    /**
+     * Enhanced login dengan loading crypto keys
+     */
+    suspend fun loginUserWithCryptoKeys(
+        email: String,
+        password: String
+    ): Result<ApiResponse<UserLoginData>> = withContext(Dispatchers.IO) {
+        try {
+            // Step 1: Login normal
+            val loginResult = loginUser(email, password)
+
+            return@withContext loginResult.fold(
+                onSuccess = { response ->
+                    Log.d(TAG, "✅ Login successful, loading crypto keys...")
+
+                    // Step 2: Load crypto keys setelah login berhasil
+                    loadCryptoKeysAfterLogin(email)
+
+                    Result.success(response)
+                },
+                onFailure = { exception ->
+                    Log.e(TAG, "❌ Login failed: ${exception.message}")
+                    Result.failure(exception)
+                }
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Exception during enhanced login: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Load crypto keys setelah login berhasil
+     */
+    private fun loadCryptoKeysAfterLogin(email: String) {
+        try {
+            Log.d(TAG, "Loading crypto keys for user: $email")
+
+            // Step 1: Cek apakah keys sudah ada di CryptoKeyManager
+            val existingPrivateKey = CryptoKeyManager(context).getPrivateKey()
+            val existingPublicKey = CryptoKeyManager(context).getPublicKey()
+            val existingVoterAddress = CryptoKeyManager(context).getVoterAddress()
+
+            if (existingPrivateKey != null && existingPublicKey != null && existingVoterAddress != null) {
+                Log.d(TAG, "✅ Crypto keys already loaded in CryptoKeyManager")
+                return
+            }
+
+            // Step 2: Coba ambil dari backup storage (UserLoginRepository)
+            val backupPrivateKey = getPrivateKey(email)
+            val backupPublicKey = getPublicKey(email)
+
+            if (backupPrivateKey != null && backupPublicKey != null) {
+                Log.d(TAG, "✅ Found backup keys, restoring to CryptoKeyManager...")
+
+                // Restore keys ke CryptoKeyManager
+                val keyPairInfo = CryptoKeyManager.KeyPairInfo(
+                    publicKey = backupPublicKey,
+                    privateKey = backupPrivateKey,
+                    voterAddress = deriveVoterAddressFromPublicKey(backupPublicKey),
+                    generationMethod = "Restored_From_Backup"
+                )
+
+                CryptoKeyManager(context).storeKeyPair(keyPairInfo)
+                Log.d(TAG, "✅ Keys restored successfully")
+            } else {
+                Log.w(TAG, "⚠️ No backup keys found for user: $email")
+                Log.w(TAG, "User may need to regenerate keys or import from backup")
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error loading crypto keys: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Derive voter address from public key
+     */
+    private fun deriveVoterAddressFromPublicKey(publicKey: String): String {
+        return try {
+            // Remove 0x prefix if present
+            val cleanPublicKey = if (publicKey.startsWith("0x")) {
+                publicKey.substring(2)
+            } else {
+                publicKey
+            }
+
+            // Convert to BigInteger and derive address
+            val publicKeyBigInt = BigInteger(cleanPublicKey, 16)
+            val addressHex = org.web3j.crypto.Keys.getAddress(publicKeyBigInt)
+            org.web3j.crypto.Keys.toChecksumAddress("0x" + addressHex)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deriving voter address: ${e.message}")
+            "0x0000000000000000000000000000000000000000" // Fallback address
+        }
+    }
+
+    /**
+     * Verify keys integrity setelah login
+     */
+    fun verifyKeysIntegrityAfterLogin(email: String): Boolean {
+        return try {
+            val cryptoManager = CryptoKeyManager(context)
+
+            val privateKey = cryptoManager.getPrivateKey()
+            val publicKey = cryptoManager.getPublicKey()
+            val voterAddress = cryptoManager.getVoterAddress()
+
+            val hasAllKeys = privateKey != null && publicKey != null && voterAddress != null
+
+            Log.d(TAG, "Keys integrity check for $email:")
+            Log.d(TAG, "- Private Key: ${if (privateKey != null) "✅ Present" else "❌ Missing"}")
+            Log.d(TAG, "- Public Key: ${if (publicKey != null) "✅ Present" else "❌ Missing"}")
+            Log.d(TAG, "- Voter Address: ${if (voterAddress != null) "✅ Present" else "❌ Missing"}")
+
+            hasAllKeys
+        } catch (e: Exception) {
+            Log.e(TAG, "Error verifying keys integrity: ${e.message}")
+            false
+        }
     }
 
     /**
@@ -407,30 +530,103 @@ class UserLoginRepository(private val context: Context) {
     }
 
     /**
-     * Get private key for specific email user
-     */
-    fun getPrivateKey(email: String): String? {
-        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return sharedPreferences.getString("${email}_private_key", null)
-    }
-
-    /**
-     * Get public key for specific email user
-     */
-    fun getPublicKey(email: String): String? {
-        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return sharedPreferences.getString("${email}_public_key", null)
-    }
-
-    /**
-     * Save keys for specific email user
+     * Save keys for specific email user (backup storage)
      */
     fun saveKeysForUser(email: String, privateKey: String, publicKey: String) {
-        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val editor = sharedPreferences.edit()
-        editor.putString("${email}_private_key", privateKey)
-        editor.putString("${email}_public_key", publicKey)
-        editor.apply()
-        Log.d(TAG, "Keys saved for user: $email")
+        try {
+            val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            with(sharedPreferences.edit()) {
+                putString("${email}_private_key", privateKey)
+                putString("${email}_public_key", publicKey)
+                putLong("${email}_keys_timestamp", System.currentTimeMillis())
+                apply()
+            }
+            Log.d(TAG, "✅ Backup keys saved for user: $email")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error saving backup keys for user $email: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Get private key for specific email user (backup storage)
+     */
+    fun getPrivateKey(email: String): String? {
+        return try {
+            val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val privateKey = sharedPreferences.getString("${email}_private_key", null)
+            if (privateKey != null) {
+                Log.d(TAG, "✅ Private key found in backup storage for: $email")
+            } else {
+                Log.w(TAG, "⚠️ No private key found in backup storage for: $email")
+            }
+            privateKey
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error retrieving private key for $email: ${e.message}", e)
+            null
+        }
+    }
+
+    /**
+     * Get public key for specific email user (backup storage)
+     */
+    fun getPublicKey(email: String): String? {
+        return try {
+            val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val publicKey = sharedPreferences.getString("${email}_public_key", null)
+            if (publicKey != null) {
+                Log.d(TAG, "✅ Public key found in backup storage for: $email")
+            } else {
+                Log.w(TAG, "⚠️ No public key found in backup storage for: $email")
+            }
+            publicKey
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error retrieving public key for $email: ${e.message}", e)
+            null
+        }
+    }
+
+    /**
+     * Clear backup keys for specific user
+     */
+    fun clearBackupKeysForUser(email: String) {
+        try {
+            val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            with(sharedPreferences.edit()) {
+                remove("${email}_private_key")
+                remove("${email}_public_key")
+                remove("${email}_keys_timestamp")
+                apply()
+            }
+            Log.d(TAG, "✅ Backup keys cleared for user: $email")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error clearing backup keys for $email: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Enhanced logout dengan clear all keys
+     */
+    suspend fun logoutUserEnhanced(): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val userEmail = getUserEmail()
+
+            // Clear backup keys if we have user email
+            if (!userEmail.isNullOrEmpty()) {
+                clearBackupKeysForUser(userEmail)
+            }
+
+            // Call existing logout
+            val logoutResult = logoutUser()
+
+            // Clear crypto keys
+            val cryptoKeyManager = CryptoKeyManager(context)
+            cryptoKeyManager.clearStoredKeys()
+
+            Log.d(TAG, "✅ Enhanced logout completed successfully")
+            logoutResult
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error during enhanced logout", e)
+            Result.failure(e)
+        }
     }
 }
