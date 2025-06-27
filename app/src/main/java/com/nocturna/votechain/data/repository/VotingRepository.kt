@@ -46,7 +46,14 @@ class VotingRepository(
             Log.d(TAG, "  - Election Pair ID: $electionPairId")
             Log.d(TAG, "  - Region: $region")
 
-            // Step 1: Get verified OTP token
+            // Step 1: Validate inputs
+            if (electionPairId.isEmpty()) {
+                Log.e(TAG, "❌ Election pair ID is empty")
+                emit(Result.failure(Exception("Election pair ID is required")))
+                return@flow
+            }
+
+            // Step 2: Get verified OTP token
             val otpToken = otpRepository.getStoredOTPToken()
             if (otpToken.isNullOrEmpty()) {
                 Log.e(TAG, "❌ No valid OTP token found")
@@ -56,31 +63,15 @@ class VotingRepository(
 
             Log.d(TAG, "✅ Valid OTP token found")
 
-            // Step 2: Comprehensive validation
-            val tokenManager = getTokenManager()
-            val validationResult = if (tokenManager != null) {
-                VoteValidationHelper.validateVotePrerequisites(context, cryptoKeyManager, tokenManager)
-            } else {
-                // Handle null TokenManager case
-                VoteValidationHelper.ValidationResult(false, listOf("TokenManager is not available"))
-            }
-
-            if (!validationResult.isValid) {
-                Log.e(TAG, "❌ Vote validation failed")
-                Log.e(TAG, validationResult.getErrorMessage())
-                emit(Result.failure(Exception("Vote validation failed: ${validationResult.getErrorMessage()}")))
-                return@flow
-            }
-
-            Log.d(TAG, "✅ All vote prerequisites validated successfully")
-
             // Step 3: Get authentication token
             val token = getAuthToken()
             if (token.isNullOrEmpty()) {
                 Log.e(TAG, "❌ No authentication token available")
-                emit(Result.failure(Exception("Authentication required")))
+                emit(Result.failure(Exception("Authentication required. Please login again.")))
                 return@flow
             }
+
+            Log.d(TAG, "✅ Authentication token available")
 
             // Step 4: Get voter ID from stored data
             val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -95,38 +86,59 @@ class VotingRepository(
 
             Log.d(TAG, "✅ Voter ID retrieved: $voterId")
 
-            // Step 5: Generate signed transaction
+            // Step 5: Get region (use provided region or get from storage)
+            val finalRegion = region ?: getStoredRegion() ?: "default"
+            Log.d(TAG, "✅ Using region: $finalRegion")
+
+            // Step 6: Validate cryptographic prerequisites
+            if (!validateCryptoPrerequisites()) {
+                Log.e(TAG, "❌ Cryptographic prerequisites validation failed")
+                emit(Result.failure(Exception("Cryptographic setup incomplete. Please complete registration.")))
+                return@flow
+            }
+
+            Log.d(TAG, "✅ Cryptographic prerequisites validated")
+
+            // Step 7: Generate signed transaction
             Log.d(TAG, "🔐 Generating signed transaction...")
             val signedTransaction = signedTransactionGenerator.generateVoteSignedTransaction(
                 electionPairId = electionPairId,
                 voterId = voterId,
-                region = region
+                region = finalRegion
             )
 
-            // Step 6: Validate signed transaction
-            if (!signedTransactionGenerator.validateSignedTransaction(signedTransaction)) {
-                Log.e(TAG, "❌ Failed to generate valid signed transaction")
+            // Step 8: Validate signed transaction
+            if (signedTransaction.isNullOrEmpty()) {
+                Log.e(TAG, "❌ Failed to generate signed transaction")
                 emit(Result.failure(Exception("Failed to sign vote data. Cryptographic signing failed.")))
                 return@flow
             }
 
-            Log.d(TAG, "✅ Signed transaction generated and validated successfully")
+            if (!signedTransactionGenerator.validateSignedTransaction(signedTransaction)) {
+                Log.e(TAG, "❌ Signed transaction validation failed")
+                emit(Result.failure(Exception("Invalid signed transaction generated.")))
+                return@flow
+            }
 
-            // Step 7: Create enhanced vote request with verified OTP
+            Log.d(TAG, "✅ Signed transaction generated and validated successfully")
+            Log.d(TAG, "  - Transaction length: ${signedTransaction.length} characters")
+            Log.d(TAG, "  - Transaction preview: ${signedTransaction.take(16)}...")
+
+            // Step 9: Create vote request
             val voteRequest = VoteCastRequest(
                 election_pair_id = electionPairId,
                 otp_token = otpToken,
-                region = region,
-                signed_transaction = signedTransaction!!,
+                region = finalRegion,
+                signed_transaction = signedTransaction,
                 voter_id = voterId
             )
 
-            // Step 8: Log detailed request information
+            // Step 10: Log request details for debugging
             logVoteRequestDetails(voteRequest)
 
-            Log.d(TAG, "🌐 Making API call to cast vote with OTP verification")
+            Log.d(TAG, "🌐 Making API call to cast vote")
 
-            // Step 9: Make API call with enhanced request
+            // Step 11: Make API call
             val response = voteApiService.castVoteWithOTP(
                 token = "Bearer $token",
                 request = voteRequest
@@ -160,15 +172,17 @@ class VotingRepository(
                 Log.e(TAG, "Error body: $errorBody")
 
                 val errorMessage = when (response.code()) {
-                    400 -> "Invalid vote data or OTP token"
-                    401 -> "Authentication failed"
-                    403 -> "Already voted or not authorized"
-                    422 -> "Invalid OTP token or expired"
-                    else -> "Server error: ${response.code()}"
+                    400 -> "Invalid vote data. Please check your selection and try again."
+                    401 -> "Authentication failed. Please login again."
+                    403 -> "You have already voted or are not authorized to vote."
+                    422 -> "Invalid or expired OTP token. Please verify OTP again."
+                    429 -> "Too many requests. Please wait a moment and try again."
+                    500 -> "Server error. Please try again later."
+                    else -> "Failed to cast vote: HTTP ${response.code()}"
                 }
 
-                // Clear invalid OTP token
-                if (response.code() == 422) {
+                // Clear invalid OTP token for specific error codes
+                if (response.code() in listOf(401, 422)) {
                     otpRepository.clearOTPToken()
                 }
 
@@ -182,6 +196,35 @@ class VotingRepository(
     }.flowOn(Dispatchers.IO)
 
     /**
+     * Validate cryptographic prerequisites without external dependencies
+     */
+    private fun validateCryptoPrerequisites(): Boolean {
+        try {
+            // Check if crypto key manager has required keys
+            if (!cryptoKeyManager.hasStoredKeyPair()) {
+                Log.e(TAG, "❌ No key pair stored")
+                return false
+            }
+
+            // Test signing capability
+            val testData = "test_${System.currentTimeMillis()}"
+            val testSignature = cryptoKeyManager.signData(testData)
+
+            if (testSignature.isNullOrEmpty()) {
+                Log.e(TAG, "❌ Signing test failed - no signature generated")
+                return false
+            }
+
+            Log.d(TAG, "✅ Crypto prerequisites validation passed")
+            return true
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Crypto validation exception: ${e.message}", e)
+            return false
+        }
+    }
+
+    /**
      * Submit vote (Legacy method for backward compatibility)
      * @param categoryId The voting category ID
      * @param optionId The selected option/candidate ID
@@ -191,29 +234,20 @@ class VotingRepository(
             Log.d(TAG, "📝 Submitting legacy vote - Category: $categoryId, Option: $optionId")
 
             // Get stored region or use default
-            val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val sharedPreferences = context.getSharedreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val region = sharedPreferences.getString("user_region", "default") ?: "default"
 
             // For legacy compatibility, use optionId as electionPairId
-            emit(
-                Result.success(
-                    VoteCastResponse(
-                        code = 0,
-                        data = null,
-                        error = null,
-                        message = "Vote submitted successfully (legacy mode)"
-                    )
-                )
-            )
-
-            // Update local voting status
-            updateLocalVotingStatus(optionId, null)
+            // Use the enhanced voting method
+            castVoteWithOTPVerification(optionId, region).collect { result ->
+                emit(result)
+            }
 
         } catch (e: Exception) {
             Log.e(TAG, "❌ Exception during legacy vote submission", e)
             emit(Result.failure(e))
         }
-    }
+    }.flowOn(Dispatchers.IO)
 
     /**
      * Check if user has already voted
@@ -226,7 +260,7 @@ class VotingRepository(
     /**
      * Get active voting categories
      */
-    fun getActiveVotings(): Flow<Result<List<VotingCategory>>> = flow<Result<List<VotingCategory>>> {
+    fun getActiveVotings(): Flow<Result<List<VotingCategory>>> = flow {
         try {
             // Simulate network delay
             delay(1000)
@@ -274,6 +308,9 @@ class VotingRepository(
         val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         with(sharedPreferences.edit()) {
             putBoolean(KEY_HAS_VOTED, false)
+            remove("last_vote_election_pair_id")
+            remove("last_vote_tx_hash")
+            remove("last_vote_timestamp")
             apply()
         }
         otpRepository.clearOTPToken()
@@ -287,6 +324,16 @@ class VotingRepository(
         val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return sharedPreferences.getString("auth_token", null)
             ?: sharedPreferences.getString("user_token", null)
+            ?: sharedPreferences.getString("access_token", null)
+    }
+
+    /**
+     * Get stored region from preferences
+     */
+    private fun getStoredRegion(): String? {
+        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return sharedPreferences.getString("user_region", null)
+            ?: sharedPreferences.getString("region", null)
     }
 
     /**
