@@ -2,6 +2,7 @@ package com.nocturna.votechain.utils
 
 import android.util.Log
 import com.nocturna.votechain.security.CryptoKeyManager
+import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
 /**

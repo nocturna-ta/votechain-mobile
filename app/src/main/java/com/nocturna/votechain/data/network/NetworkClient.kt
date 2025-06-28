@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
  */
 object NetworkClient {
 
-    const val BASE_URL = "https://526d-125-164-17-41.ngrok-free.app"
+    const val BASE_URL = "https://2cca-36-79-161-93.ngrok-free.app"
     private const val TAG = "NetworkClient"
     private const val PREFS_NAME = "VoteChainPrefs"
     private const val KEY_USER_TOKEN = "user_token"
