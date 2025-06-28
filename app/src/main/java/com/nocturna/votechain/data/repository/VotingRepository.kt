@@ -234,7 +234,7 @@ class VotingRepository(
             Log.d(TAG, "📝 Submitting legacy vote - Category: $categoryId, Option: $optionId")
 
             // Get stored region or use default
-            val sharedPreferences = context.getSharedreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val region = sharedPreferences.getString("user_region", "default") ?: "default"
 
             // For legacy compatibility, use optionId as electionPairId
@@ -369,13 +369,5 @@ class VotingRepository(
         Log.d(TAG, "  - Voter ID: ${voteRequest.voter_id}")
         Log.d(TAG, "  - OTP Token: ${if (voteRequest.otp_token.isNotEmpty()) "✅ Present" else "❌ Missing"}")
         Log.d(TAG, "  - Signed Transaction: ${if (voteRequest.signed_transaction.isNotEmpty()) "✅ Present" else "❌ Missing"}")
-    }
-
-    /**
-     * Get stored region from preferences
-     */
-    private fun getStoredRegion(): String? {
-        val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return sharedPreferences.getString("user_region", null)
     }
 }
