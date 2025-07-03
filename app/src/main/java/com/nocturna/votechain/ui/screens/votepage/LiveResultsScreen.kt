@@ -1,11 +1,17 @@
 package com.nocturna.votechain.ui.screens.votepage
 
 import android.util.Log
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,6 +19,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,14 +29,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.paint
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -54,6 +66,7 @@ import com.nocturna.votechain.ui.components.RegionalPerformanceMap
 import com.nocturna.votechain.ui.screens.LoadingScreen
 import com.nocturna.votechain.ui.theme.AppTypography
 import com.nocturna.votechain.ui.theme.DangerColors
+import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.ui.theme.PrimaryColors
 import com.nocturna.votechain.ui.theme.SuccessColors
 import com.nocturna.votechain.ui.theme.WarningColors
@@ -66,8 +79,12 @@ import java.text.NumberFormat
 import java.util.Locale
 import kotlin.collections.isNotEmpty
 import kotlin.collections.sortedByDescending
+import kotlin.math.PI
+import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.pow
 import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.random.Random
 
 // Data class untuk kandidat dengan persentase
@@ -126,6 +143,8 @@ fun LiveResultScreen(
     var showUpdateNotification by remember { mutableStateOf(false) }
     val electionStartTime = remember { System.currentTimeMillis() }
 
+    val selectedElectionPairId by liveResultViewModel.selectedElectionPairId.collectAsState()
+
     // PERBAIKAN 1: Inisialisasi yang lebih robust
     LaunchedEffect(Unit) {
         Log.d("LiveResultScreen", "Initializing LiveResultScreen")
@@ -182,7 +201,7 @@ fun LiveResultScreen(
 
         try {
             // Gunakan function robust untuk handle semua kasus
-            aggregatedData = createRobustAggregatedData(electionPairs, allElectionsData, rawLiveData)
+//            aggregatedData = createRobustAggregatedData(electionPairs, allElectionsData, rawLiveData)
 
             if (aggregatedData != null) {
                 lastUpdateTime = System.currentTimeMillis()
@@ -347,11 +366,11 @@ fun LiveResultScreen(
                         }
 
                         // Statistics Summary Cards
-                        if (aggregatedElectionStats != null) {
-                            item {
-                                ElectionStatsSummary(aggregatedStats = aggregatedElectionStats!!)
-                            }
-                        }
+//                        if (aggregatedElectionStats != null) {
+//                            item {
+//                                ElectionStatsSummary(aggregatedStats = aggregatedElectionStats!!)
+//                            }
+//                        }
 
                         item {
                             // Aggregated Stats Card
@@ -362,20 +381,199 @@ fun LiveResultScreen(
                             )
                         }
 
+//                        item {
+//                            // Main Pie Chart Card - Shows distribution across ALL election pairs
+//                            when {
+//                                aggregatedData != null && aggregatedData!!.electionPairs.isNotEmpty() -> {
+//                                    Log.d("LiveResultScreen", "Rendering pie chart with ${aggregatedData!!.electionPairs.size} pairs")
+//                                    AggregatedPieChartCard(
+//                                        aggregatedData = aggregatedData!!,
+//                                        rotation = rotation
+//                                    )
+//                                }
+//                                aggregatedData != null && aggregatedData!!.electionPairs.isEmpty() -> {
+//                                    Card(
+//                                        modifier = Modifier.fillMaxWidth()
+//                                    ) {
+//                                        Box(
+//                                            modifier = Modifier
+//                                                .fillMaxWidth()
+//                                                .height(200.dp),
+//                                            contentAlignment = Alignment.Center
+//                                        ) {
+//                                            Text(
+//                                                text = "No election data available for chart",
+//                                                style = AppTypography.paragraphRegular
+//                                            )
+//                                        }
+//                                    }
+//                                }
+//                                else -> {
+//                                    Card(
+//                                        modifier = Modifier.fillMaxWidth()
+//                                    ) {
+//                                        Box(
+//                                            modifier = Modifier
+//                                                .fillMaxWidth()
+//                                                .height(200.dp),
+//                                            contentAlignment = Alignment.Center
+//                                        ) {
+//                                            Column(
+//                                                horizontalAlignment = Alignment.CenterHorizontally
+//                                            ) {
+//                                                CircularProgressIndicator()
+//                                                Spacer(modifier = Modifier.height(8.dp))
+//                                                Text(
+//                                                    text = "Loading chart data...",
+//                                                    style = AppTypography.paragraphRegular
+//                                                )
+//                                            }
+//                                        }
+//                                    }
+//                                }
+//                            }
+//                        }
                         item {
                             // Main Pie Chart Card - Shows distribution across ALL election pairs
                             when {
                                 aggregatedData != null && aggregatedData!!.electionPairs.isNotEmpty() -> {
                                     Log.d("LiveResultScreen", "Rendering pie chart with ${aggregatedData!!.electionPairs.size} pairs")
-                                    AggregatedPieChartCard(
-                                        aggregatedData = aggregatedData!!,
-                                        rotation = rotation
-                                    )
-                                }
-                                aggregatedData != null && aggregatedData!!.electionPairs.isEmpty() -> {
+
+                                    // ============================================
+                                    // GANTI BAGIAN INI: AggregatedPieChartCard(...)
+                                    // DENGAN KODE YANG ANDA BERIKAN
+                                    // ============================================
+
+                                    // HAPUS INI:
+                                    // AggregatedPieChartCard(
+                                    //     aggregatedData = aggregatedData!!,
+                                    //     rotation = rotation
+                                    // )
+
+                                    // GANTI DENGAN INI:
                                     Card(
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .shadow(8.dp, RoundedCornerShape(16.dp)),
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surface
+                                        )
                                     ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(20.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text(
+                                                text = "Vote Distribution",
+                                                style = AppTypography.heading5Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+
+                                            Spacer(modifier = Modifier.height(8.dp))
+
+                                            // TAMBAHAN: Instruction text
+                                            Text(
+                                                text = "Ketuk nomor urut untuk melihat detail per wilayah",
+                                                style = AppTypography.paragraphRegular.copy(fontSize = 12.sp),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                textAlign = TextAlign.Center
+                                            )
+
+                                            Spacer(modifier = Modifier.height(16.dp))
+
+                                            // GANTI: Interactive Pie Chart dengan callback
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(240.dp)
+                                                    .aspectRatio(1f),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                AggregatedAnimatedPieChart(
+                                                    electionPairs = aggregatedData!!.electionPairs,
+                                                    onElectionPairSelected = { electionPairId ->
+                                                        liveResultViewModel.selectElectionPair(electionPairId)
+                                                    },
+                                                    modifier = Modifier.size(240.dp),
+                                                    allLiveData = allElectionsData
+                                                )
+
+                                                // TAMBAHKAN: Center info (copy dari AggregatedPieChartCard yang asli)
+                                                Column(
+                                                    horizontalAlignment = Alignment.CenterHorizontally
+                                                ) {
+                                                    Text(
+                                                        text = "Leading",
+                                                        style = AppTypography.paragraphRegular.copy(fontSize = 10.sp),
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                    if (aggregatedData!!.electionPairs.isNotEmpty()) {
+                                                        val leadingPair = aggregatedData!!.electionPairs.maxByOrNull { it.percentage }
+                                                        if (leadingPair != null) {
+                                                            Text(
+                                                                text = "#${leadingPair.electionPair.election_no}",
+                                                                style = AppTypography.paragraphBold.copy(fontSize = 16.sp),
+                                                                color = MaterialTheme.colorScheme.onSurface
+                                                            )
+                                                            Text(
+                                                                text = "${String.format("%.1f", leadingPair.percentage)}%",
+                                                                style = AppTypography.paragraphBold.copy(fontSize = 12.sp),
+                                                                color = leadingPair.color
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.height(16.dp))
+
+                                            // TAMBAHKAN: Legend (copy dari AggregatedPieChartCard yang asli)
+                                            LazyColumn(
+                                                modifier = Modifier.heightIn(max = 200.dp),
+                                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                items(aggregatedData!!.electionPairs.sortedByDescending { it.percentage }) { electionPairData ->
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                                    ) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(16.dp)
+                                                                .background(electionPairData.color, CircleShape)
+                                                        )
+
+                                                        Column(modifier = Modifier.weight(1f)) {
+                                                            Text(
+                                                                text = "#${electionPairData.electionPair.election_no} - ${electionPairData.electionPair.president.full_name}",
+                                                                style = AppTypography.paragraphSemiBold.copy(fontSize = 14.sp),
+                                                                color = MaterialTheme.colorScheme.onSurface
+                                                            )
+                                                            Text(
+                                                                text = "${formatNumber(electionPairData.votes)} votes",
+                                                                style = AppTypography.paragraphRegular.copy(fontSize = 12.sp),
+                                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                            )
+                                                        }
+
+                                                        Text(
+                                                            text = "${String.format("%.1f", electionPairData.percentage)}%",
+                                                            style = AppTypography.paragraphBold.copy(fontSize = 14.sp),
+                                                            color = electionPairData.color
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // ... existing other cases (aggregatedData is null, etc.) ...
+                                aggregatedData != null && aggregatedData!!.electionPairs.isEmpty() -> {
+                                    Card(modifier = Modifier.fillMaxWidth()) {
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -390,9 +588,7 @@ fun LiveResultScreen(
                                     }
                                 }
                                 else -> {
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
+                                    Card(modifier = Modifier.fillMaxWidth()) {
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -413,6 +609,15 @@ fun LiveResultScreen(
                                     }
                                 }
                             }
+                        }
+
+                        item {
+                            RegionDetailSection(
+                                selectedElectionPairId = selectedElectionPairId,
+                                electionPairs = aggregatedData?.electionPairs ?: emptyList(),
+                                allLiveData = allElectionsData,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
 
                         // Participation Trend Chart
@@ -446,29 +651,29 @@ fun LiveResultScreen(
                             }
                         }
 
-                        // Regional Breakdown untuk current election
-                        if (rawLiveData?.regions?.isNotEmpty() == true) {
-                            item {
-                                RegionalBreakdownCard(regions = rawLiveData!!.regions)
-                            }
-                        }
+//                        // Regional Breakdown untuk current election
+//                        if (rawLiveData?.regions?.isNotEmpty() == true) {
+//                            item {
+//                                RegionDetailCard(regions = rawLiveData!!.regions)
+//                            }
+//                        }
 
-                        // Top Cities untuk current election
-                        if (rawLiveData?.topCities?.isNotEmpty() == true) {
-                            item {
-                                TopCitiesCard(cities = rawLiveData!!.topCities)
-                            }
-                        }
-
-                        // Individual Election Results
-                        if (allElectionsData.isNotEmpty()) {
-                            item {
-                                IndividualElectionResultsCard(
-                                    allLiveData = allElectionsData,
-                                    electionPairs = electionPairs
-                                )
-                            }
-                        }
+//                        // Top Cities untuk current election
+//                        if (rawLiveData?.topCities?.isNotEmpty() == true) {
+//                            item {
+//                                TopCitiesCard(cities = rawLiveData!!.topCities)
+//                            }
+//                        }
+//
+//                        // Individual Election Results
+//                        if (allElectionsData.isNotEmpty()) {
+//                            item {
+//                                IndividualElectionResultsCard(
+//                                    allLiveData = allElectionsData,
+//                                    electionPairs = electionPairs
+//                                )
+//                            }
+//                        }
 
                         // Footer with last update info
                         item {
@@ -486,7 +691,7 @@ fun LiveResultScreen(
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Text(
-                                        text = "🔄 Data refreshes automatically every 30 seconds",
+                                        text = "Data refreshes automatically every 30 seconds",
                                         style = AppTypography.paragraphRegular,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -546,12 +751,14 @@ fun AggregatedStatsCard(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = "Overall Election Statistics",
                     style = AppTypography.heading5Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+
                 )
             }
 
@@ -600,130 +807,129 @@ private fun calculateElectionDuration(startTime: Long?): String {
 }
 
 // PERBAIKAN 10: Improved AggregatedPieChartCard dengan better error handling
-@Composable
-fun AggregatedPieChartCard(
-    aggregatedData: AggregatedElectionData,
-    rotation: Float
-) {
-    Log.d("AggregatedPieChartCard", "Rendering with ${aggregatedData.electionPairs.size} pairs")
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(8.dp, RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Vote Distribution",
-                style = AppTypography.heading5Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // PERBAIKAN: Tambahkan kondisi check sebelum render pie chart
-            if (aggregatedData.electionPairs.isNotEmpty()) {
-                // Pie Chart
-                Box(
-                    modifier = Modifier
-                        .size(240.dp)
-                        .aspectRatio(1f), // Tambahan untuk memastikan rasio 1:1
-                    contentAlignment = Alignment.Center
-                ) {
-                    AggregatedAnimatedPieChart(
-                        electionPairs = aggregatedData.electionPairs,
-                        modifier = Modifier.size(240.dp) // Ukuran fixed, bukan fillMaxSize()
-                    )
-
-                    // Center info
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Leading",
-                            style = AppTypography.paragraphRegular,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        aggregatedData.electionPairs.maxByOrNull { it.votes }?.let { leader ->
-                            Text(
-                                text = "${leader.percentage.toInt()}%",
-                                style = AppTypography.heading3Bold,
-                                color = leader.color
-                            )
-                            Text(
-                                text = "#${leader.electionPair.election_no}",
-                                style = AppTypography.paragraphMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Legend
-                aggregatedData.electionPairs.sortedByDescending { it.votes }.forEach { electionPairData ->
-                    AggregatedLegendItem(
-                        electionPairData = electionPairData,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-            } else {
-                // TAMBAHAN: Fallback UI jika tidak ada data
-                Box(
-                    modifier = Modifier
-                        .size(280.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
-                            RoundedCornerShape(16.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.back),
-                            contentDescription = "No data",
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "No chart data available",
-                            style = AppTypography.paragraphRegular,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
+//@Composable
+//fun AggregatedPieChartCard(
+//    aggregatedData: AggregatedElectionData,
+//    rotation: Float
+//) {
+//    Log.d("AggregatedPieChartCard", "Rendering with ${aggregatedData.electionPairs.size} pairs")
+//
+//    Card(
+//        modifier = Modifier
+//            .fillMaxWidth()
+//            .shadow(8.dp, RoundedCornerShape(16.dp)),
+//        shape = RoundedCornerShape(16.dp),
+//        colors = CardDefaults.cardColors(
+//            containerColor = MaterialTheme.colorScheme.surface
+//        )
+//    ) {
+//        Column(
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .padding(20.dp),
+//            horizontalAlignment = Alignment.CenterHorizontally
+//        ) {
+//            Text(
+//                text = "Vote Distribution",
+//                style = AppTypography.heading5Bold,
+//                color = MaterialTheme.colorScheme.onSurface
+//            )
+//
+//            Spacer(modifier = Modifier.height(24.dp))
+//
+//            // PERBAIKAN: Tambahkan kondisi check sebelum render pie chart
+//            if (aggregatedData.electionPairs.isNotEmpty()) {
+//                // Pie Chart
+//                Box(
+//                    modifier = Modifier
+//                        .size(240.dp)
+//                        .aspectRatio(1f), // Tambahan untuk memastikan rasio 1:1
+//                    contentAlignment = Alignment.Center
+//                ) {
+//                    AggregatedAnimatedPieChart(
+//                        electionPairs = aggregatedData.electionPairs,
+//                        modifier = Modifier.size(240.dp)
+//                    )
+//
+//                    // Center info
+//                    Column(
+//                        horizontalAlignment = Alignment.CenterHorizontally
+//                    ) {
+//                        Text(
+//                            text = "Leading",
+//                            style = AppTypography.paragraphRegular,
+//                            color = MaterialTheme.colorScheme.onSurfaceVariant
+//                        )
+//                        aggregatedData.electionPairs.maxByOrNull { it.votes }?.let { leader ->
+//                            Text(
+//                                text = "${leader.percentage.toInt()}%",
+//                                style = AppTypography.heading3Bold,
+//                                color = leader.color
+//                            )
+//                            Text(
+//                                text = "#${leader.electionPair.election_no}",
+//                                style = AppTypography.paragraphMedium,
+//                                color = MaterialTheme.colorScheme.onSurfaceVariant
+//                            )
+//                        }
+//                    }
+//                }
+//
+//                Spacer(modifier = Modifier.height(20.dp))
+//
+//                // Legend
+//                aggregatedData.electionPairs.sortedByDescending { it.votes }.forEach { electionPairData ->
+//                    AggregatedLegendItem(
+//                        electionPairData = electionPairData,
+//                        modifier = Modifier.fillMaxWidth()
+//                    )
+//                    Spacer(modifier = Modifier.height(8.dp))
+//                }
+//            } else {
+//                // TAMBAHAN: Fallback UI jika tidak ada data
+//                Box(
+//                    modifier = Modifier
+//                        .size(280.dp)
+//                        .background(
+//                            MaterialTheme.colorScheme.surfaceVariant,
+//                            RoundedCornerShape(16.dp)
+//                        ),
+//                    contentAlignment = Alignment.Center
+//                ) {
+//                    Column(
+//                        horizontalAlignment = Alignment.CenterHorizontally
+//                    ) {
+//                        Icon(
+//                            painter = painterResource(R.drawable.back),
+//                            contentDescription = "No data",
+//                            modifier = Modifier.size(48.dp),
+//                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+//                        )
+//                        Spacer(modifier = Modifier.height(8.dp))
+//                        Text(
+//                            text = "No chart data available",
+//                            style = AppTypography.paragraphRegular,
+//                            color = MaterialTheme.colorScheme.onSurfaceVariant
+//                        )
+//                    }
+//                }
+//            }
+//        }
+//    }
+//}
 
 // PERBAIKAN 11: Improved AggregatedAnimatedPieChart dengan safety checks
 @Composable
 fun AggregatedAnimatedPieChart(
     electionPairs: List<ElectionPairWithVotes>,
+    allLiveData: Map<String, LiveElectionData>,
+    onElectionPairSelected: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    // TAMBAHAN: Safety check untuk data kosong
     if (electionPairs.isEmpty()) {
-        Log.w("AggregatedAnimatedPieChart", "No election pairs data to render")
+        Log.w("InteractiveAggregatedPieChart", "No election pairs data to render")
         return
     }
-
-    Log.d("AggregatedAnimatedPieChart", "Rendering pie chart for ${electionPairs.size} pairs")
 
     val animatedValues = electionPairs.map { electionPairData ->
         animateFloatAsState(
@@ -735,8 +941,42 @@ fun AggregatedAnimatedPieChart(
 
     Canvas(
         modifier = modifier
-            .size(280.dp) // Ukuran fixed untuk mencegah infinite constraints
-            .aspectRatio(1f) // Pastikan berbentuk persegi
+            .size(280.dp)
+            .aspectRatio(1f)
+            .pointerInput(Unit) {
+                if (onElectionPairSelected != null) {
+                    detectTapGestures { offset ->
+                        val center = Offset(size.width / 2f, size.height / 2f)
+                        val radius = minOf(size.width, size.height) / 2f * 0.85f
+
+                        // Calculate distance from center
+                        val distance = sqrt(
+                            (offset.x - center.x).pow(2) + (offset.y - center.y).pow(2)
+                        )
+
+                        // Check if tap is within the donut ring
+                        val outerRadius = radius
+                        val innerRadius = radius * 0.4f // Adjust based on your donut hole size
+
+                        if (distance >= innerRadius && distance <= outerRadius) {
+                            // Calculate angle of tap
+                            val angle = atan2(offset.y - center.y, offset.x - center.x)
+                            val normalizedAngle = (angle * 180 / PI + 90 + 360) % 360
+
+                            // Find which slice was tapped
+                            var currentAngle = 0f
+                            electionPairs.forEachIndexed { index, electionPairData ->
+                                val sweepAngle = (animatedValues[index].value / 100f) * 360f
+                                if (normalizedAngle >= currentAngle && normalizedAngle < currentAngle + sweepAngle) {
+                                    onElectionPairSelected(electionPairData.electionPair.id)
+                                    return@detectTapGestures
+                                }
+                                currentAngle += sweepAngle
+                            }
+                        }
+                    }
+                }
+            }
     ) {
         val canvasWidth = size.width
         val canvasHeight = size.height
@@ -765,18 +1005,82 @@ fun AggregatedAnimatedPieChart(
                     sweepAngle = sweepAngle,
                     useCenter = false,
                     style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
-                    size = androidx.compose.ui.geometry.Size(radius * 2, radius * 2),
-                    topLeft = androidx.compose.ui.geometry.Offset(
+                    size = Size(radius * 2, radius * 2),
+                    topLeft = Offset(
                         center.x - radius,
                         center.y - radius
                     )
                 )
-
                 currentAngle += sweepAngle
             }
         }
     }
 }
+//    electionPairs: List<ElectionPairWithVotes>,
+//    modifier: Modifier = Modifier
+//) {
+//    // TAMBAHAN: Safety check untuk data kosong
+//    if (electionPairs.isEmpty()) {
+//        Log.w("AggregatedAnimatedPieChart", "No election pairs data to render")
+//        return
+//    }
+//
+//    Log.d("AggregatedAnimatedPieChart", "Rendering pie chart for ${electionPairs.size} pairs")
+//
+//    val animatedValues = electionPairs.map { electionPairData ->
+//        animateFloatAsState(
+//            targetValue = electionPairData.percentage,
+//            animationSpec = tween(durationMillis = 1500, easing = FastOutSlowInEasing),
+//            label = "pie_slice_${electionPairData.electionPair.id}"
+//        )
+//    }
+//
+//    Canvas(
+//        modifier = modifier
+//            .size(280.dp) // Ukuran fixed untuk mencegah infinite constraints
+//            .aspectRatio(1f) // Pastikan berbentuk persegi
+//    ) {
+//        val canvasWidth = size.width
+//        val canvasHeight = size.height
+//
+//        if (canvasWidth <= 0 || canvasHeight <= 0) {
+//            return@Canvas
+//        }
+//
+//        val radius = minOf(canvasWidth, canvasHeight) / 2f * 0.85f
+//        val center = center
+//
+//        var currentAngle = -90f
+//        val strokeWidth = 50.dp.toPx()
+//
+//        electionPairs.forEachIndexed { index, electionPairData ->
+//            val animatedValue = animatedValues[index].value
+//            val sweepAngle = (animatedValue / 100f) * 360f
+//
+//            Log.d("AggregatedAnimatedPieChart", "Drawing slice $index: ${electionPairData.percentage}% -> $sweepAngle°")
+//
+//            if (sweepAngle > 0) {
+//                // Draw pie slice
+//                drawArc(
+//                    color = electionPairData.color,
+//                    startAngle = currentAngle,
+//                    sweepAngle = sweepAngle,
+//                    useCenter = false,
+//                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+//                    size = androidx.compose.ui.geometry.Size(radius * 2, radius * 2),
+//                    topLeft = androidx.compose.ui.geometry.Offset(
+//                        center.x - radius,
+//                        center.y - radius
+//                    )
+//                )
+//
+//                currentAngle += sweepAngle
+//            }
+//        }
+//    }
+//}
+
+
 
 // Function untuk mensimulasikan data dari multiple election_id
 fun generateSimulatedElectionData(
@@ -813,75 +1117,75 @@ fun generateSimulatedElectionData(
 }
 
 // Function untuk agregasi data dari semua election_id
-fun aggregateElectionData(
-    electionPairs: List<ElectionPair>,
-    allLiveData: Map<String, LiveElectionData>
-): AggregatedElectionData {
-    val totalVotes = allLiveData.values.sumOf { it.totalVotes }
-    val totalVoters = allLiveData.values.firstOrNull()?.totalVoters ?: 0
-    val participationRate = if (totalVoters > 0) (totalVotes.toDouble() / totalVoters) * 100 else 0.0
-
-    val electionPairsWithVotes = electionPairs.mapIndexed { index, pair ->
-        val liveData = allLiveData[pair.id]
-        val votes = liveData?.totalVotes ?: 0
-        val percentage = if (totalVotes > 0) (votes.toFloat() / totalVotes) * 100f else 0f
-
-        ElectionPairWithVotes(
-            electionPair = pair,
-            electionId = pair.id,
-            votes = votes,
-            percentage = percentage,
-            color = PieChartColors[index % PieChartColors.size]
-        )
-    }
-
-    return AggregatedElectionData(
-        totalVotes = totalVotes,
-        totalVoters = totalVoters,
-        participationRate = participationRate,
-        electionPairs = electionPairsWithVotes
-    )
-}
+//fun aggregateElectionData(
+//    electionPairs: List<ElectionPair>,
+//    allLiveData: Map<String, LiveElectionData>
+//): AggregatedElectionData {
+//    val totalVotes = allLiveData.values.sumOf { it.totalVotes }
+//    val totalVoters = allLiveData.values.firstOrNull()?.totalVoters ?: 0
+//    val participationRate = if (totalVoters > 0) (totalVotes.toDouble() / totalVoters) * 100 else 0.0
+//
+//    val electionPairsWithVotes = electionPairs.mapIndexed { index, pair ->
+//        val liveData = allLiveData[pair.id]
+//        val votes = liveData?.totalVotes ?: 0
+//        val percentage = if (totalVotes > 0) (votes.toFloat() / totalVotes) * 100f else 0f
+//
+//        ElectionPairWithVotes(
+//            electionPair = pair,
+//            electionId = pair.id,
+//            votes = votes,
+//            percentage = percentage,
+//            color = PieChartColors[index % PieChartColors.size]
+//        )
+//    }
+//
+//    return AggregatedElectionData(
+//        totalVotes = totalVotes,
+//        totalVoters = totalVoters,
+//        participationRate = participationRate,
+//        electionPairs = electionPairsWithVotes
+//    )
+//}
 
 // PERBAIKAN 8: Improved robust data creation dengan better fallback
-fun createRobustAggregatedData(
-    electionPairs: List<ElectionPair>,
-    allElectionsData: Map<String, LiveElectionData>,
-    rawLiveData: LiveElectionData?
-): AggregatedElectionData? {
-    return when {
-        // Case 1: Ada election pairs dan live data
-        electionPairs.isNotEmpty() && allElectionsData.isNotEmpty() -> {
-            Log.d("LiveResultScreen", "Creating aggregated data from election pairs and live data")
-            aggregateElectionData(electionPairs, allElectionsData)
-        }
-
-        // Case 2: Ada election pairs tapi tidak ada live data, gunakan rawLiveData
-        electionPairs.isNotEmpty() && rawLiveData != null -> {
-            Log.d("LiveResultScreen", "Creating aggregated data from election pairs and raw data")
-            val simulatedData = generateSimulatedElectionData(electionPairs, rawLiveData)
-            aggregateElectionData(electionPairs, simulatedData)
-        }
-
-        // Case 3: Tidak ada election pairs tapi ada rawLiveData, buat fallback
-        electionPairs.isEmpty() && rawLiveData != null -> {
-            Log.w("LiveResultScreen", "Creating fallback aggregated data")
-            createFallbackAggregatedData(rawLiveData)
-        }
-
-        // Case 4: Ada election pairs tapi tidak ada data apapun, buat empty data
-        electionPairs.isNotEmpty() -> {
-            Log.w("LiveResultScreen", "Creating empty aggregated data from election pairs")
-            createEmptyAggregatedData(electionPairs)
-        }
-
-        // Case 5: Tidak ada data sama sekali
-        else -> {
-            Log.w("LiveResultScreen", "No data available for aggregation")
-            null
-        }
-    }
-}
+//fun createRobustAggregatedData(
+//    electionPairs: List<ElectionPair>,
+//    allElectionsData: Map<String, LiveElectionData>,
+//    rawLiveData: LiveElectionData?
+//): AggregatedElectionData? {
+//    return when {
+//        // Case 1: Ada election pairs dan live data
+//        electionPairs.isNotEmpty() && allElectionsData.isNotEmpty() -> {
+//            Log.d("LiveResultScreen", "Creating aggregated data from election pairs and live data")
+//            aggregateElectionData(electionPairs, allElectionsData)
+//        }
+//
+//        // Case 2: Ada election pairs tapi tidak ada live data, gunakan rawLiveData
+//        electionPairs.isNotEmpty() && rawLiveData != null -> {
+//            Log.d("LiveResultScreen", "Creating aggregated data from election pairs and raw data")
+//            val simulatedData = generateSimulatedElectionData(electionPairs, rawLiveData)
+//            aggregateElectionData(electionPairs, simulatedData)
+//        }
+//
+//        // Case 3: Tidak ada election pairs tapi ada rawLiveData, buat fallback
+//        electionPairs.isEmpty() && rawLiveData != null -> {
+//            Log.w("LiveResultScreen", "Creating fallback aggregated data")
+//            createFallbackAggregatedData(rawLiveData)
+//        }
+//
+//        // Case 4: Ada election pairs tapi tidak ada data apapun, buat empty data
+//        electionPairs.isNotEmpty() -> {
+//            Log.w("LiveResultScreen", "Creating empty aggregated data from election pairs")
+//            createEmptyAggregatedData(electionPairs)
+//        }
+//
+//        // Case 5: Tidak ada data sama sekali
+//        else -> {
+//            Log.w("LiveResultScreen", "No data available for aggregation")
+//            null
+//        }
+//    }
+//}
 
 // TAMBAHAN: Function untuk membuat empty aggregated data
 fun createEmptyAggregatedData(electionPairs: List<ElectionPair>): AggregatedElectionData {
@@ -902,6 +1206,15 @@ fun createEmptyAggregatedData(electionPairs: List<ElectionPair>): AggregatedElec
         electionPairs = electionPairsWithVotes
     )
 }
+
+fun Int.formatToIndonesianNumber(): String {
+    return when {
+        this >= 1_000_000 -> String.format("%.1f juta", this / 1_000_000.0)
+        this >= 1_000 -> String.format("%.1f ribu", this / 1_000.0)
+        else -> this.toString()
+    }
+}
+
 
 @Composable
 fun AggregatedLegendItem(
@@ -1106,64 +1419,235 @@ fun IndividualElectionItem(
 
 // Reuse existing components
 @Composable
-fun RegionalBreakdownCard(regions: List<LiveRegionResult>) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(8.dp, RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp)
+fun RegionDetailSection(
+    selectedElectionPairId: String?,
+    electionPairs: List<ElectionPairWithVotes>,
+    allLiveData: Map<String, LiveElectionData>,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = selectedElectionPairId != null,
+        enter = fadeIn() + slideInVertically(),
+        exit = fadeOut() + slideOutVertically()
     ) {
-        Column(
+        if (selectedElectionPairId != null) {
+            val selectedElectionPair = electionPairs.find { it.electionPair.id == selectedElectionPairId }
+            val liveData = allLiveData[selectedElectionPairId]
+
+            if (selectedElectionPair != null && liveData != null) {
+                Card(
+                    modifier = modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        // Header dengan info nomor urut
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(
+                                        selectedElectionPair.color,
+                                        RoundedCornerShape(8.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "${selectedElectionPair.electionPair.election_no}",
+                                    style = AppTypography.paragraphBold.copy(fontSize = 18.sp),
+                                    color = Color.White
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "Nomor Urut ${selectedElectionPair.electionPair.election_no}",
+                                    style = AppTypography.paragraphBold.copy(fontSize = 16.sp),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "${selectedElectionPair.electionPair.president.full_name} - ${selectedElectionPair.electionPair.vice_president.full_name}",
+                                    style = AppTypography.paragraphRegular.copy(fontSize = 14.sp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Total votes
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Total Votes:",
+                                style = AppTypography.paragraphSemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "${formatNumber(liveData.totalVotes)} Votes",
+                                style = AppTypography.paragraphSemiBold,
+                                color = selectedElectionPair.color
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            text = "Region Details:",
+                            style = AppTypography.paragraphBold.copy(fontSize = 14.sp),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // List wilayah dengan persentase
+                        LazyColumn(
+                            modifier = Modifier.heightIn(max = 300.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(liveData.regions.sortedByDescending { it.percentage }) { region ->
+                                RegionResultItem(
+                                    region = region,
+                                    accentColor = selectedElectionPair.color
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+//fun RegionalBreakdownCard(regions: List<LiveRegionResult>) {
+//    Card(
+//        modifier = Modifier
+//            .fillMaxWidth()
+//            .shadow(8.dp, RoundedCornerShape(16.dp)),
+//        shape = RoundedCornerShape(16.dp)
+//    ) {
+//        Column(
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .padding(20.dp)
+//        ) {
+//            Text(
+//                text = "Regional Breakdown",
+//                style = AppTypography.heading5Bold,
+//                color = MaterialTheme.colorScheme.onSurface
+//            )
+//
+//            Spacer(modifier = Modifier.height(16.dp))
+//
+//            regions.forEach { region ->
+//                RegionItem(region = region)
+//                Spacer(modifier = Modifier.height(12.dp))
+//            }
+//        }
+//    }
+//}
+
+@Composable
+fun RegionResultItem(
+    region: LiveRegionResult,
+    accentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = NeutralColors.Neutral10
+        )
+    ) {
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp)
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Regional Breakdown",
-                style = AppTypography.heading5Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = region.region,
+                    style = AppTypography.paragraphSemiBold.copy(fontSize = 14.sp),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "${formatNumber(region.votes)} votes",
+                    style = AppTypography.paragraphRegular.copy(fontSize = 12.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            regions.forEach { region ->
-                RegionItem(region = region)
-                Spacer(modifier = Modifier.height(12.dp))
+            // Progress bar dan persentase
+            Column(
+                horizontalAlignment = Alignment.End,
+                modifier = Modifier.width(100.dp)
+            ) {
+                Text(
+                    text = "${String.format("%.1f", region.percentage)}%",
+                    style = AppTypography.paragraphBold.copy(fontSize = 14.sp),
+                    color = accentColor
+                )
+//                Spacer(modifier = Modifier.height(4.dp))
+//                LinearProgressIndicator(
+//                    progress = { (region.percentage / 100.0).toFloat() },
+//                    modifier = Modifier
+//                        .fillMaxWidth()
+//                        .height(4.dp)
+//                        .clip(RoundedCornerShape(2.dp)),
+//                    color = accentColor,
+//                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+//                )
             }
         }
     }
 }
 
-@Composable
-fun RegionItem(region: LiveRegionResult) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = region.region,
-            style = AppTypography.paragraphMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "${NumberFormat.getNumberInstance(Locale.US).format(region.votes)} votes",
-                style = AppTypography.paragraphRegular,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "${String.format("%.1f", region.percentage * 100)}%",
-                style = AppTypography.paragraphBold,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-    }
+fun formatNumber(number: Int): String {
+    val formatter = NumberFormat.getInstance(Locale("id", "ID"))
+    return formatter.format(number)
 }
+
+//fun RegionItem(region: LiveRegionResult) {
+//    Row(
+//        modifier = Modifier.fillMaxWidth(),
+//        horizontalArrangement = Arrangement.SpaceBetween,
+//        verticalAlignment = Alignment.CenterVertically
+//    ) {
+//        Text(
+//            text = region.region,
+//            style = AppTypography.paragraphMedium,
+//            color = MaterialTheme.colorScheme.onSurface
+//        )
+//
+//        Row(
+//            verticalAlignment = Alignment.CenterVertically
+//        ) {
+//            Text(
+//                text = "${NumberFormat.getNumberInstance(Locale.US).format(region.votes)} votes",
+//                style = AppTypography.paragraphRegular,
+//                color = MaterialTheme.colorScheme.onSurfaceVariant
+//            )
+//            Spacer(modifier = Modifier.width(8.dp))
+//            Text(
+//                text = "${String.format("%.1f", region.percentage * 100)}%",
+//                style = AppTypography.paragraphBold,
+//                color = MaterialTheme.colorScheme.primary
+//            )
+//        }
+//    }
+//}
 
 @Composable
 fun TopCitiesCard(cities: List<LiveCityResult>) {

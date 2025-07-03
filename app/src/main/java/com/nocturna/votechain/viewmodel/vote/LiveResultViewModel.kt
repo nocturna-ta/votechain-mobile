@@ -2,10 +2,12 @@
 
 package com.nocturna.votechain.viewmodel.vote
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.nocturna.votechain.data.model.LiveElectionData
+import com.nocturna.votechain.data.model.LiveRegionResult
 import com.nocturna.votechain.data.model.VotingResult
 import com.nocturna.votechain.data.network.LiveResultsWebSocketManager
 import com.nocturna.votechain.data.repository.LiveResultRepository
@@ -52,6 +54,25 @@ class LiveResultViewModel(
 
     // Set untuk tracking active election subscriptions
     private val activeElectionSubscriptions = mutableSetOf<String>()
+
+    // Tambahkan state untuk selected election pair
+    private val _selectedElectionPairId = MutableStateFlow<String?>(null)
+    val selectedElectionPairId: StateFlow<String?> = _selectedElectionPairId.asStateFlow()
+
+    // TAMBAHAN: Function untuk select/deselect election pair
+    fun selectElectionPair(electionPairId: String?) {
+        _selectedElectionPairId.value = if (_selectedElectionPairId.value == electionPairId) {
+            null // Deselect if same item clicked
+        } else {
+            electionPairId
+        }
+        Log.d("LiveResultViewModel", "Selected election pair: $electionPairId")
+    }
+
+    // TAMBAHAN: Function untuk mendapatkan region details untuk election pair tertentu
+    fun getRegionDetailsForElectionPair(electionPairId: String): List<LiveRegionResult> {
+        return _allElectionsData.value[electionPairId]?.regions ?: emptyList()
+    }
 
     /**
      * Start receiving live results for a specific election
