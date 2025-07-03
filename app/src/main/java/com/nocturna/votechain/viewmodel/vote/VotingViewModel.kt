@@ -6,7 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.nocturna.votechain.data.model.VoteCastResponse
+import com.nocturna.votechain.data.model.VotingCategory
+import com.nocturna.votechain.data.model.VotingResult
 import com.nocturna.votechain.data.repository.VotingRepository
+import com.nocturna.votechain.data.repository.DetailedResultRepository
 import com.nocturna.votechain.security.CryptoKeyManager
 import com.nocturna.votechain.utils.VotingErrorHandler
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,10 +23,19 @@ import kotlinx.coroutines.launch
 class VotingViewModel(
     private val context: Context,
     private val repository: VotingRepository,
-    private val errorHandler: VotingErrorHandler
+    private val errorHandler: VotingErrorHandler,
+    private val detailedResultRepository: DetailedResultRepository = DetailedResultRepository()
 ) : ViewModel() {
 
     private val TAG = "VotingViewModel"
+
+    // Active votings state (untuk tab pertama)
+    private val _activeVotings = MutableStateFlow<List<VotingCategory>>(emptyList())
+    val activeVotings: StateFlow<List<VotingCategory>> = _activeVotings.asStateFlow()
+
+    // Voting results state (untuk tab kedua)
+    private val _votingResults = MutableStateFlow<List<VotingResult>>(emptyList())
+    val votingResults: StateFlow<List<VotingResult>> = _votingResults.asStateFlow()
 
     // UI State
     private val _uiState = MutableStateFlow(VotingUiState())
@@ -33,18 +45,22 @@ class VotingViewModel(
     private val _voteResult = MutableStateFlow<VoteCastResponse?>(null)
     val voteResult: StateFlow<VoteCastResponse?> = _voteResult.asStateFlow()
 
+    // Error handling - menggunakan VotingError untuk konsistensi
     private val _error = MutableStateFlow<VotingErrorHandler.VotingError?>(null)
     val error: StateFlow<VotingErrorHandler.VotingError?> = _error.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    // Fixed: menggunakan Boolean bukan Map<String, Boolean>
     private val _hasVoted = MutableStateFlow(false)
     val hasVoted: StateFlow<Boolean> = _hasVoted.asStateFlow()
 
     init {
         // Initialize voting status
         updateVotingStatus()
+        // Load initial data
+        loadVotingData()
     }
 
     /**
@@ -145,7 +161,8 @@ class VotingViewModel(
             error = null,
             voteResult = response,
             votingStep = VotingStep.VOTE_CONFIRMED,
-            isVoteSuccessful = true
+            isVoteSuccessful = true,
+            hasVoted = true
         )
         _isLoading.value = false
         _error.value = null
@@ -210,24 +227,25 @@ class VotingViewModel(
     }
 
     /**
-     * Update voting status
+     * Update voting status for UI feedback
      */
     private fun updateVotingStatus() {
-        try {
-            val hasVoted = repository.hasUserVoted()
-            val status = repository.getDetailedVotingStatus()
+        viewModelScope.launch {
+            try {
+                // Check voting status
+                val votingStatus = repository.getDetailedVotingStatus()
+                val hasUserVoted = votingStatus["has_voted"] as? Boolean ?: false
+                _hasVoted.value = hasUserVoted
 
-            _hasVoted.value = hasVoted
-
-            _uiState.value = _uiState.value.copy(
-                hasVoted = hasVoted,
-                canVote = repository.canVote(),
-                votingStatus = status
-            )
-
-            Log.d(TAG, "📊 Voting status updated - Has voted: $hasVoted, Can vote: ${repository.canVote()}")
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error updating voting status: ${e.message}", e)
+                // Update UI state with voting capabilities
+                _uiState.value = _uiState.value.copy(
+                    hasVoted = hasUserVoted,
+                    canVote = repository.canVote(),
+                    votingStatus = votingStatus
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating voting status", e)
+            }
         }
     }
 
@@ -240,28 +258,143 @@ class VotingViewModel(
     }
 
     /**
-     * Reset voting state
+     * Load all voting data (both active votings and results)
      */
-    fun resetVotingState() {
-        _voteResult.value = null
-        _error.value = null
-        _isLoading.value = false
+    fun loadVotingData() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
 
-        _uiState.value = VotingUiState()
-
-        // Update voting status
-        updateVotingStatus()
-
-        Log.d(TAG, "🔄 Voting state reset")
+            try {
+                // Load active votings and results in parallel
+                loadActiveVotings()
+                loadVotingResults()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading voting data", e)
+                val votingError = errorHandler.handleVotingError(e)
+                _error.value = votingError
+                _uiState.value = _uiState.value.copy(error = votingError)
+            } finally {
+                _isLoading.value = false
+                _uiState.value = _uiState.value.copy(isLoading = false)
+            }
+        }
     }
 
     /**
-     * Get recovery suggestions for current error
+     * Fetch active votings - method yang dipanggil dari UI
      */
-    fun getRecoverySuggestions(): List<String> {
-        return _error.value?.let { error ->
-            errorHandler.getRecoverySuggestions(error)
-        } ?: emptyList()
+    fun fetchActiveVotings() {
+        viewModelScope.launch {
+            try {
+                loadActiveVotings()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching active votings", e)
+                val votingError = errorHandler.handleVotingError(e)
+                _error.value = votingError
+            }
+        }
+    }
+
+    /**
+     * Fetch voting results - method yang dipanggil dari UI
+     */
+    fun fetchVotingResults() {
+        viewModelScope.launch {
+            try {
+                loadVotingResults()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching voting results", e)
+                val votingError = errorHandler.handleVotingError(e)
+                _error.value = votingError
+            }
+        }
+    }
+
+    /**
+     * Private method to load active votings
+     */
+    private suspend fun loadActiveVotings() {
+        try {
+            Log.d(TAG, "Loading active votings from repository...")
+
+            // Use repository method to get active votings
+            repository.getActiveVotings().collect { result ->
+                result.fold(
+                    onSuccess = { votingCategories ->
+                        _activeVotings.value = votingCategories
+                        Log.d(TAG, "✅ Active votings loaded: ${votingCategories.size} items")
+                    },
+                    onFailure = { exception ->
+                        Log.e(TAG, "❌ Failed to load active votings: ${exception.message}")
+                        throw exception
+                    }
+                )
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading active votings", e)
+            throw e
+        }
+    }
+
+    /**
+     * Private method to load voting results
+     */
+    private suspend fun loadVotingResults() {
+        try {
+            Log.d(TAG, "Loading voting results from DetailedResultRepository...")
+
+            // Get the list of active election categories first
+            repository.getActiveVotings().collect { categoryResult ->
+                categoryResult.fold(
+                    onSuccess = { categories ->
+                        // For each category, fetch detailed results
+                        val detailedResults = mutableListOf<VotingResult>()
+
+                        categories.forEach { category ->
+                            detailedResultRepository.getDetailedResults(category.id).collect { resultFlow ->
+                                resultFlow.fold(
+                                    onSuccess = { votingResult ->
+                                        detailedResults.add(votingResult)
+                                        Log.d(TAG, "✅ Loaded result for category: ${category.id}")
+                                    },
+                                    onFailure = { e ->
+                                        Log.w(TAG, "Failed to load result for category ${category.id}: ${e.message}")
+                                        // Create fallback result for failed categories
+                                        val fallbackResult = VotingResult(
+                                            categoryId = category.id,
+                                            categoryTitle = category.title,
+                                            totalVotes = 0,
+                                            options = emptyList()
+                                        )
+                                        detailedResults.add(fallbackResult)
+                                    }
+                                )
+                            }
+                        }
+
+                        _votingResults.value = detailedResults
+                        Log.d(TAG, "✅ All voting results loaded: ${detailedResults.size} items")
+                    },
+                    onFailure = { exception ->
+                        Log.e(TAG, "❌ Failed to load voting categories: ${exception.message}")
+                        throw exception
+                    }
+                )
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading voting results", e)
+            throw e
+        }
+    }
+
+    /**
+     * Refresh all data
+     */
+    fun refresh() {
+        loadVotingData()
     }
 
     /**
@@ -317,7 +450,8 @@ class VotingViewModel(
                 val cryptoKeyManager = CryptoKeyManager(context)
                 val repository = VotingRepository(context, cryptoKeyManager)
                 val errorHandler = VotingErrorHandler(context)
-                return VotingViewModel(context, repository, errorHandler) as T
+                val detailedResultRepository = DetailedResultRepository()
+                return VotingViewModel(context, repository, errorHandler, detailedResultRepository) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }

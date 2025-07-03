@@ -446,7 +446,7 @@ fun VotechainNavGraph(
 //        }
 
         composable("results") {
-            ResultsScreen(navController, votingViewModel)
+            ResultsScreen(navController)
         }
 
         composable(

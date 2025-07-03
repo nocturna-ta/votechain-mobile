@@ -1,8 +1,5 @@
 package com.nocturna.votechain.ui.screens.votepage
 
-import androidx.compose.foundation.background
-import com.nocturna.votechain.data.model.VotingResult
-import com.nocturna.votechain.viewmodel.vote.VotingViewModel
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,13 +16,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -33,25 +32,36 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.nocturna.votechain.R
-import com.nocturna.votechain.data.model.VotingCategory
+import com.nocturna.votechain.data.model.DummyData
+import com.nocturna.votechain.data.model.VotingResult
 import com.nocturna.votechain.ui.screens.LoadingScreen
 import com.nocturna.votechain.ui.theme.AppTypography
-import com.nocturna.votechain.ui.theme.MainColors
 import com.nocturna.votechain.ui.theme.NeutralColors
 import com.nocturna.votechain.utils.LanguageManager
 
 @Composable
 fun ResultsScreen(
-    navController: NavController,
-    viewModel: VotingViewModel = viewModel()
+    navController: NavController
 ) {
-    val votingResults by viewModel.votingResults.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.error.collectAsState()
     val strings = LanguageManager.getLocalizedStrings()
+    var isLoading by remember { mutableStateOf(true) }
+    var votingResults by remember { mutableStateOf<List<VotingResult>>(emptyList()) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    // Simulate loading and use dummy data
+    LaunchedEffect(Unit) {
+        try {
+            // Simulate network delay
+            kotlinx.coroutines.delay(1000)
+            votingResults = DummyData.votingResults
+            isLoading = false
+        } catch (e: Exception) {
+            error = e.message
+            isLoading = false
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -71,7 +81,7 @@ fun ResultsScreen(
                     color = NeutralColors.Neutral70
                 )
                 Text(
-                    text = "error",
+                    text = error ?: "Unknown error",
                     style = AppTypography.paragraphRegular,
                     color = NeutralColors.Neutral50
                 )
@@ -81,15 +91,11 @@ fun ResultsScreen(
             val resultsToShow = if (votingResults.isEmpty()) {
                 // Create default presidential election result card when no data
                 listOf(
-                    VotingCategory(
-                        id = "presidential_2024",
-                        title = strings.cardTitle,
-                        description = if (LanguageManager.getLanguage(LocalContext.current) == LanguageManager.LANGUAGE_INDONESIAN) {
-                            "Lihat hasil pemilihan dan distribusi suara"
-                        } else {
-                            "View the election results and vote distribution"
-                        },
-                        isActive = false // Results are for completed elections
+                    VotingResult(
+                        categoryId = "presidential_2024",
+                        categoryTitle = strings.cardTitle,
+                        options = emptyList(),
+                        totalVotes = 0
                     )
                 )
             } else {
@@ -102,20 +108,14 @@ fun ResultsScreen(
                 verticalArrangement = Arrangement.spacedBy(24.dp) // Match active voting spacing
             ) {
                 items(resultsToShow) { result ->
-                    // Convert VotingCategory to VotingResult for ResultCard
                     ResultCard(
-                        result = VotingResult(
-                            categoryId = result.id,
-                            categoryTitle = result.title,
-                            options = emptyList(),
-                            totalVotes = 0
-                        ),
+                        result = result,
                         onClick = {
                             // Navigate to detailed results
-                            if (result.id == "presidential_2024") {
-                                navController.navigate("live_result/${result.id}")
+                            if (result.categoryId == "presidential_2024") {
+                                navController.navigate("live_result/${result.categoryId}")
                             } else {
-                                navController.navigate("detail_result/${result.id}/${result.title}")
+                                navController.navigate("detail_result/${result.categoryId}/${result.categoryTitle}")
                             }
                         }
                     )
@@ -160,16 +160,14 @@ fun ResultCard(
 
                 Spacer(modifier = Modifier.height(6.dp)) // Match active voting spacing
 
-                // Create description showing winner or status
-//                val description = if (result.options.isNotEmpty()) {
-//                    val winner = result.options.maxByOrNull { it.votes }
-//                    "Winner: ${winner?.name} with ${winner?.votes} votes"
-//                } else {
-//                    "Total votes: ${result.totalVotes}"
-//                }
+                val description = if (LanguageManager.getLanguage(LocalContext.current) == LanguageManager.LANGUAGE_INDONESIAN) {
+                    "Lihat hasil pemilihan dan distribusi suara"
+                } else {
+                    "View the election results and vote distribution"
+                }
 
                 Text(
-                    text = "Presents the official vote counts, percentages, and detailed outcomes",
+                    text = description,
                     style = AppTypography.heading6Medium, // Match active voting description style
                     color = MaterialTheme.colorScheme.onBackground, // Match active voting description color
                     maxLines = 1,

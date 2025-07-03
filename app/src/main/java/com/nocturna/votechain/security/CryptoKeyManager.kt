@@ -7,6 +7,7 @@ import android.util.Base64
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.nocturna.votechain.data.repository.UserLoginRepository
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.web3j.crypto.ECKeyPair
 import org.web3j.crypto.Keys
@@ -198,6 +199,55 @@ class CryptoKeyManager(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error clearing stored keys: ${e.message}", e)
             throw e
+        }
+    }
+
+    /**
+     * Validate stored crypto keys
+     */
+    fun validateStoredKeys(): Boolean {
+        return try {
+            val privateKey = getPrivateKey()
+            val publicKey = getPublicKey()
+            val voterAddress = getVoterAddress()
+
+            // Basic validation - semua key harus ada
+            if (privateKey.isNullOrEmpty() || publicKey.isNullOrEmpty() || voterAddress.isNullOrEmpty()) {
+                Log.w(TAG, "One or more keys are missing")
+                return false
+            }
+
+            // Validate format
+            if (!privateKey.startsWith("0x") || privateKey.length != 66) {
+                Log.w(TAG, "Private key format invalid")
+                return false
+            }
+
+            if (!publicKey.startsWith("0x") || publicKey.length < 130) {
+                Log.w(TAG, "Public key format invalid")
+                return false
+            }
+
+            if (!voterAddress.startsWith("0x") || voterAddress.length != 42) {
+                Log.w(TAG, "Voter address format invalid")
+                return false
+            }
+
+            // Test signing capability
+            val testData = "validation_test_${System.currentTimeMillis()}"
+            val signature = signData(testData)
+
+            if (signature.isNullOrEmpty()) {
+                Log.w(TAG, "Cannot sign data with stored keys")
+                return false
+            }
+
+            Log.d(TAG, "✅ All stored keys validated successfully")
+            true
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error validating stored keys: ${e.message}", e)
+            false
         }
     }
 
@@ -628,9 +678,139 @@ class CryptoKeyManager(private val context: Context) {
     }
 
     /**
+     * Generate new crypto key pair
+     */
+    fun generateKeyPair(): KeyPairInfo {
+        return try {
+            Log.d(TAG, "Generating new crypto key pair...")
+
+            // Generate using Web3j
+            val ecKeyPair = org.web3j.crypto.Keys.createEcKeyPair()
+
+            // Convert to hex strings
+            val privateKeyHex = "0x" + ecKeyPair.privateKey.toString(16).padStart(64, '0')
+            val publicKeyHex = "0x" + ecKeyPair.publicKey.toString(16).padStart(128, '0')
+
+            // Generate Ethereum address
+            val voterAddress = "0x" + org.web3j.crypto.Keys.getAddress(ecKeyPair)
+
+            val keyPairInfo = KeyPairInfo(
+                publicKey = publicKeyHex,
+                privateKey = privateKeyHex,
+                voterAddress = voterAddress,
+                generationMethod = "Web3j_EcKeyPair_${System.currentTimeMillis()}"
+            )
+
+            Log.d(TAG, "✅ Key pair generated successfully - Address: $voterAddress")
+            keyPairInfo
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to generate key pair: ${e.message}", e)
+            throw SecurityException("Key generation failed", e)
+        }
+    }
+
+    /**
+     * Repair corrupted keys with backup data
+     */
+    fun repairCorruptedKeys(userEmail: String): Boolean {
+        return try {
+            Log.d(TAG, "Attempting to repair corrupted keys for user: $userEmail")
+
+            // Coba ambil dari backup storage (UserLoginRepository)
+            val context = this.context // pastikan context tersedia
+            val userLoginRepository = UserLoginRepository(context)
+
+            val backupPrivateKey = userLoginRepository.getPrivateKey(userEmail)
+            val backupPublicKey = userLoginRepository.getPublicKey(userEmail)
+
+            if (backupPrivateKey != null && backupPublicKey != null) {
+                Log.d(TAG, "Found backup keys, restoring...")
+
+                // Restore keys
+                val keyPairInfo = KeyPairInfo(
+                    publicKey = backupPublicKey,
+                    privateKey = backupPrivateKey,
+                    voterAddress = deriveVoterAddressFromPublicKey(backupPublicKey),
+                    generationMethod = "Repaired_From_Backup_${System.currentTimeMillis()}"
+                )
+
+                // Clear corrupted keys first
+                clearStoredKeys()
+
+                // Store repaired keys
+                storeKeyPair(keyPairInfo)
+
+                Log.d(TAG, "✅ Keys repaired successfully")
+                true
+            } else {
+                Log.w(TAG, "No backup keys found for repair")
+                false
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error repairing corrupted keys: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Force reload keys from storage
+     */
+    fun forceReloadKeys(): Boolean {
+        return try {
+            Log.d(TAG, "Force reloading keys from storage...")
+
+            // Clear in-memory cache jika ada
+            // (implementasi tergantung struktur internal CryptoKeyManager)
+
+            // Reload dari encrypted shared preferences
+            val publicKey = encryptedSharedPreferences.getString(PUBLIC_KEY_KEY, null)
+            val encryptedPrivateKey = encryptedSharedPreferences.getString(ENCRYPTED_PRIVATE_KEY_KEY, null)
+            val voterAddress = encryptedSharedPreferences.getString(VOTER_ADDRESS_KEY, null)
+            val ivString = encryptedSharedPreferences.getString(IV_KEY, null)
+
+            if (publicKey != null && encryptedPrivateKey != null && voterAddress != null && ivString != null) {
+                // Decrypt private key untuk validasi
+                val decryptedPrivateKey = doubleDecrypt(encryptedPrivateKey, ivString)
+
+                if (decryptedPrivateKey != null) {
+                    Log.d(TAG, "✅ Keys force reloaded successfully")
+                    return true
+                }
+            }
+
+            Log.w(TAG, "Failed to force reload keys - data incomplete or corrupted")
+            false
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during force reload: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Derive voter address from public key
+     */
+    private fun deriveVoterAddressFromPublicKey(publicKey: String): String {
+        return try {
+            val cleanPublicKey = publicKey.removePrefix("0x")
+            val publicKeyBigInt = BigInteger(cleanPublicKey, 16)
+
+            // Convert to ECKeyPair format
+            val ecKeyPair = ECKeyPair(BigInteger.ZERO, publicKeyBigInt)
+            "0x" + org.web3j.crypto.Keys.getAddress(ecKeyPair)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deriving address from public key: ${e.message}", e)
+            throw SecurityException("Cannot derive address", e)
+        }
+    }
+
+    /**
      * Store key pair securely
      */
-    private fun storeKeyPair(keyPairInfo: KeyPairInfo) {
+    fun storeKeyPair(keyPairInfo: KeyPairInfo) {
         try {
             // Double encrypt the private key
             val iv = generateIV()

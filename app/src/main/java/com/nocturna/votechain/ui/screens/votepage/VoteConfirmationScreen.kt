@@ -308,7 +308,7 @@ fun VoteConfirmationScreen(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            text = error,
+                            text = error.toString(),
                             style = AppTypography.paragraphRegular,
                             color = Color.Red,
                             modifier = Modifier.padding(16.dp)

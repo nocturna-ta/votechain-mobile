@@ -120,7 +120,7 @@ fun VotingScreen(
                     0 -> ActiveVotingTab(
                         activeVotings = activeVotings,
                         isLoading = isLoading,
-                        error = error,
+                        error = error?.toString(),
                         hasVoted = hasVoted,
                         onVoteItemClick = { categoryId, title ->
                             // Check if it's the 2024 presidential election - Indonesia card
@@ -136,8 +136,7 @@ fun VotingScreen(
                         navController = navController
                     )
                     1 -> ResultsScreen(
-                        navController = navController,
-                        viewModel = viewModel
+                        navController = navController
                     )
                 }
             }
