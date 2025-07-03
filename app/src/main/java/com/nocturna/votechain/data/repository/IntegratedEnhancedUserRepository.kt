@@ -48,14 +48,29 @@ class IntegratedEnhancedUserRepository(private val context: Context) {
         try {
             Log.d(TAG, "Starting full integration registration for: $email")
 
-            // Step 1: Generate secure key pair locally (independent dari blockchain)
-            val keyPairInfo = cryptoKeyManager.generateKeyPair()
-            Log.d(TAG, "✅ Generated secure key pair locally")
-            Log.d(TAG, "   Voter Address: ${keyPairInfo.voterAddress}")
+            val keyGenSuccess = cryptoKeyManager.generateAndStoreKeyPair()
+            if (!keyGenSuccess) {
+                throw Exception("Failed to generate key pair")
+            }
 
-            // Step 2: Store keys securely di Android Keystore
-            cryptoKeyManager.storeKeyPair(keyPairInfo)
-            Log.d(TAG, "✅ Keys stored securely in Android Keystore")
+            // Kemudian ambil data key pair setelah berhasil di-generate
+            val keyPairInfo = CryptoKeyManager.KeyPairInfo(
+                publicKey = cryptoKeyManager.getPublicKey() ?: "",
+                privateKey = cryptoKeyManager.getPrivateKey() ?: "",
+                voterAddress = cryptoKeyManager.getVoterAddress() ?: "",
+                creationTime = System.currentTimeMillis(),
+//                keyVersion = 1,
+                generationMethod = "EC-secp256k1"
+            )
+
+//            // Step 1: Generate secure key pair locally (independent dari blockchain)
+//            val keyPairInfo = cryptoKeyManager.generateKeyPair()
+//            Log.d(TAG, "✅ Generated secure key pair locally")
+//            Log.d(TAG, "   Voter Address: ${keyPairInfo.voterAddress}")
+//
+//            // Step 2: Store keys securely di Android Keystore
+//            cryptoKeyManager.storeKeyPair(keyPairInfo)
+//            Log.d(TAG, "✅ Keys stored securely in Android Keystore")
 
             // Step 3: Optional blockchain integration (non-blocking)
             val blockchainResult = tryBlockchainIntegration(keyPairInfo.voterAddress)

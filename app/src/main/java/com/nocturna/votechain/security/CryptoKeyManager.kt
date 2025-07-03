@@ -170,6 +170,37 @@ class CryptoKeyManager(private val context: Context) {
         enableStrongBoxBackedKeysWhenAvailable()
     }
 
+    fun clearStoredKeys() {
+        try {
+            // Clear from encrypted preferences
+            with(encryptedSharedPreferences.edit()) {
+                remove(PUBLIC_KEY_KEY)
+                remove(ENCRYPTED_PRIVATE_KEY_KEY)
+                remove(VOTER_ADDRESS_KEY)
+                remove(IV_KEY)
+                remove(KEY_CREATION_TIME)
+                remove(KEY_GENERATION_METHOD)
+                apply()
+            }
+
+            // Clear from Android Keystore
+            try {
+                val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
+                keyStore.load(null)
+                keyStore.deleteEntry(KEY_ALIAS_MASTER)
+                keyStore.deleteEntry(KEY_ALIAS_ENCRYPTION)
+                keyStore.deleteEntry(KEY_ALIAS_SIGNING)
+            } catch (e: Exception) {
+                Log.w(TAG, "Error clearing keystore entries: ${e.message}")
+            }
+
+            Log.d(TAG, "✅ All stored keys cleared")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error clearing stored keys: ${e.message}", e)
+            throw e
+        }
+    }
+
     /**
      * Enhanced signData method with proper ECDSA signing
      */
